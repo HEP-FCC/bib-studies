@@ -14,10 +14,6 @@ import os
 import stat
 
 
-input_def_path = "/eos/user/s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/"
-output_def_folder = "DDSim_output"
-
-
 # Condor Command content
 cmd_content = """executable     = $(filename)
 # for debugging:
@@ -38,12 +34,17 @@ queue filename matching files {0}
 # Default header of executable script
 exec_header = """#!/bin/bash
 source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
-#source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh -r 2024-06-06 # closest stable stack is 2024-04-12 or the one just after (I think the 2024-04-12 won't be able to run the DC)
-#cd /afs/cern.ch/user/b/brfranco/work/public/background_studies/k4geo/
-cd /afs/cern.ch/user/b/brfranco/work/public/k4geo/
-k4_local_repo
-cd -
+
+# For using custom geometries, a local version of K4GEO can be set
+# following the pattern below
+#cd /afs/cern.ch/user/your/local/k4geo
+#k4_local_repo
+#cd -
 """
+
+# Default paths / namings
+input_def_path = "/eos/user/s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/"
+output_def_folder = "DDSim_output"
 
 
 # Argument parser
