@@ -14,8 +14,8 @@ import os
 import stat
 
 
-# Condor Command content
-cmd_content = """executable     = $(filename)
+# Condor command content
+condor_cmd_content = """executable     = $(filename)
 # for debugging:
 # redirect the log file to somewhere accessible (uncomment lines below)
 #Log            = $(filename).log
@@ -29,6 +29,18 @@ max_retries    = 3
 +JobFlavour    = "espresso"
 RequestCpus = 1
 queue filename matching files {0}
+"""
+
+# Local command content
+local_cmd_content = """#!/bin/bash
+SCRIPTS=$(ls {0})
+
+for script in $SCRIPTS; do
+    echo "#########################################"
+    echo "Running $script..."
+    echo "#########################################"
+    ./$script
+done
 """
 
 # Default header of executable script
@@ -82,13 +94,11 @@ def run(args):
     if not os.path.isdir(tag):
         os.mkdir(tag)
 
-    exec_template_name = os.path.join(tag, "run_ddsim_FILENAME.sh")
-    exec_pattern = exec_template_name.replace("FILENAME", "*")
-
-    cmd_file_content = cmd_content.format(exec_pattern)
-
+    # Setup the bash executables scripts
     print("Preparing submission for:")
     n_jobs = 0
+    exec_template_name = os.path.join(tag, "run_ddsim_FILENAME.sh")
+
     for folder in os.listdir(input_file_path):
         if n_max > 0 and n_max <= n_jobs:
             break
@@ -118,11 +128,23 @@ def run(args):
         os.chmod(executable_path, st.st_mode | stat.S_IEXEC)
         n_jobs += 1
 
+    # Setup the condor script
     condor_submit_path = f"{tag}.cmd"
+    exec_pattern = exec_template_name.replace("FILENAME", "*")
+    cmd_file_content = condor_cmd_content.format(exec_pattern)
+
     with open(condor_submit_path, "w") as f:
         f.write(cmd_file_content)
     submit_cmd = f"condor_submit {condor_submit_path}"
-    print("To submit the job: ", submit_cmd)
+
+    print("To submit the condor job: ", submit_cmd)
+
+    # Local run script
+    local_submit_path = f"{tag}.sh"
+    cmd_file_content = local_cmd_content.format(exec_pattern)
+    with open(local_submit_path, "w") as f:
+        f.write(cmd_file_content)
+    print("To submit the local job: sh ", local_submit_path)
 
 
 if __name__ == "__main__":
