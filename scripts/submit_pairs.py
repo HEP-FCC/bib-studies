@@ -13,6 +13,24 @@ import argparse
 import os
 import stat
 
+# Default paths / namings
+input_def_path = "/eos/user/s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/"
+output_def_folder = "DDSim_output"
+
+
+# Argument parser
+parser = argparse.ArgumentParser('Submit condor jobs for IPC files.')
+parser.add_argument('-i', '--input', default=input_def_path,
+                    help='input path. Default is: '+input_def_path)
+parser.add_argument('-o', '--output', default=output_def_folder,
+                    help='output folder. Default is: '+output_def_folder)
+parser.add_argument('-t', '--tag',
+                    help='Tag of the dataset.')
+parser.add_argument('-n', '--n_max_jobs', default=-1, type=int,
+                    help='Maximum number of jobs.')
+parser.add_argument('-g', '--geo', default="ALLEGRO_o1_v03", type=str,
+                    help='Detector geometry.')
+
 
 # Condor command content
 condor_cmd_content = """executable     = $(filename)
@@ -43,9 +61,12 @@ for script in $SCRIPTS; do
 done
 """
 
-# Default header of executable script
-exec_header = """#!/bin/bash
-source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
+# Header of executable script
+fcc_cfg = os.environ["FCCCONFIG"].split("/")
+fcc_dir = "/".join(fcc_cfg[:4])
+fcc_ver = fcc_cfg[5]
+exec_header = f"""#!/bin/bash
+source {fcc_dir}/setup.sh -r {fcc_ver}
 
 # For using custom geometries, a local version of K4GEO can be set
 # following the pattern below
@@ -53,24 +74,6 @@ source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
 #k4_local_repo
 #cd -
 """
-
-# Default paths / namings
-input_def_path = "/eos/user/s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/"
-output_def_folder = "DDSim_output"
-
-
-# Argument parser
-parser = argparse.ArgumentParser('Submit condor jobs for IPC files.')
-parser.add_argument('-i', '--input', default=input_def_path,
-                    help='input path. Default is: '+input_def_path)
-parser.add_argument('-o', '--output', default=output_def_folder,
-                    help='output folder. Default is: '+output_def_folder)
-parser.add_argument('-t', '--tag',
-                    help='Tag of the dataset.')
-parser.add_argument('-n', '--n_max_jobs', default=-1, type=int,
-                    help='Maximum number of jobs.')
-parser.add_argument('-g', '--geo', default="ALLEGRO_o1_v03", type=str,
-                    help='Detector geometry.')
 
 
 def run(args):
@@ -100,7 +103,7 @@ def run(args):
     exec_template_name = os.path.join(tag, "run_ddsim_FILENAME.sh")
 
     for folder in os.listdir(input_file_path):
-        if n_max > 0 and n_max <= n_jobs:
+        if (n_max > 0) and (n_max <= n_jobs):
             break
         if "data" not in folder:
             continue
@@ -109,7 +112,7 @@ def run(args):
         input_filename = os.path.join(input_file_path, folder, "pairs.pairs")
         print(input_filename)
         executable_path = exec_template_name.replace("FILENAME", bx_id)
-        output_filename = os.path.join(storage_path, f"{geo}_{bx_id}.root")
+        output_filename = os.path.join(storage_path, f"{geo}_{bx_id}_r{fcc_ver}.root")
 
         # for performance, write the output locally first and copy at the end
         tmp_output_filename = os.path.basename(output_filename)
