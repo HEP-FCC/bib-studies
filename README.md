@@ -13,7 +13,7 @@ source setup.sh
 
 ## Draw hit maps
 
-There are 2 scripts:
+There are 2 scripts in the plotting/ directory
 - drawhits.py : it plots the hit map in the (z,r) plane for a given collection of hits. Example (do --help to see all options):
 ```
 python drawhits.py -i /eos/home-s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/DDSim_output/bib_v1/ -n 10 -c VertexBarrelCollection -m --map_binning '200,-200., 200., 200, -50., 50.'
@@ -23,7 +23,7 @@ python drawhits.py -i /eos/home-s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/
 - TO DO:
 1) In plot_all_subdetectors.py when reading the max dimensions of each subdetctor. The results seems to be off by a factor 10 (except for vertex radius). Maybe cm vs mm issue?
 2) In drawhits.py add more plots: e.g. energy of hits in each layer,  pt of associated MC particle
-
+3) Do simulation and plots also for signal Zmumu, Zee, Zqq
 
 
 
