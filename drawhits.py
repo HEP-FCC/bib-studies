@@ -71,8 +71,9 @@ def draw_map(hist, titlex, titley, plot_title, message=''):
     hist.GetXaxis().SetTitle(titlex)
     hist.GetYaxis().SetTitle(titley)
     hist.Draw("COLZ")
+    entries = hist.GetEntries()
     
-    myText(0.20, 0.9, ROOT.kBlack, message)
+    myText(0.20, 0.9, ROOT.kBlack, message + '  , entries = ' + str(entries))
     
     cm1.Print(plot_title+".pdf")
     cm1.Print(plot_title+".png")
