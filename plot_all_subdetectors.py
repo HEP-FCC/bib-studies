@@ -14,7 +14,9 @@ parser.add_option('-d', '--detGeoFile',
                   help='compact XML detector geometry file')
 parser.add_option('-i', '--inputFile',
                   type=str, default='/eos/home-s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/DDSim_output/bib_v1/ALLEGRO_o1_v03_1_r2025-05-29.root',
-                  help='input file simulated with the same geo as detGeoFile')
+parser.add_option('-n', '--numberOfFiles',
+                  type=int, default=100,
+                  help='number of input files to be considered in drawhits.py called by this script')
 parser.add_option('--nBinsR',
                   type=int, default=200,
                   help='binning in radial direction')
@@ -26,6 +28,7 @@ parser.add_option('--nBinsZ',
 
 geo_file_name = options.detGeoFile
 input_file_path = options.inputFile
+nfiles = options.numberOfFiles
 nbins_r = options.nBinsR
 nbins_z = options.nBinsZ
 
@@ -107,5 +110,5 @@ for subdet_id, value in dict_sub.items():
     if "collection" in value:
         #if (dict_sub[subdet_id]["collection"] == "VertexBarrelCollection"):
         print(" plots for subdet id = ", subdet_id)
-        subprocess.run(["python3", "drawhits.py", "--collection", dict_sub[subdet_id]["collection"], "--numberOfFiles=10", "-m", "--map_binning", dict_sub[subdet_id]["binning"]])
+        subprocess.run(["python3", "drawhits.py", "--collection", dict_sub[subdet_id]["collection"], "--numberOfFiles="+str(nfiles), "-m", "--map_binning", dict_sub[subdet_id]["binning"]])
     
