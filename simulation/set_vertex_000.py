@@ -24,7 +24,7 @@ def_path = "/eos/experiment/fcc/users/a/aciarma/pairs/4IP_2024may29/Z/data*"
 parser = argparse.ArgumentParser('Set particle vertex to origin.')
 parser.add_argument('-i', '--input', default=def_path,
                     help='input path expression. Default is: '+def_path)
-parser.add_argument('-o', '--output',
+parser.add_argument('-o', '--output', required=True,
                     help='output folder path.')
 parser.add_argument('-d', '--do_dat', action='store_true',
                     help='Check also for ".dat" files.')

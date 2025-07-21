@@ -16,7 +16,7 @@ import stat
 
 # Default paths / namings
 input_def_path = "/eos/user/s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/"
-output_def_folder = "DDSim_output"
+output_def_folder = input_def_path+"/DDSim_output/"
 
 
 # Argument parser
@@ -93,18 +93,17 @@ def run(args):
     geo = args.geo
     x_angle = args.crossingAngleBoost
 
-    detector = re.sub("(_o[0-9]+)?_v[0-9]{2}", "", geo)
+    detector = re.sub("(_o[0-9]+)?_v[0-9]{2}.*", "", geo)
 
-    storage_path_parent = os.path.join(input_file_path, output_file_path)
-    storage_path = os.path.join(storage_path_parent, tag)
+    # Define output storage path
+    storage_path = os.path.join(output_file_path, tag)
 
     print("Creating output storage path:")
     print(storage_path)
     os.makedirs(storage_path, exist_ok=True)
 
     print("Creating submission folder:", tag)
-    if not os.path.isdir(tag):
-        os.mkdir(tag)
+    os.makedirs(tag, exist_ok=True)
 
     # Check if a steering file is required
     steering_opt = ""
