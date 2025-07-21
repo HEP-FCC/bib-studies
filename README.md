@@ -1,6 +1,7 @@
 # Beam induced background studies
 
-Code and scripts developed to run beam induced background (BIB) studies
+Code and scripts developed to run beam induced background (BIB) studies.
+The main folders contain dedicated `READMEs` with explanations of the scripts
 
 
 ## Setup

@@ -49,9 +49,10 @@ To specify a different one, use the convention `DETECTOR_oX_vYY`
 
 
 If a custom variation of the standard geometry is needed, 
-uncomment  [these lines](submit_pairs.py#L76-77)
+uncomment  [these lines](submit_pairs.py#L76-L78)
+in the `exec_header` string,
 and set the path to the customized version of the `k4geo` repo.
-And keep the naming convention `DETECTOR_oX_vYY(_ZZZ).xml`.
+Keep the naming convention `DETECTOR_oX_vYY(_ZZZ).xml`.
 
 All the available options can be seen using the `-h` flag.
 For example the default input path is currently:
