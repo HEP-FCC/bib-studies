@@ -40,4 +40,6 @@ echo "Setting up $BRANCH build (release $RELEASE)..."
 source $SW_PATH -r $RELEASE
 
 # Install the python scripts
-export PATH=$PATH:$PWD/scripts
+export BIB_DIR=$PWD
+export PATH=$PATH:$PWD/simulation
+export PATH=$PATH:$PWD/plotting
