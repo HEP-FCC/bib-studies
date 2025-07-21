@@ -11,6 +11,7 @@
 
 import argparse
 import os
+import re
 import stat
 
 # Default paths / namings
@@ -29,6 +30,8 @@ parser.add_argument('-t', '--tag',
 parser.add_argument('-n', '--n_max_jobs', default=-1, type=int,
                     help='Maximum number of jobs.')
 parser.add_argument('-g', '--geo', default="ALLEGRO_o1_v03", type=str,
+                    help='Detector geometry.')
+parser.add_argument('--crossingAngleBoost', default=0.015, type=str,
                     help='Detector geometry.')
 
 
@@ -62,9 +65,9 @@ done
 """
 
 # Header of executable script
-fcc_cfg = os.environ["FCCCONFIG"].split("/")
-fcc_dir = "/".join(fcc_cfg[:4])
-fcc_ver = fcc_cfg[5]
+fcc_cfg = os.environ["FCCCONFIG"]
+fcc_dir = "/".join(fcc_cfg.split("/")[:4])  # get software stack directory
+fcc_ver = fcc_cfg.split("/")[5]             # get the release number
 exec_header = f"""#!/bin/bash
 source {fcc_dir}/setup.sh -r {fcc_ver}
 
@@ -75,6 +78,11 @@ source {fcc_dir}/setup.sh -r {fcc_ver}
 #cd -
 """
 
+# Path to steering files
+steering_dict = {
+    "IDEA_o1_v03":  "$FCCCONFIG/share/FCC-config/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py"
+}
+
 
 def run(args):
 
@@ -83,8 +91,9 @@ def run(args):
     output_file_path = args.output
     n_max = args.n_max_jobs
     geo = args.geo
+    x_angle = args.crossingAngleBoost
 
-    detector = geo.split("_")[0]
+    detector = re.sub("(_o[0-9]+)?_v[0-9]{2}", "", geo)
 
     storage_path_parent = os.path.join(input_file_path, output_file_path)
     storage_path = os.path.join(storage_path_parent, tag)
@@ -97,6 +106,13 @@ def run(args):
     if not os.path.isdir(tag):
         os.mkdir(tag)
 
+    # Check if a steering file is required
+    steering_opt = ""
+    if geo in steering_dict:
+        steering_path = steering_dict[geo]
+        print("Including steering file: ", steering_path)
+        steering_opt = f"--steeringFile {steering_path}"
+
     # Setup the bash executables scripts
     print("Preparing submission for:")
     n_jobs = 0
@@ -108,6 +124,7 @@ def run(args):
         if "data" not in folder:
             continue
 
+        command = ""
         bx_id = folder.replace("data", "")
         input_filename = os.path.join(input_file_path, folder, "pairs.pairs")
         print(input_filename)
@@ -116,14 +133,16 @@ def run(args):
 
         # for performance, write the output locally first and copy at the end
         tmp_output_filename = os.path.basename(output_filename)
-        command = f"""ddsim \
+
+        command += f"""ddsim \
             --compactFile $K4GEO/FCCee/{detector}/compact/{geo}/{geo}.xml \
             -I {input_filename} \
             -O {tmp_output_filename} \
-            -N -1 --crossingAngleBoost 0.015 \
-            --part.keepAllParticles True"""
+            -N -1 --crossingAngleBoost {x_angle} \
+            --part.keepAllParticles True  {steering_opt}\n"""
 
-        command += f"\nmv {tmp_output_filename} {output_filename}"
+        command += f"mv {tmp_output_filename} {output_filename}"
+
         with open(executable_path, "w") as f:
             f.write(exec_header)
             f.write(command)
