@@ -7,7 +7,7 @@ Collections of scripts for making plots from BIB simulated files.
 There are 2 scripts in this directory for drawing the hit maps
 - `drawhits.py` : it plots the hit map in the (z,r) plane for a given collection of hits. Example (do `--help` to see all options):
 ```
-python drawhits.py -i /eos/home-s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/DDSim_output/bib_v1/ -n 10 -c VertexBarrelCollection -m --map_binning '200,-200., 200., 200, -50., 50.'
+drawhits.py -i /eos/home-s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/DDSim_output/bib_v1/ -n 10 -c VertexBarrelCollection -m --map_binning '200,-200., 200., 200, -50., 50.'
 ```
 - `plot_all_subdetectors.py`: it automatically loops over all the sub-detectors and the hot collections, matching them and reading the sub-detector dimensions directly from the geometry to define plot ranges. For each collection/sub-detector it calls the drawhits.py script (see above) to plot the hit map.
 

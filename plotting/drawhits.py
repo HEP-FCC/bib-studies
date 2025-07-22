@@ -31,6 +31,9 @@ parser.add_option('-s', '--sample',
 parser.add_option('-c', '--collection',
                   type=str, default='VertexBarrelCollection',
                   help='variable against with to draw the plots, options are: eta, phi, pt or mu')
+parser.add_option('-p', '--draw_profiles',
+                  action="store_true",
+                  help='activate drawing of profile plots')
 parser.add_option('-m', '--draw_maps',
                   action="store_true",
                   help='activate drawing of number of maps plots')
@@ -46,6 +49,7 @@ tree_name = options.tree
 sample_name = options.sample
 collection = options.collection
 draw_maps = options.draw_maps
+draw_profiles = options.draw_profiles
 binning = []
 for i,x in enumerate(options.map_binning.split(',')):
     if i==0 or i==3:
@@ -81,6 +85,21 @@ def draw_map(hist, titlex, titley, plot_title, message=''):
     cm1.Print(plot_title+".png")
 
 
+def draw_profile(hist, titlex, titley, plot_title, message=''):
+
+    cm1 = ROOT.TCanvas("cm1_"+message, "cm1_"+message, 800, 600)
+
+    hist.GetXaxis().SetTitle(titlex)
+    hist.GetYaxis().SetTitle(titley)
+    hist.Draw("HistE")
+    entries = hist.GetEntries()
+
+    myText(0.20, 0.9, ROOT.kBlack, message + '  , entries = ' + str(entries))
+
+    cm1.Print(plot_title+".pdf")
+    cm1.Print(plot_title+".png")
+
+
 #######################################
 # parse the input path
 
@@ -103,8 +122,15 @@ for f in sorted(list_files): #use sorted list to make sure to always take the sa
     if nfiles > 0 and len(list_input_files) >= nfiles: #if nfiles=-1 run all files
         break
 
+# Profile histograms
+h_hit_E = ROOT.TH1D("h_hit_E_"+collection, "h_hit_E_"+collection, 50, 0, 50)
 
+# Hit maps definitions
 hist_zr = ROOT.TH2D("hist_zr_"+collection, "hist_zr_"+collection, binning[0], binning[1], binning[2], binning[3], binning[4], binning[5])
+hist_xy = ROOT.TH2D("hist_xy_"+collection, "hist_xy_"+collection, binning[3], binning[4], binning[5], binning[3], binning[4], binning[5])
+hist_zphi = ROOT.TH2D("hist_zphi_"+collection, "hist_zphi_"+collection, binning[0], binning[1], binning[2], 500, -3.5, 3.5)
+
+fill_weight = 1. / len(list_input_files)
 
 for i,input_file_path in enumerate(list_input_files):
     if i % 100 == 0: # print a message every 100 processed files
@@ -112,15 +138,37 @@ for i,input_file_path in enumerate(list_input_files):
     podio_reader = root_io.Reader(input_file_path)
 
     for event in podio_reader.get(tree_name):
-        
+
         for hit in event.get(ROOT.TString(collection).Data()): #convert python string in a root TString
+            # Hits doxy:
+            # https://edm4hep.web.cern.ch/classedm4hep_1_1_mutable_sim_tracker_hit.html
+            # https://edm4hep.web.cern.ch/classedm4hep_1_1_mutable_sim_calorimeter_hit.html
+
             x = hit.getPosition().x
             y = hit.getPosition().y
             z = hit.getPosition().z
-            r = math.sqrt(math.pow(x,2)+math.pow(y,2))
-            if x<0.:
-                r = -1.*r                
-            hist_zr.Fill(z, r, 1./len(list_input_files))
+            r = math.sqrt(math.pow(x, 2) + math.pow(y, 2))
+            if x < 0.:
+                r = -1. * r
+            phi = math.acos(x/r) * math.copysign(1, y)
+
+            # For Calo
+            # E = hit.getEnergy() * 1e-3 # The doxy says it should be in GeV, but seems MeV?
+
+            # For tracker
+            E = hit.getEDep()
+
+            # Fill the histograms
+            h_hit_E.Fill(x, fill_weight)
+
+            hist_zr.Fill(z, r, fill_weight)
+            hist_xy.Fill(x, y, fill_weight)
+            hist_zphi.Fill(z, phi, fill_weight)
 
 if draw_maps:
     draw_map(hist_zr, "z [mm]", "r [mm]", sample_name+"_map_zr_"+str(nfiles)+"evt_"+collection, collection)
+    draw_map(hist_xy, "x [mm]", "y [mm]", sample_name+"_map_xy_"+str(nfiles)+"evt_"+collection, collection)
+    draw_map(hist_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_zphi_"+str(nfiles)+"evt_"+collection, collection)
+
+if draw_profiles: 
+    draw_profile(h_hit_E, "E [GeV]", "Hits / event",  sample_name+"_hit_E_"+str(nfiles)+"evt_"+collection, collection)
