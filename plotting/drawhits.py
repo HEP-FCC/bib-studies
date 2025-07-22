@@ -1,10 +1,11 @@
+#!/usr/bin/env python
+
 import ROOT
 from podio import root_io
-import dd4hep as dd4hepModule
-from ROOT import dd4hep
 import os
 import math
 from optparse import OptionParser
+from glob import glob
 
 ######################################
 # style
@@ -12,8 +13,8 @@ ROOT.gStyle.SetOptStat(0000)
 ROOT.gStyle.SetOptFit(0000)
 
 ######################################
-#option parser
-                  
+# option parser
+
 parser = OptionParser()
 parser.add_option('-i', '--infilePath',
                   type=str, default='/eos/home-s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/DDSim_output/bib_v1/',
@@ -53,8 +54,9 @@ for i,x in enumerate(options.map_binning.split(',')):
         binning.append(float(x))
 #binning = [float(x) for x in options.map_binning.split(',')]
 
+
 #######################################
-#functions
+# functions
 
 def myText(x, y, color, text, size=0.04, angle=0.):
     l = ROOT.TLatex()
@@ -62,7 +64,7 @@ def myText(x, y, color, text, size=0.04, angle=0.):
     l.SetTextColor(color)
     l.PaintLatex( x, y, angle, size, text)
     l.DrawLatex(x,y,text)
-    
+
 
 def draw_map(hist, titlex, titley, plot_title, message=''):
 
@@ -72,24 +74,37 @@ def draw_map(hist, titlex, titley, plot_title, message=''):
     hist.GetYaxis().SetTitle(titley)
     hist.Draw("COLZ")
     entries = hist.GetEntries()
-    
+
     myText(0.20, 0.9, ROOT.kBlack, message + '  , entries = ' + str(entries))
-    
+
     cm1.Print(plot_title+".pdf")
     cm1.Print(plot_title+".png")
 
+
 #######################################
+# parse the input path
+
+input_path = glob(path)
+
+list_files = []
+if os.path.isdir(input_path[0]):
+    for p in input_path:
+        list_files += glob(p+"/*.root")
+elif isinstance(input_path, str):
+    list_files = [input_path]
+else:
+    list_files = input_path
 
 # list nfiles in the path directory ending in .root  to consider for plotting
 list_input_files = []
-for f in sorted(os.listdir(path)): #use sorted list to make sure to always take the same files
+for f in sorted(list_files): #use sorted list to make sure to always take the same files
     if f.endswith(".root"):
         list_input_files.append( os.path.join(path, f) )
     if nfiles > 0 and len(list_input_files) >= nfiles: #if nfiles=-1 run all files
         break
 
-    
-hist_zr = ROOT.TH2D( "hist_zr_"+collection, "hist_zr_"+collection, binning[0], binning[1], binning[2], binning[3], binning[4], binning[5])
+
+hist_zr = ROOT.TH2D("hist_zr_"+collection, "hist_zr_"+collection, binning[0], binning[1], binning[2], binning[3], binning[4], binning[5])
 
 for i,input_file_path in enumerate(list_input_files):
     if i % 100 == 0: # print a message every 100 processed files
@@ -106,8 +121,6 @@ for i,input_file_path in enumerate(list_input_files):
             if x<0.:
                 r = -1.*r                
             hist_zr.Fill(z, r, 1./len(list_input_files))
-            
-if(draw_maps):
+
+if draw_maps:
     draw_map(hist_zr, "z [mm]", "r [mm]", sample_name+"_map_zr_"+str(nfiles)+"evt_"+collection, collection)
-
-
