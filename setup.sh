@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
 
-# Setup latest stable or nightly release.
-# New stable version will appear in:
-# /cvmfs/sw.hsf.org/key4hep/releases/
-
-
 # Default values
 BRANCH="stable"
-RELEASE="2025-05-29"
-SW_PATH="/cvmfs/sw.hsf.org/key4hep/setup.sh"
+RELEASE=""
+COMMAND="source /cvmfs/sw.hsf.org/key4hep/setup.sh"
 
 _help() {
   echo "Usage: ${0} [-n] [release]"
@@ -25,19 +20,19 @@ fi
 # Setup the key4hep software paths
 if [[ $1 == "-n" ]]; then
   BRANCH="nightly"
-  SW_PATH="/cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh"
-  RELEASE=$(date +"%Y-%m-%d")
+  COMMAND="source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh"
   shift
 fi
 
 # Check if release is specified
-if [[ $# -eq 1 ]]; then 
+if [[ $# -eq 1 ]]; then
   RELEASE=$1
+  COMMAND="$COMMAND -r $RELEASE"
 fi
 
 # Source the path
 echo "Setting up $BRANCH build (release $RELEASE)..."
-source $SW_PATH -r $RELEASE
+$COMMAND
 
 # Install the python scripts
 export BIB_DIR=$PWD

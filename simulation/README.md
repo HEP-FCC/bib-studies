@@ -2,7 +2,12 @@
 
 Helper scripts for preparing and submitting simulations of background samples.
 
-## set_vertex_000.py
+
+## Production of IPC backgrounds
+
+The production of Incoherent Pair Creation (IPC) background simulation relies two steps.
+
+### set_vertex_000.py
 Reset the position of particles to (0,0,0) in `.pairs` files 
 created by GuineaPig. This is required as the event generator doesn't
 include any B-field. Therefore, the positions are inexact, especially if
@@ -24,7 +29,7 @@ Note that not all the folders contain a `.pair` file,
 but only a `.dat` version of it. In that case, the `--do_dat` flag might be needed.
 
 
-## submit_pairs.py
+### submit_pairs.py
 
 Set up the condor (or local) submission of simulation jobs of 
 IPC background files.
