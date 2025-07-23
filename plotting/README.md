@@ -16,3 +16,9 @@ TODO:
 1) In plot_all_subdetectors.py when reading the max dimensions of each sub-detector. The results seems to be off by a factor 10 (except for vertex radius). Maybe cm vs mm issue?
 2) In drawhits.py add more plots: e.g. energy of hits in each layer,  pt of associated MC particle
 3) Do simulation and plots also for signal Zmumu, Zee, Zqq
+
+
+## xml2json
+
+Extract detector dimensions from the geometry XML file into a json file.
+
