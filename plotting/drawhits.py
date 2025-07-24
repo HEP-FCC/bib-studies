@@ -156,7 +156,7 @@ for i,input_file_path in enumerate(list_input_files):
             # E = hit.getEnergy() * 1e-3 # The doxy says it should be in GeV, but seems MeV?
 
             # For tracker
-            E = hit.getEDep()
+            E = hit.getEDep() * 1e-3 # The doxy says it should be in GeV, but seems MeV?
 
             # Fill the histograms
             h_hit_E.Fill(x, fill_weight)
@@ -171,4 +171,4 @@ if draw_maps:
     draw_map(hist_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_zphi_"+str(nfiles)+"evt_"+collection, collection)
 
 if draw_profiles: 
-    draw_profile(h_hit_E, "E [GeV]", "Hits / event",  sample_name+"_hit_E_"+str(nfiles)+"evt_"+collection, collection)
+    draw_profile(h_hit_E, "Deposited Energy [GeV]", "Hits / event",  sample_name+"_hit_E_"+str(nfiles)+"evt_"+collection, collection)

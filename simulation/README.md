@@ -5,7 +5,7 @@ Helper scripts for preparing and submitting simulations of background samples.
 
 ## Production of IPC backgrounds
 
-The production of Incoherent Pair Creation (IPC) background simulation relies two steps.
+The production of Incoherent Pair Creation (IPC) background simulation takes two steps.
 
 ### set_vertex_000.py
 Reset the position of particles to (0,0,0) in `.pairs` files 
