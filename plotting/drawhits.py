@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 
-import ROOT
-from podio import root_io
-import os
-import math
-from optparse import OptionParser
 from glob import glob
+import json
+import math
+import os
+from optparse import OptionParser
+
+import dd4hep as dd4hepModule
+from podio import root_io
+import ROOT
+
+
 
 ######################################
 # style
@@ -25,11 +30,14 @@ parser.add_option('-n', '--numberOfFiles',
 parser.add_option('-t', '--tree',
                   type=str, default='events',
                   help='name of the tree in the root file')
-parser.add_option('-s', '--sample',
+parser.add_option('--sample',
                   type=str, default='ipc',
                   help='sample name to save plots')
-parser.add_option('-c', '--collection',
-                  type=str, default='VertexBarrelCollection',
+parser.add_option('-d', '--detDictFile',
+                  type=str, default="",
+                  help='JSON dictionary with some key detector parameters')
+parser.add_option('-s', '--subDetector',
+                  type=str, default='VertexBarrel',
                   help='variable against with to draw the plots, options are: eta, phi, pt or mu')
 parser.add_option('-p', '--draw_profiles',
                   action="store_true",
@@ -47,7 +55,8 @@ nfiles = options.numberOfFiles
 path = options.infilePath
 tree_name = options.tree
 sample_name = options.sample
-collection = options.collection
+detector_dict_path = options.detDictFile
+sub_detector = options.subDetector
 draw_maps = options.draw_maps
 draw_profiles = options.draw_profiles
 binning = []
@@ -122,53 +131,99 @@ for f in sorted(list_files): #use sorted list to make sure to always take the sa
     if nfiles > 0 and len(list_input_files) >= nfiles: #if nfiles=-1 run all files
         break
 
+# Load the detector json dictionary
+detector_dict = {}
+with open(detector_dict_path,"r") as f:
+    detector_dict = json.load(f)[sub_detector]
+
+
+#######################################
+# prepare histograms
+
+collection = detector_dict["hitsCollection"]
+z_range = int(detector_dict["max_z"]*1.1)
+r_range = int(detector_dict["max_r"]*1.1)
+n_bins_z = int(z_range * 2)  # 1mm binning  
+n_bins_r = int(r_range * 2)  # 1mm binning  
+
 # Profile histograms
-h_hit_E = ROOT.TH1D("h_hit_E_"+collection, "h_hit_E_"+collection, 50, 0, 50)
+h_hit_E = ROOT.TH1D("h_hit_E_"+collection, "h_hit_E_"+collection, 100, 0, 1)
+h_particle_E = ROOT.TH1D("h_particle_E_"+collection, "h_particle_E_"+collection, 100, 0, 10)
 
 # Hit maps definitions
-hist_zr = ROOT.TH2D("hist_zr_"+collection, "hist_zr_"+collection, binning[0], binning[1], binning[2], binning[3], binning[4], binning[5])
-hist_xy = ROOT.TH2D("hist_xy_"+collection, "hist_xy_"+collection, binning[3], binning[4], binning[5], binning[3], binning[4], binning[5])
-hist_zphi = ROOT.TH2D("hist_zphi_"+collection, "hist_zphi_"+collection, binning[0], binning[1], binning[2], 500, -3.5, 3.5)
+hist_zr = ROOT.TH2D("hist_zr_"+collection, "hist_zr_"+collection, n_bins_z, -z_range, z_range, n_bins_r, -r_range, -r_range)
+hist_xy = ROOT.TH2D("hist_xy_"+collection, "hist_xy_"+collection, n_bins_r, -r_range, -r_range, n_bins_r, -r_range, -r_range)
+hist_zphi = ROOT.TH2D("hist_zphi_"+collection, "hist_zphi_"+collection, n_bins_z, -z_range, z_range, 500, -3.5, 3.5)
 
 fill_weight = 1. / len(list_input_files)
 
-for i,input_file_path in enumerate(list_input_files):
+#######################################
+# run the event loop
+
+podio_reader = root_io.Reader(list_input_files)
+
+# Check if collection is valid and setup a cell ID decoder
+metadata = podio_reader.get("metadata")[0]
+
+id_encoding = metadata.get_parameter(collection+"__CellIDEncoding")
+decoder = ROOT.dd4hep.BitFieldCoder(id_encoding)
+
+for i,event in enumerate(podio_reader.get(tree_name)):
+    
     if i % 100 == 0: # print a message every 100 processed files
         print('processing file number = ' + str(i) + ' / ' + str(nfiles) )
-    podio_reader = root_io.Reader(input_file_path)
 
-    for event in podio_reader.get(tree_name):
+    # Loop over the hits
+    for hit in event.get(collection):
+        # Hits doxy:
+        # https://edm4hep.web.cern.ch/classedm4hep_1_1_mutable_sim_tracker_hit.html
+        # https://edm4hep.web.cern.ch/classedm4hep_1_1_mutable_sim_calorimeter_hit.html
+        # https://edm4hep.web.cern.ch/classedm4hep_1_1_m_c_particle.html
 
-        for hit in event.get(ROOT.TString(collection).Data()): #convert python string in a root TString
-            # Hits doxy:
-            # https://edm4hep.web.cern.ch/classedm4hep_1_1_mutable_sim_tracker_hit.html
-            # https://edm4hep.web.cern.ch/classedm4hep_1_1_mutable_sim_calorimeter_hit.html
+        is_calo_hit = "CalorimeterHit" in str(hit)
 
-            x = hit.getPosition().x
-            y = hit.getPosition().y
-            z = hit.getPosition().z
-            r = math.sqrt(math.pow(x, 2) + math.pow(y, 2))
-            if x < 0.:
-                r = -1. * r
-            phi = math.acos(x/r) * math.copysign(1, y)
+        cell_id = hit.cellID()
+        layer = decoder.get(cell_id, "layer")
+        print("llayer:", layer)
 
-            # For Calo
-            # E = hit.getEnergy() * 1e-3 # The doxy says it should be in GeV, but seems MeV?
+        x = hit.getPosition().x
+        y = hit.getPosition().y
+        z = hit.getPosition().z
+        r = math.sqrt(math.pow(x, 2) + math.pow(y, 2))
+        phi = math.acos(x/r) * math.copysign(1, y)
 
-            # For tracker
-            E = hit.getEDep() * 1e-3 # The doxy says it should be in GeV, but seems MeV?
+        if x < 0.:
+            r = -1. * r
 
-            # Fill the histograms
-            h_hit_E.Fill(x, fill_weight)
+        # Deposited energy, converted to MeV
+        E_hit = 0
+        if is_calo_hit:
+            E_hit = hit.getEnergy() * 1e3  # For calorimeter hits
+        else:
+            E_hit = hit.getEDep() * 1e3  # For tracker hits
 
-            hist_zr.Fill(z, r, fill_weight)
-            hist_xy.Fill(x, y, fill_weight)
-            hist_zphi.Fill(z, phi, fill_weight)
+        # Fill the hits histograms
+        h_hit_E.Fill(E_hit, fill_weight)
+
+        hist_zr.Fill(z, r, fill_weight)
+        hist_xy.Fill(x, y, fill_weight)
+        hist_zphi.Fill(z, phi, fill_weight)
+
+        if not is_calo_hit:
+            particle = hit.getParticle()
+            E_particle = particle.getEnergy()
+            #particle_4v = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
+            #print("Particle E:", E_particle, particle_4v.E())
+
+            # Fill MC particle histograms
+            h_particle_E.Fill(E_particle, fill_weight)
+
 
 if draw_maps:
-    draw_map(hist_zr, "z [mm]", "r [mm]", sample_name+"_map_zr_"+str(nfiles)+"evt_"+collection, collection)
-    draw_map(hist_xy, "x [mm]", "y [mm]", sample_name+"_map_xy_"+str(nfiles)+"evt_"+collection, collection)
-    draw_map(hist_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_zphi_"+str(nfiles)+"evt_"+collection, collection)
+    draw_map(hist_zr, "z [mm]", "r [mm]", sample_name+"_map_zr_"+str(nfiles)+"evt_"+sub_detector, collection)
+    draw_map(hist_xy, "x [mm]", "y [mm]", sample_name+"_map_xy_"+str(nfiles)+"evt_"+sub_detector, collection)
+    draw_map(hist_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_zphi_"+str(nfiles)+"evt_"+sub_detector, collection)
 
 if draw_profiles: 
-    draw_profile(h_hit_E, "Deposited Energy [GeV]", "Hits / event",  sample_name+"_hit_E_"+str(nfiles)+"evt_"+collection, collection)
+    draw_profile(h_hit_E, "Deposited energy [MeV]", "Hits / event",  sample_name+"_hit_E_"+str(nfiles)+"evt_"+sub_detector, collection)
+    draw_profile(h_particle_E, "MC particle energy [GeV]", "Particle / event",  sample_name+"_particle_E_"+str(nfiles)+"evt_"+sub_detector, collection)
