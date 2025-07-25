@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 
+from collections import Counter
 from glob import glob
 import json
 import math
 import os
 from optparse import OptionParser
+import re
 
 import dd4hep as dd4hepModule
 from podio import root_io
@@ -137,6 +139,26 @@ with open(detector_dict_path,"r") as f:
     detector_dict = json.load(f)[sub_detector]
 
 
+# Count  the number of cells per layer, merging different sides
+# leveraging the current naming scheme of active layers
+# TODO: this can use instead directly the layer IDs once they're better understood
+layer_cells = Counter()
+for de, cells in detector_dict["det_element_cells"].items():
+    try:
+        layer_name = re.search("layer(_)?(-)?[0-9]+",de).group(0)
+    except AttributeError:
+        print("Warning: Couldn't read layer number from", de)
+        continue
+
+    # Get the layer number, ignore the side (sign -)
+    ln = int(layer_name.replace("layer","").replace("_","").replace("-",""))
+    
+    layer_cells[ln] += cells
+
+
+#get_layer_cells(detector_dict["det_element_cells"])
+n_layers = len(layer_cells.keys())
+
 #######################################
 # prepare histograms
 
@@ -148,7 +170,9 @@ n_bins_r = int(r_range * 2)  # 1mm binning
 
 # Profile histograms
 h_hit_E = ROOT.TH1D("h_hit_E_"+collection, "h_hit_E_"+collection, 100, 0, 1)
-h_particle_E = ROOT.TH1D("h_particle_E_"+collection, "h_particle_E_"+collection, 100, 0, 10)
+h_particle_E = ROOT.TH1D("h_particle_E_"+collection, "h_particle_E_"+collection, 100, 0, 1)
+h_hits_x_layer = ROOT.TH1D("h_hits_x_layer_"+collection, "h_hits_x_layer_"+collection, n_layers, -0.5, n_layers-0.5)
+h_occ_x_layer = ROOT.TH1D("h_occ_x_layer_"+collection, "h_hits_x_layer_"+collection, n_layers, -0.5, n_layers-0.5)
 
 # Hit maps definitions
 hist_zr = ROOT.TH2D("hist_zr_"+collection, "hist_zr_"+collection, n_bins_z, -z_range, z_range, n_bins_r, -r_range, -r_range)
@@ -173,6 +197,9 @@ for i,event in enumerate(podio_reader.get(tree_name)):
     if i % 100 == 0: # print a message every 100 processed files
         print('processing file number = ' + str(i) + ' / ' + str(nfiles) )
 
+    fired_cells = []
+    fired_cells_x_layer = Counter()
+
     # Loop over the hits
     for hit in event.get(collection):
         # Hits doxy:
@@ -183,8 +210,19 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         is_calo_hit = "CalorimeterHit" in str(hit)
 
         cell_id = hit.cellID()
+
+        # Skip cells firing multiple times
+        if cell_id in fired_cells:
+            # print(cell_id,"has already fired in this event!")
+            continue
+        else:
+            fired_cells.append(cell_id)
+
+        # side = decoder.get(cell_id, "side")
         layer = decoder.get(cell_id, "layer")
-        print("llayer:", layer)
+        #slayer = decoder.get(cell_id, "superlayer")
+        # print(f"side = {side}, layer = {layer}")
+        fired_cells_x_layer[layer] += 1
 
         x = hit.getPosition().x
         y = hit.getPosition().y
@@ -204,6 +242,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
         # Fill the hits histograms
         h_hit_E.Fill(E_hit, fill_weight)
+        h_hits_x_layer.Fill(layer, fill_weight)
 
         hist_zr.Fill(z, r, fill_weight)
         hist_xy.Fill(x, y, fill_weight)
@@ -212,11 +251,20 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         if not is_calo_hit:
             particle = hit.getParticle()
             E_particle = particle.getEnergy()
-            #particle_4v = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
-            #print("Particle E:", E_particle, particle_4v.E())
 
             # Fill MC particle histograms
             h_particle_E.Fill(E_particle, fill_weight)
+
+    # <--- end of the hits loop
+
+    print
+    for l, fc in fired_cells_x_layer.items():
+        #print(f" fc:{fc}, l:{l},  nc:{layer_cells[l]} ")
+        layer_occupancy = fc / layer_cells[l] * 100
+        #print(f" fc:{fc}, nc:{layer_cells[l]}  , occ:{layer_occupancy}")
+
+        h_occ_x_layer.Fill(l, layer_occupancy * fill_weight)
+# <--- end of the event loop
 
 
 if draw_maps:
@@ -225,5 +273,8 @@ if draw_maps:
     draw_map(hist_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_zphi_"+str(nfiles)+"evt_"+sub_detector, collection)
 
 if draw_profiles: 
-    draw_profile(h_hit_E, "Deposited energy [MeV]", "Hits / event",  sample_name+"_hit_E_"+str(nfiles)+"evt_"+sub_detector, collection)
-    draw_profile(h_particle_E, "MC particle energy [GeV]", "Particle / event",  sample_name+"_particle_E_"+str(nfiles)+"evt_"+sub_detector, collection)
+    draw_profile(h_hit_E, "Deposited energy [MeV]", "Hits / events",  sample_name+"_hit_E_"+str(nfiles)+"evt_"+sub_detector, collection)
+    draw_profile(h_hits_x_layer, "Layer number", "Hits / events",  sample_name+"_hits_x_layer_"+str(nfiles)+"evt_"+sub_detector, collection)
+    draw_profile(h_occ_x_layer, "Layer number", "Occupancy [%] / events",  sample_name+"_occ_x_layer_"+str(nfiles)+"evt_"+sub_detector, collection)
+    
+    draw_profile(h_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_particle_E_"+str(nfiles)+"evt_"+sub_detector, collection)

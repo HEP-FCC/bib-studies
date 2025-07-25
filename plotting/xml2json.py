@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 
+from collections import defaultdict
+import math
+from optparse import OptionParser
+
 import dd4hep as dd4hepModule
 from ROOT import dd4hep
-from optparse import OptionParser
-import math
-import os
+
 
 ######################################
 # option parser
@@ -62,14 +64,17 @@ for subdet_name, sens_det in subdets:
 
     # Get the hits collection name
     hitsCollection = str(sens_det.hitsCollection)
-    n_cells = get_cells(subdet)
+    tot_cells = get_cells(subdet)
     print("        hits = ", hitsCollection)
-    print("        n_cells = ", n_cells)
+    print("        tot_cells = ", tot_cells)
 
-    # for layer_name, layer in subdet.children():
-    #     layer_id = layer.id()
-    #     print(f"         layer_name (id): {layer_name} ({layer_id})")
-    
+    det_element_cells = defaultdict(int)
+    for de_name, de in subdet.children():
+        #layer_id = de.id()
+        #print(f"         layer_name (id): {layer_name} ({layer_id})")
+        det_element_cells[str(de_name)] = get_cells(de)
+
+    print("        det_element_cells = ", det_element_cells)
 
     # Get max dimensions for the subdetector in x,y,z (half-length form 0)
     volume = subdet.volume()
@@ -87,7 +92,7 @@ for subdet_name, sens_det in subdets:
       dict_sub[str(subdet_name)]={
           'id': int(subdet.id()),
           'hitsCollection': hitsCollection,
-          'n_cells': n_cells,
+          'det_element_cells': det_element_cells,
           'max_z': max_z, 
           'max_r': max_r,
           }
