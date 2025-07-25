@@ -257,7 +257,6 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
     # <--- end of the hits loop
 
-    print
     for l, fc in fired_cells_x_layer.items():
         #print(f" fc:{fc}, l:{l},  nc:{layer_cells[l]} ")
         layer_occupancy = fc / layer_cells[l] * 100
