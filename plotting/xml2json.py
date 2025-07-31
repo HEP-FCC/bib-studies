@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
 from collections import defaultdict
+import json
 import math
 from optparse import OptionParser
+import re
 
 import dd4hep as dd4hepModule
 from ROOT import dd4hep
@@ -23,15 +25,75 @@ geo_file_name = options.detGeoFile
 ######################################
 # Functions
 
+skip_pattern = r"(supportTube)|(cryo)"
+re_skip = re.compile(skip_pattern)
+
 def get_cells(detector, n_cells = 0):
-    sub_detectors = detector.children() # std::map<string,det>
+    sub_detectors = detector.children()
     if sub_detectors.size() == 0:
-        #print("increase", n_cells)
+        # print("Counting", detector.GetName())
+        # print("Counting", detector.id())
         n_cells += 1
     else:
         for d in sub_detectors:
+            d_name = str(d[0])
+            if re_skip.match(d_name):
+                print("Skipping sub detector:", d_name)
+                continue
             n_cells = get_cells(d[1], n_cells)
     return n_cells
+
+
+def get_cells_map(detector, sub_det, name):
+
+    cells_map = defaultdict(int)
+
+    # N.B. this could be affected from naming scheme changes
+    match name:
+        case "EMEC_turbine":
+            # Method 1, parse the constants from the geo file
+            n_wheels = detector.constantAsLong("nWheels")
+
+            for nw in range(n_wheels):
+                # Uses "Calib" instead of ReadOut layers (need to check with a detector expert)
+                r_layers = detector.constantAsLong(f"ECalEndcapNumCalibRhoLayersWheel{nw+1}")
+                z_layers = detector.constantAsLong(f"ECalEndcapNumCalibZLayersWheel{nw+1}")
+                n_units = detector.constantAsLong(f"nUnitCells{nw+1}")
+
+                cells_map[f"wheel{nw}"] = r_layers * z_layers * n_units
+
+            # # Method 2, loop only over the LAr "bath" elements
+            # bath = sub_det.child("bath")
+            # for n, d in bath.children():
+            #     # naming scheme 'activeX_Y' where X is the unit number and Y the wheel number
+            #     n = str(n)
+            #     if not ("active" in n):
+            #         continue
+
+            #     # Get the cells for all the wheels
+            #     nw = int(str(n)[-1])
+            #     cells_map[f"wheel{nw}"] += get_cells(d)
+
+        case "HCalThreePartsEndcap":
+            # Split only by positive and negative layers
+            for de_name, de in sub_det.children():
+                layer_name = str(de_name)
+                if "layer-" in layer_name:
+                    cells_map["layer_-1"] += get_cells(de)
+                elif "layer" in layer_name:
+                    cells_map["layer_1"] += get_cells(de)
+
+        case _:
+            # Loop over detector elements
+            for de_name, de in sub_det.children():
+                # layer_id = de.id()
+                # print(f"         layer_name (id): {de_name} ({layer_id})")
+                if re_skip.match(str(de_name)):
+                        print("Skipping sub detector:", de_name)
+                        continue
+                cells_map[str(de_name)] = get_cells(de)
+    return cells_map
+
 
 ##################################################
 # Geometry part
@@ -51,29 +113,20 @@ det = dd4hep.Detector.getInstance()
 det.fromXML(geo_file_name)
 # Get subdetectors
 dict_sub = {}
-#subdet = det.detector("VertexBarrel")
-#subdets = det.detectors();
-subdets = det.sensitiveDetectors();
-for subdet_name, sens_det in subdets:
+
+for subdet_name, sens_det in det.sensitiveDetectors():
     print("==== name = ", subdet_name) 
 
     # Get the DetElement object
     subdet = det.detector(subdet_name)
     print("        ID = ", subdet.id())
     print("        type = ", subdet.type())
+    print("        typeFlag = ", subdet.typeFlag())
 
-    # Get the hits collection name
     hitsCollection = str(sens_det.hitsCollection)
-    tot_cells = get_cells(subdet)
     print("        hits = ", hitsCollection)
-    print("        tot_cells = ", tot_cells)
 
-    det_element_cells = defaultdict(int)
-    for de_name, de in subdet.children():
-        #layer_id = de.id()
-        #print(f"         layer_name (id): {layer_name} ({layer_id})")
-        det_element_cells[str(de_name)] = get_cells(de)
-
+    det_element_cells = get_cells_map(det, subdet, subdet_name)
     print("        det_element_cells = ", det_element_cells)
 
     # Get max dimensions for the subdetector in x,y,z (half-length form 0)
@@ -91,6 +144,7 @@ for subdet_name, sens_det in subdets:
     if subdet.id()>0.:
       dict_sub[str(subdet_name)]={
           'id': int(subdet.id()),
+          'typeFlag': subdet.typeFlag(),
           'hitsCollection': hitsCollection,
           'det_element_cells': det_element_cells,
           'max_z': max_z, 
@@ -102,6 +156,5 @@ for subdet_name, sens_det in subdets:
     #    print("        binning = ", binning_string)
     #    dict_sub[str(subdet.id())] ={"binning":  binning_string}
 
-import json
 with open(geo_file_name.split('/')[-1].strip('.xml')+'_DetectorDimensions.json', 'w') as fp:
     json.dump(dict_sub, fp, indent=2)

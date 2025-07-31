@@ -1,13 +1,5 @@
 #!/usr/bin/env bash
 
-# Path were the setup.sh script is located
-export BIB_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd -P )
-
-# Install this repo paths
-export PATH=$PATH:$BIB_DIR/simulation
-export PATH=$PATH:$BIB_DIR/plotting
-
-
 # Print help
 _help() {
   echo "Usage: ${0} [-n] [release]"
@@ -20,6 +12,13 @@ if [[ $1 == "-h" ]]; then
   _help; return 0;
 fi
 
+# Path to this setup.sh script
+export BIB_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd -P )
+
+# Install the repo paths
+export PATH=$BIB_DIR/simulation:$PATH
+export PATH=$BIB_DIR/plotting:$PATH
+export PYTHONPATH=$BIB_DIR/python:$PYTHONPATH
 
 # Default setup is stable release
 COMMAND="source /cvmfs/sw.hsf.org/key4hep/setup.sh"

@@ -1,23 +1,26 @@
 #!/usr/bin/env python
 
-from collections import Counter
+from collections import Counter, defaultdict
 from glob import glob
 import json
 import math
+import numpy as np
 import os
 from optparse import OptionParser
 import re
 
 import dd4hep as dd4hepModule
+from ROOT import dd4hep
 from podio import root_io
 import ROOT
 
+from visualization import setup_root_style
 
 
 ######################################
 # style
-ROOT.gStyle.SetOptStat(0000)
-ROOT.gStyle.SetOptFit(0000)
+
+setup_root_style()
 
 ######################################
 # option parser
@@ -47,9 +50,12 @@ parser.add_option('-p', '--draw_profiles',
 parser.add_option('-m', '--draw_maps',
                   action="store_true",
                   help='activate drawing of number of maps plots')
-parser.add_option('--map_binning',
-                  type=str, default='200,-200., 200., 200, -50., 50.',
-                  help='comma separated binning for map plots (2D plots): nx,xmin,xmax,ny,ymin,ymax')
+parser.add_option('-r','--bin_width_r',
+                  type=int, default=1,
+                  help='bin width for hit maps in mm (default 1 mm)')
+parser.add_option('-z','--bin_width_z',
+                  type=int, default=1,
+                  help='bin width for hit maps in mm (default 1 mm)')
 
 (options, args) = parser.parse_args()
 
@@ -61,13 +67,8 @@ detector_dict_path = options.detDictFile
 sub_detector = options.subDetector
 draw_maps = options.draw_maps
 draw_profiles = options.draw_profiles
-binning = []
-for i,x in enumerate(options.map_binning.split(',')):
-    if i==0 or i==3:
-        binning.append(int(x))
-    else:
-        binning.append(float(x))
-#binning = [float(x) for x in options.map_binning.split(',')]
+bw_r = options.bin_width_r
+bw_z = options.bin_width_z
 
 
 #######################################
@@ -81,7 +82,7 @@ def myText(x, y, color, text, size=0.04, angle=0.):
     l.DrawLatex(x,y,text)
 
 
-def draw_map(hist, titlex, titley, plot_title, message=''):
+def draw_map(hist, titlex, titley, plot_title, message='', log_x = False, log_y=False):
 
     cm1 = ROOT.TCanvas("cm1_"+message, "cm1_"+message, 800, 600)
 
@@ -92,11 +93,16 @@ def draw_map(hist, titlex, titley, plot_title, message=''):
 
     myText(0.20, 0.9, ROOT.kBlack, message + '  , entries = ' + str(entries))
 
+    if log_x:
+        cm1.SetLogx()
+    if log_y:
+        cm1.SetLogy()
+
     cm1.Print(plot_title+".pdf")
     cm1.Print(plot_title+".png")
 
 
-def draw_profile(hist, titlex, titley, plot_title, message=''):
+def draw_profile(hist, titlex, titley, plot_title, message='', log_x = False, log_y=False):
 
     cm1 = ROOT.TCanvas("cm1_"+message, "cm1_"+message, 800, 600)
 
@@ -107,8 +113,64 @@ def draw_profile(hist, titlex, titley, plot_title, message=''):
 
     myText(0.20, 0.9, ROOT.kBlack, message + '  , entries = ' + str(entries))
 
+    if log_x:
+        cm1.SetLogx()
+    if log_y:
+        cm1.SetLogy()
+
     cm1.Print(plot_title+".pdf")
     cm1.Print(plot_title+".png")
+
+
+# Detector types from:
+# https://github.com/AIDASoft/DD4hep/blob/master/DDCore/include/DD4hep/DetType.h
+is_calo = lambda x: (x & dd4hep.DetType.CALORIMETER) == dd4hep.DetType.CALORIMETER
+is_endcap = lambda x: (x & dd4hep.DetType.ENDCAP) == dd4hep.DetType.ENDCAP
+
+
+def get_layer(cell_id, decoder, detector, dtype):
+    """
+    Run the decoder differently for each detector
+    """
+
+    #print(f"layer={layer}, side={side}")
+
+    match detector:
+        case "HCalThreePartsEndcap":
+            # Get only the side of the hit
+            # type = 0,1,2 for positive side
+            # type = 3,4,5 for negative side
+            tp =  decoder.get(cell_id,"type") #FIXME: Appears to be always 0?! double check using nightly sim. events
+            #print(f"layer={layer}, side={side}, type={tp}")
+            if tp > 2:
+                return -1
+            return 1
+
+        case "EMEC_turbine":
+            side = decoder.get(cell_id, "side")
+            wheel = decoder.get(cell_id, "wheel")
+            return  wheel * side
+
+        case "DCH_v2":
+            # Number of layers per super layer could be read from geo file
+            nl_x_sl = 8
+            super_layer = decoder.get(cell_id, "superlayer")
+            return (super_layer * nl_x_sl) + layer + 1
+
+        case _:
+            # Default way: side * layer, where side should be +/- 1
+            layer = decoder.get(cell_id, "layer")
+
+            # Get the side, if available
+            side = 0
+            if is_endcap(dtype):
+                print("endcap!")
+                side = decoder.get(cell_id, "side")
+
+            if side != 0:
+                layer *= side
+
+            return layer
 
 
 #######################################
@@ -136,28 +198,45 @@ for f in sorted(list_files): #use sorted list to make sure to always take the sa
 # Load the detector json dictionary
 detector_dict = {}
 with open(detector_dict_path,"r") as f:
-    detector_dict = json.load(f)[sub_detector]
-
-
-# Count  the number of cells per layer, merging different sides
-# leveraging the current naming scheme of active layers
-# TODO: this can use instead directly the layer IDs once they're better understood
-layer_cells = Counter()
-for de, cells in detector_dict["det_element_cells"].items():
+    _dict = json.load(f)
     try:
-        layer_name = re.search("layer(_)?(-)?[0-9]+",de).group(0)
+        detector_dict = _dict[sub_detector]
+    except KeyError:
+        raise KeyError(f"'{sub_detector}' is not available, valid sub-detector entries are: "
+                       +" | ".join(_dict.keys()))
+
+print("Retrieve the number of cells per layer")
+layer_cells = {}
+n_tot_cells = 0
+for de, cells in detector_dict["det_element_cells"].items():
+    side = 0
+    try:
+        side_name = re.search("(side)(_)?(-)?[0-9]+",de).group(0)
+        side = int(re.sub(r"[^0-9-]","",side_name))
+        if abs(side) > 1:
+            raise NotImplementedError(f"Found side = {side} for '{de}', not supported")
+    except AttributeError:
+        pass
+
+    layer_name = "000"
+    try:
+        layer_name = re.search("(layer|wheel)(_)?(-)?[0-9]+",de).group(0)
     except AttributeError:
         print("Warning: Couldn't read layer number from", de)
         continue
 
-    # Get the layer number, ignore the side (sign -)
-    ln = int(layer_name.replace("layer","").replace("_","").replace("-",""))
-    
-    layer_cells[ln] += cells
+    # Get the layer number, sign based on the side
+    ln = int(re.sub(r"[^0-9-]","",layer_name))
+    if side != 0:
+        ln *= side
 
+    layer_cells[ln] = cells
+    n_tot_cells += cells
 
-#get_layer_cells(detector_dict["det_element_cells"])
+print(">>>",layer_cells)
+
 n_layers = len(layer_cells.keys())
+
 
 #######################################
 # prepare histograms
@@ -165,19 +244,25 @@ n_layers = len(layer_cells.keys())
 collection = detector_dict["hitsCollection"]
 z_range = int(detector_dict["max_z"]*1.1)
 r_range = int(detector_dict["max_r"]*1.1)
-n_bins_z = int(z_range * 2)  # 1mm binning  
-n_bins_r = int(r_range * 2)  # 1mm binning  
+n_bins_z = int(z_range * 2 / bw_z)  # mm binning  
+n_bins_r = int(r_range * 2 / bw_r)  # mm binning  
 
 # Profile histograms
 h_hit_E = ROOT.TH1D("h_hit_E_"+collection, "h_hit_E_"+collection, 100, 0, 1)
 h_particle_E = ROOT.TH1D("h_particle_E_"+collection, "h_particle_E_"+collection, 100, 0, 1)
 h_hits_x_layer = ROOT.TH1D("h_hits_x_layer_"+collection, "h_hits_x_layer_"+collection, n_layers, -0.5, n_layers-0.5)
-h_occ_x_layer = ROOT.TH1D("h_occ_x_layer_"+collection, "h_hits_x_layer_"+collection, n_layers, -0.5, n_layers-0.5)
+h_avg_occ_x_layer = ROOT.TH1D("h_avg_occ_x_layer_"+collection, "h_avg_occ_x_layer_"+collection, n_layers, -0.5, n_layers-0.5)
+
+h_occ_x_layer = {}
+log_bins = np.logspace(-2,2,50)
+for l in layer_cells.keys():
+    h_occ_x_layer[l] = ROOT.TH1D(f"h_occ_x_layer{l}_{collection}", f"h_occ_x_layer{l}_{collection}", len(log_bins)-1, log_bins)
+h_occ = ROOT.TH1D(f"h_occ_tot_{collection}", f"h_occ_tot_{collection}", len(log_bins)-1, log_bins)
 
 # Hit maps definitions
-hist_zr = ROOT.TH2D("hist_zr_"+collection, "hist_zr_"+collection, n_bins_z, -z_range, z_range, n_bins_r, -r_range, -r_range)
-hist_xy = ROOT.TH2D("hist_xy_"+collection, "hist_xy_"+collection, n_bins_r, -r_range, -r_range, n_bins_r, -r_range, -r_range)
-hist_zphi = ROOT.TH2D("hist_zphi_"+collection, "hist_zphi_"+collection, n_bins_z, -z_range, z_range, 500, -3.5, 3.5)
+hist_zr = ROOT.TH2D("hist_zr_"+collection, "hist_zr_"+collection+"; ; ; hits/(%d#times%d) mm^{2} per event"%(bw_z, bw_r), n_bins_z, -z_range, z_range, n_bins_r, -r_range, -r_range)
+hist_xy = ROOT.TH2D("hist_xy_"+collection, "hist_xy_"+collection+"; ; ; hits/(%d#times%d) mm^{2} per event"%(bw_r, bw_r), n_bins_r, -r_range, -r_range, n_bins_r, -r_range, -r_range)
+hist_zphi = ROOT.TH2D("hist_zphi_"+collection, "hist_zphi_"+collection+"; ; ; hits/(0.01#times%d)rad#timesmm per event"%(bw_z), n_bins_z, -z_range, z_range, 700, -3.5, 3.5)
 
 fill_weight = 1. / len(list_input_files)
 
@@ -192,8 +277,11 @@ metadata = podio_reader.get("metadata")[0]
 id_encoding = metadata.get_parameter(collection+"__CellIDEncoding")
 decoder = ROOT.dd4hep.BitFieldCoder(id_encoding)
 
+max_occ_per_layer = defaultdict(float)
+max_occ_per_layer_evt = defaultdict(str)
+
 for i,event in enumerate(podio_reader.get(tree_name)):
-    
+
     if i % 100 == 0: # print a message every 100 processed files
         print('processing file number = ' + str(i) + ' / ' + str(nfiles) )
 
@@ -210,18 +298,17 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         is_calo_hit = "CalorimeterHit" in str(hit)
 
         cell_id = hit.cellID()
+        cell_fired = False
 
         # Skip cells firing multiple times
         if cell_id in fired_cells:
             # print(cell_id,"has already fired in this event!")
-            continue
+            cell_fired = True
         else:
             fired_cells.append(cell_id)
 
-        # side = decoder.get(cell_id, "side")
-        layer = decoder.get(cell_id, "layer")
-        #slayer = decoder.get(cell_id, "superlayer")
-        # print(f"side = {side}, layer = {layer}")
+        #TODO: Handle better cell_id info
+        layer = get_layer(cell_id, decoder, sub_detector, detector_dict["typeFlag"])
         fired_cells_x_layer[layer] += 1
 
         x = hit.getPosition().x
@@ -241,12 +328,13 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             E_hit = hit.getEDep() * 1e3  # For tracker hits
 
         # Fill the hits histograms
-        h_hit_E.Fill(E_hit, fill_weight)
-        h_hits_x_layer.Fill(layer, fill_weight)
+        if not cell_fired:
+            h_hit_E.Fill(E_hit, fill_weight)
+            h_hits_x_layer.Fill(layer, fill_weight)
 
-        hist_zr.Fill(z, r, fill_weight)
-        hist_xy.Fill(x, y, fill_weight)
-        hist_zphi.Fill(z, phi, fill_weight)
+            hist_zr.Fill(z, r, fill_weight)
+            hist_xy.Fill(x, y, fill_weight)
+            hist_zphi.Fill(z, phi, fill_weight)
 
         if not is_calo_hit:
             particle = hit.getParticle()
@@ -256,15 +344,31 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             h_particle_E.Fill(E_particle, fill_weight)
 
     # <--- end of the hits loop
-
+    
+    tot_occupancy = 0
     for l, fc in fired_cells_x_layer.items():
+        tot_occupancy += fc
         #print(f" fc:{fc}, l:{l},  nc:{layer_cells[l]} ")
         layer_occupancy = fc / layer_cells[l] * 100
         #print(f" fc:{fc}, nc:{layer_cells[l]}  , occ:{layer_occupancy}")
 
-        h_occ_x_layer.Fill(l, layer_occupancy * fill_weight)
+        h_avg_occ_x_layer.Fill(l, layer_occupancy * fill_weight)
+        h_occ_x_layer[l].Fill(layer_occupancy, fill_weight)
+
+        if layer_occupancy > max_occ_per_layer[l]:
+            max_occ_per_layer[l] = layer_occupancy
+            max_occ_per_layer_evt[l] = list_input_files[i]
+
+    tot_occupancy = tot_occupancy / n_tot_cells * 100
+    h_occ.Fill(tot_occupancy, fill_weight)
+
 # <--- end of the event loop
 
+print("####################")
+print("# Occupancy max values:")
+for i in max_occ_per_layer.keys():
+    print(f"max per layer {i}: {max_occ_per_layer[i]} (event {max_occ_per_layer_evt[i]})")
+print("####################")
 
 if draw_maps:
     draw_map(hist_zr, "z [mm]", "r [mm]", sample_name+"_map_zr_"+str(nfiles)+"evt_"+sub_detector, collection)
@@ -274,6 +378,9 @@ if draw_maps:
 if draw_profiles: 
     draw_profile(h_hit_E, "Deposited energy [MeV]", "Hits / events",  sample_name+"_hit_E_"+str(nfiles)+"evt_"+sub_detector, collection)
     draw_profile(h_hits_x_layer, "Layer number", "Hits / events",  sample_name+"_hits_x_layer_"+str(nfiles)+"evt_"+sub_detector, collection)
-    draw_profile(h_occ_x_layer, "Layer number", "Occupancy [%] / events",  sample_name+"_occ_x_layer_"+str(nfiles)+"evt_"+sub_detector, collection)
-    
+    draw_profile(h_avg_occ_x_layer, "Layer number", "Occupancy [%] / events",  sample_name+"_avg_occ_x_layer_"+str(nfiles)+"evt_"+sub_detector, collection, log_y=True)
+    for l, h  in h_occ_x_layer.items():
+        draw_profile(h, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_x_layer{l}_"+str(nfiles)+"evt_"+sub_detector, collection, log_x=True)
+    draw_profile(h_occ, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_tot_"+str(nfiles)+"evt_"+sub_detector, collection, log_x=True)
+
     draw_profile(h_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_particle_E_"+str(nfiles)+"evt_"+sub_detector, collection)

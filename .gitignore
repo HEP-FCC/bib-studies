@@ -1,4 +1,5 @@
 run/*
+*/__pycache__/*
 
 # IDE helpers
 ide/*
