@@ -154,6 +154,7 @@ def get_layer(cell_id, decoder, detector, dtype):
         case "DCH_v2":
             # Number of layers per super layer could be read from geo file
             nl_x_sl = 8
+            layer = decoder.get(cell_id, "layer")
             super_layer = decoder.get(cell_id, "superlayer")
             return (super_layer * nl_x_sl) + layer + 1
 
@@ -250,6 +251,11 @@ n_bins_r = int(r_range * 2 / bw_r)  # mm binning
 # Profile histograms
 h_hit_E = ROOT.TH1D("h_hit_E_"+collection, "h_hit_E_"+collection, 100, 0, 1)
 h_particle_E = ROOT.TH1D("h_particle_E_"+collection, "h_particle_E_"+collection, 100, 0, 1)
+h_particle_pt = ROOT.TH1D("h_particle_pt_"+collection, "h_particle_pt_"+collection, 100, 0, 1)
+h_particle_eta = ROOT.TH1D("h_particle_eta_"+collection, "h_particle_eta_"+collection, 100, -5, 5)
+h_particle_ID = ROOT.TH1D("h_particle_ID_"+collection, "h_particle_ID_"+collection, 101, -50.5, 50.5)
+
+
 h_hits_x_layer = ROOT.TH1D("h_hits_x_layer_"+collection, "h_hits_x_layer_"+collection, n_layers, -0.5, n_layers-0.5)
 h_avg_occ_x_layer = ROOT.TH1D("h_avg_occ_x_layer_"+collection, "h_avg_occ_x_layer_"+collection, n_layers, -0.5, n_layers-0.5)
 
@@ -338,10 +344,14 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
         if not is_calo_hit:
             particle = hit.getParticle()
-            E_particle = particle.getEnergy()
+
+            particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
 
             # Fill MC particle histograms
-            h_particle_E.Fill(E_particle, fill_weight)
+            h_particle_E.Fill(particle_p4.E(), fill_weight)
+            h_particle_pt.Fill(particle_p4.pt(), fill_weight)
+            h_particle_eta.Fill(particle_p4.eta(), fill_weight)
+            h_particle_ID.Fill(particle.getPDG(), fill_weight)
 
     # <--- end of the hits loop
     
@@ -384,3 +394,6 @@ if draw_profiles:
     draw_profile(h_occ, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_tot_"+str(nfiles)+"evt_"+sub_detector, collection, log_x=True)
 
     draw_profile(h_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_particle_E_"+str(nfiles)+"evt_"+sub_detector, collection)
+    draw_profile(h_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_particle_pt_"+str(nfiles)+"evt_"+sub_detector, collection)
+    draw_profile(h_particle_eta, "MC particle #eta", "Particle / events",  sample_name+"_particle_eta_"+str(nfiles)+"evt_"+sub_detector, collection)
+    draw_profile(h_particle_ID, "MC particle PDG ID", "Particle / events",  sample_name+"_particle_ID_"+str(nfiles)+"evt_"+sub_detector, collection)
