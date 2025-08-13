@@ -315,7 +315,6 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
         #TODO: Handle better cell_id info
         layer = get_layer(cell_id, decoder, sub_detector, detector_dict["typeFlag"])
-        fired_cells_x_layer[layer] += 1
 
         x = hit.getPosition().x
         y = hit.getPosition().y
@@ -335,6 +334,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
         # Fill the hits histograms
         if not cell_fired:
+            fired_cells_x_layer[layer] += 1
             h_hit_E.Fill(E_hit, fill_weight)
             h_hits_x_layer.Fill(layer, fill_weight)
 
