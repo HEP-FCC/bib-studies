@@ -15,17 +15,13 @@ from podio import root_io
 import ROOT
 
 from visualization import setup_root_style
+from constants import C_MM_NS
 
-
-# TODO: event display for signals
-# sanity checks for normalization (n_files vs n_events etc...)
 
 ######################################
 # style
 
 setup_root_style()
-
-C_MM_NS = 299.792 # speed of light in mm/ns
 
 ######################################
 # option parser
@@ -35,7 +31,7 @@ parser.add_option('-i', '--infilePath',
                   type=str, default='/eos/home-s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/DDSim_output/bib_v1/',
                   help='path to directory with input files')
 parser.add_option('-n', '--numberOfFiles',
-                  type=int, default=-1,
+                  type=int, default=1,
                   help='number of files to consider (1 event per file), put -1 to take all files')
 parser.add_option('-e', '--numberOfEvents',
                   type=int, default=1,
@@ -52,7 +48,7 @@ parser.add_option('-d', '--detDictFile',
 parser.add_option('-s', '--subDetector',
                   type=str, default='VertexBarrel',
                   help='variable against with to draw the plots, options are: eta, phi, pt or mu')
-parser.add_option('-h', '--draw_hists',
+parser.add_option('-p', '--draw_hists',
                   action="store_true",
                   help='activate drawing of profile plots')
 parser.add_option('-m', '--draw_maps',
@@ -111,13 +107,13 @@ def draw_map(hist, titlex, titley, plot_title, message='', log_x = False, log_y=
     cm1.Print(plot_title+".png")
 
 
-def draw_hist(hist, titlex, titley, plot_title, message='', log_x = False, log_y=False):
+def draw_hist(hist, titlex, titley, plot_title, message='', log_x = False, log_y=False, draw_opt="HistE"):
 
     cm1 = ROOT.TCanvas("cm1_"+message, "cm1_"+message, 800, 600)
 
     hist.GetXaxis().SetTitle(titlex)
     hist.GetYaxis().SetTitle(titley)
-    hist.Draw("HistE")
+    hist.Draw(draw_opt)
     entries = hist.GetEntries()
 
     myText(0.20, 0.9, ROOT.kBlack, message + '  , entries = ' + str(entries))
@@ -157,7 +153,7 @@ def get_layer(cell_id, decoder, detector, dtype):
 
         case "EMEC_turbine":
             side = decoder.get(cell_id, "side")
-            wheel = decoder.get(cell_id, "wheel")
+            wheel = decoder.get(cell_id, "wheel") + 1
             return  wheel * side
 
         case "DCH_v2":
@@ -215,6 +211,7 @@ with open(detector_dict_path,"r") as f:
         raise KeyError(f"'{sub_detector}' is not available, valid sub-detector entries are: "
                        +" | ".join(_dict.keys()))
 
+# Parse the layer name in to an integer number
 print("Retrieve the number of cells per layer")
 layer_cells = {}
 n_tot_cells = 0
@@ -262,8 +259,10 @@ h_hit_E = ROOT.TH1D("h_hit_E_"+collection, "h_hit_E_"+collection, 100, 0, 1)
 h_particle_E = ROOT.TH1D("h_particle_E_"+collection, "h_particle_E_"+collection, 500, 0, 50)
 h_particle_pt = ROOT.TH1D("h_particle_pt_"+collection, "h_particle_pt_"+collection, 500, 0, 50)
 h_particle_eta = ROOT.TH1D("h_particle_eta_"+collection, "h_particle_eta_"+collection, 100, -5, 5)
-h_particle_ID = ROOT.TH1D("h_particle_ID_"+collection, "h_particle_ID_"+collection, 101, -50.5, 50.5)
 
+# ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
+h_particle_ID = ROOT.TH1D("h_particle_ID_"+collection, "h_particle_ID_"+collection, 1, 0, 1)
+h_particle_ID.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
 
 h_hits_x_layer = ROOT.TH1D("h_hits_x_layer_"+collection, "h_hits_x_layer_"+collection, n_layers, -0.5, n_layers-0.5)
 h_avg_occ_x_layer = ROOT.TH1D("h_avg_occ_x_layer_"+collection, "h_avg_occ_x_layer_"+collection, n_layers, -0.5, n_layers-0.5)
@@ -292,6 +291,8 @@ fill_weight = 1. / (n_events)
 #######################################
 # run the event loop
 
+print("Initializing the PODIO reader...")
+
 podio_reader = root_io.Reader(list_input_files)
 
 # Check if collection is valid and setup a cell ID decoder
@@ -310,7 +311,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         break
 
     if i % 100 == 0: # print a message every 100 processed files
-        print('processing file number = ' + str(i) + ' / ' + str(nfiles) )
+        print('processing event number = ' + str(i) + ' / ' + str(n_events) )
 
     fired_cells = []
     fired_cells_x_layer = Counter()
@@ -342,7 +343,11 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         z = hit.getPosition().z
         r = math.sqrt(math.pow(x, 2) + math.pow(y, 2))
         phi = math.acos(x/r) * math.copysign(1, y)
-        t = hit.getTime()
+
+        if is_calo_hit:
+            t = -999  # Timing not available for MutableSimCalorimeterHit
+        else:
+            t = hit.getTime()
 
         hit_distance = (x**2 + y**2 + z**2)**0.5
 
@@ -356,7 +361,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         else:
             E_hit = hit.getEDep() * 1e3  # For tracker hits
 
-
+        # For layer percentage occupancy, count cells only once
         if not cell_fired:
             fired_cells_x_layer[layer] += 1
 
@@ -382,7 +387,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             h_particle_E.Fill(particle_p4.E(), fill_weight)
             h_particle_pt.Fill(particle_p4.pt(), fill_weight)
             h_particle_eta.Fill(particle_p4.eta(), fill_weight)
-            h_particle_ID.Fill(particle.getPDG(), fill_weight)
+            h_particle_ID.Fill(str(particle.getPDG()), fill_weight)
 
     # <--- end of the hits loop
     
@@ -398,7 +403,10 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
         if layer_occupancy > max_occ_per_layer[l]:
             max_occ_per_layer[l] = layer_occupancy
-            #max_occ_per_layer_evt[l] = #list_input_files[i]
+
+            max_occ_file = int(i / events_per_file)
+            max_occ_event = i -  max_occ_file * events_per_file
+            max_occ_per_layer_evt[l] = f"event: {max_occ_event}, file: {list_input_files[max_occ_file]}"
 
     tot_occupancy = tot_occupancy / n_tot_cells * 100
     h_occ.Fill(tot_occupancy, fill_weight)
@@ -406,34 +414,36 @@ for i,event in enumerate(podio_reader.get(tree_name)):
     processed_events +=1
 # <--- end of the event loop
 
-if processed_events != n_events:
-    print(f"ERROR: processed events ({processed_events}) != total expected events ({n_events}) !!!")
-    print("        ===> Histograms normalization is WRONG!")
-
-
 print("####################")
 print("# Occupancy max values:")
-# for i in max_occ_per_layer.keys():
-#     print(f"max per layer {i}: {max_occ_per_layer[i]} (event {max_occ_per_layer_evt[i]})")
-# print("####################")
+for i in max_occ_per_layer.keys():
+    print(f"max per layer {i}: {max_occ_per_layer[i]} ({max_occ_per_layer_evt[i]})")
+print("####################")
 
 if draw_maps:
-    draw_map(hist_zr, "z [mm]", "r [mm]", sample_name+"_map_zr_"+str(nfiles)+"evt_"+sub_detector, collection)
-    draw_map(hist_xy, "x [mm]", "y [mm]", sample_name+"_map_xy_"+str(nfiles)+"evt_"+sub_detector, collection)
-    draw_map(hist_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_zphi_"+str(nfiles)+"evt_"+sub_detector, collection)
-    draw_map(h_hit_t_x_layer, "timing [ns]", "layer number", sample_name+"_map_timing_"+str(nfiles)+"evt_"+sub_detector, collection)
+    draw_map(hist_zr, "z [mm]", "r [mm]", sample_name+"_map_zr_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_xy, "x [mm]", "y [mm]", sample_name+"_map_xy_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_zphi_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(h_hit_t_x_layer, "timing [ns]", "layer number", sample_name+"_map_timing_"+str(n_events)+"evt_"+sub_detector, collection)
 
 if draw_hists: 
-    draw_hist(h_hit_E, "Deposited energy [MeV]", "Hits / events",  sample_name+"_hit_E_"+str(nfiles)+"evt_"+sub_detector, collection)
-    draw_hist(h_hit_t, "Timing [ns]", "Hits / events",  sample_name+"_hit_t_"+str(nfiles)+"evt_"+sub_detector, collection)
-    draw_hist(h_hit_t_corr, "Timing - TOF [ns]", "Hits / events",  sample_name+"_hit_t_corr_"+str(nfiles)+"evt_"+sub_detector, collection)
-    draw_hist(h_hits_x_layer, "Layer number", "Hits / events",  sample_name+"_hits_x_layer_"+str(nfiles)+"evt_"+sub_detector, collection)
-    draw_hist(h_avg_occ_x_layer, "Layer number", "Occupancy [%] / events",  sample_name+"_avg_occ_x_layer_"+str(nfiles)+"evt_"+sub_detector, collection, log_y=True)
+    draw_hist(h_hit_E, "Deposited energy [MeV]", "Hits / events",  sample_name+"_hit_E_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_t, "Timing [ns]", "Hits / events",  sample_name+"_hit_t_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_t_corr, "Timing - TOF [ns]", "Hits / events",  sample_name+"_hit_t_corr_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hits_x_layer, "Layer number", "Hits / events",  sample_name+"_hits_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_avg_occ_x_layer, "Layer number", "Occupancy [%] / events",  sample_name+"_avg_occ_x_layer_"+str(n_events)+"evt_"+sub_detector, collection, log_y=True)
     for l, h  in h_occ_x_layer.items():
-        draw_hist(h, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_x_layer{l}_"+str(nfiles)+"evt_"+sub_detector, collection, log_x=True)
-    draw_hist(h_occ, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_tot_"+str(nfiles)+"evt_"+sub_detector, collection, log_x=True)
+        draw_hist(h, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_x_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
+    draw_hist(h_occ, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
 
-    draw_hist(h_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_particle_E_"+str(nfiles)+"evt_"+sub_detector, collection)
-    draw_hist(h_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_particle_pt_"+str(nfiles)+"evt_"+sub_detector, collection)
-    draw_hist(h_particle_eta, "MC particle #eta", "Particle / events",  sample_name+"_particle_eta_"+str(nfiles)+"evt_"+sub_detector, collection)
-    draw_hist(h_particle_ID, "MC particle PDG ID", "Particle / events",  sample_name+"_particle_ID_"+str(nfiles)+"evt_"+sub_detector, collection)
+    draw_hist(h_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_particle_E_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_particle_pt_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_particle_eta, "MC particle #eta", "Particle / events",  sample_name+"_particle_eta_"+str(n_events)+"evt_"+sub_detector, collection)
+
+    h_particle_ID.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
+    draw_hist(h_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
+
+
+if processed_events != n_events:
+    print(f"ERROR: processed events ({processed_events}) != total expected events ({n_events}) !!!")
+    print("       ===> Histograms normalization is WRONG!")

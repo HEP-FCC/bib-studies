@@ -1,3 +1,6 @@
+"""
+    Collection of plotting and visualization tools
+"""
 import ROOT
 
 

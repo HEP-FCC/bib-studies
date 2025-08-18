@@ -7,7 +7,7 @@ Collections of scripts for making plots from BIB simulated files.
 There are 2 scripts in this directory for drawing the hit maps
 - `drawhits.py` : it plots the hit maps and some profile histograms for a given sub-detector. Example (do `--help` to see all options):
   ```
-  drawhits.py -i /eos/home-s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/DDSim_output/bib_v1/ -n 10 -s VertexBarrel -d ALLEGRO_o1_v03_DetectorDimensions.json -h -m -z 1 -r 2
+  drawhits.py -i /eos/home-s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/DDSim_output/bib_v1/ -n 10 -s VertexBarrel -d ALLEGRO_o1_v03_DetectorDimensions.json -p -m -z 1 -r 2
   ```
   Note that the `--detDictFile` (`-d`) argument is required and should point to a json file produced with the `xml2json.py` script.
   The  `-z` and `-r` arguments can be used to set different binning in the z and r axis for the hit maps in mm units.

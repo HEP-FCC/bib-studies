@@ -60,7 +60,8 @@ def get_cells_map(detector, sub_det, name):
                 z_layers = detector.constantAsLong(f"ECalEndcapNumCalibZLayersWheel{nw+1}")
                 n_units = detector.constantAsLong(f"nUnitCells{nw+1}")
 
-                cells_map[f"wheel{nw}"] = r_layers * z_layers * n_units
+                cells_map[f"wheel{nw+1}"] = r_layers * z_layers * n_units
+                cells_map[f"wheel-{nw+1}"] = r_layers * z_layers * n_units
 
             # # Method 2, loop only over the LAr "bath" elements
             # bath = sub_det.child("bath")
