@@ -4,3 +4,7 @@ run/*
 # IDE helpers
 ide/*
 .vscode/*
+
+*pdf
+*png
+*json

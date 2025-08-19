@@ -22,6 +22,10 @@ from constants import C_MM_NS
 # style
 
 setup_root_style()
+#to avoid canvas showing up slowing us down
+ROOT.gROOT.SetBatch(True)
+#to avoid canvas->Print printouts
+ROOT.gErrorIgnoreLevel = ROOT.kWarning
 
 ######################################
 # option parser
@@ -104,7 +108,7 @@ def draw_map(hist, titlex, titley, plot_title, message='', log_x = False, log_y=
         cm1.SetLogy()
 
     cm1.Print(plot_title+".pdf")
-    cm1.Print(plot_title+".png")
+    #cm1.Print(plot_title+".png")
 
 
 def draw_hist(hist, titlex, titley, plot_title, message='', log_x = False, log_y=False, draw_opt="HistE"):
@@ -124,7 +128,7 @@ def draw_hist(hist, titlex, titley, plot_title, message='', log_x = False, log_y
         cm1.SetLogy()
 
     cm1.Print(plot_title+".pdf")
-    cm1.Print(plot_title+".png")
+    #cm1.Print(plot_title+".png")
 
 
 # Detector types from:
@@ -283,6 +287,19 @@ h_hit_t_x_layer = ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collecti
 h_hit_t_corr = ROOT.TH1D("hist_hit_t_corr_"+collection, "hist_hit_t_corr_"+collection+"; ;", 200, -5, 5)
 #h_hit_t_x_layer_corr = ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collection+"; ; ; hits / events", 200, 0, 10, n_layers, -0.5, n_layers-0.5)
 
+#per-cell/sensor densities
+#doing this per layer, because of different sensor dimensions/locations
+#todo: may need to revisit actual sensor(=bin) positioning and numbers.
+#remember: here we AGGREGATE sensors along phi (to plot z)
+h_zdensity_vs_sensor_cm_layer = []
+h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer0_"+collection, "hist_zdensity_vs_sensor_cm_layer0"+collection+"; ;", 6, -9.6, 9.6))
+h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer1_"+collection, "hist_zdensity_vs_sensor_cm_layer1"+collection+"; ;", 10, -16, 16))
+h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer2_"+collection, "hist_zdensity_vs_sensor_cm_layer2"+collection+"; ;", 15, -24, 24))
+h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer3_"+collection, "hist_zdensity_vs_sensor_cm_layer3"+collection+"; ;", 16, -16, 16))
+h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer4_"+collection, "hist_zdensity_vs_sensor_cm_layer4"+collection+"; ;", 32, -32, 32))
+
+#to be used to scale down the zdensity histos (so we can calculate per-sensor rate)
+n_staves_layer = [15,24,36,23,51]
 
 n_events = events_per_file * len(list_input_files)
 
@@ -300,6 +317,7 @@ metadata = podio_reader.get("metadata")[0]
 
 id_encoding = metadata.get_parameter(collection+"__CellIDEncoding")
 decoder = ROOT.dd4hep.BitFieldCoder(id_encoding)
+#print("HERE",decoder.fieldDescription()) #get possible values
 
 max_occ_per_layer = defaultdict(float)
 max_occ_per_layer_evt = defaultdict(str)
@@ -378,6 +396,8 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
         h_hit_t_corr.Fill(t - (hit_distance / C_MM_NS), fill_weight)
 
+        h_zdensity_vs_sensor_cm_layer[layer].Fill(z,fill_weight*1./n_staves_layer[layer])
+
         if not is_calo_hit:
             particle = hit.getParticle()
 
@@ -414,6 +434,9 @@ for i,event in enumerate(podio_reader.get(tree_name)):
     processed_events +=1
 # <--- end of the event loop
 
+
+
+
 print("####################")
 print("# Occupancy max values:")
 for i in max_occ_per_layer.keys():
@@ -442,6 +465,9 @@ if draw_hists:
 
     h_particle_ID.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
     draw_hist(h_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
+
+    for l, h  in h_occ_x_layer.items():
+      draw_hist(h_zdensity_vs_sensor_cm_layer[l], "z (bins=sensors)","Hits/event",  sample_name+f"_ZdensitySensor_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
 
 
 if processed_events != n_events:
