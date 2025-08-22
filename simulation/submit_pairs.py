@@ -29,8 +29,10 @@ parser.add_argument('-t', '--tag',
                     help='Tag of the dataset.')
 parser.add_argument('-n', '--n_max_jobs', default=-1, type=int,
                     help='Maximum number of jobs.')
-parser.add_argument('-g', '--geo', default="ALLEGRO_o1_v03", type=str,
+parser.add_argument('-c', '--compactFile', default="$K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml", type=str,
                     help='Detector geometry.')
+parser.add_argument('-k', '--k4geo', default=None, type=str,
+                    help='Path to custom k4geo.')
 parser.add_argument('--crossingAngleBoost', default=0.015, type=str,
                     help='Detector geometry.')
 
@@ -70,12 +72,13 @@ fcc_dir = "/".join(fcc_cfg.split("/")[:4])  # get software stack directory
 fcc_ver = fcc_cfg.split("/")[5]             # get the release number
 exec_header = f"""#!/bin/bash
 source {fcc_dir}/setup.sh -r {fcc_ver}
+"""
 
-# For using custom geometries, a local version of K4GEO can be set
-# following the pattern below
-#cd /afs/cern.ch/user/your/local/k4geo
-#k4_local_repo
-#cd -
+k4geo_path="""
+# For using a local version of K4GEO
+cd GEO_PATH
+k4_local_repo
+cd -
 """
 
 # Path to steering files
@@ -90,10 +93,14 @@ def run(args):
     input_file_path = args.input
     output_file_path = args.output
     n_max = args.n_max_jobs
-    geo = args.geo
+    compact = args.compactFile
+    k4geo = args.k4geo
     x_angle = args.crossingAngleBoost
 
-    detector = re.sub("(_o[0-9]+)?_v[0-9]{2}.*", "", geo)
+
+    # Get the short name of geometry file
+    geo = compact.split("/")[-1].strip(".xml")
+    #detector = re.sub("(_o[0-9]+)?_v[0-9]{2}.*", "", geo)
 
     # Define output storage path
     storage_path = os.path.join(output_file_path, tag)
@@ -104,6 +111,11 @@ def run(args):
 
     print("Creating submission folder:", tag)
     os.makedirs(tag, exist_ok=True)
+
+    # Check if custom k4geo is to be used
+    header = exec_header
+    if k4geo != None:
+        header += k4geo_path.replace("GEO_PATH",k4geo)
 
     # Check if a steering file is required
     steering_opt = ""
@@ -123,7 +135,7 @@ def run(args):
         if "data" not in folder:
             continue
 
-        command = ""
+        command = header
         bx_id = folder.replace("data", "")
         input_filename = os.path.join(input_file_path, folder, "pairs.pairs")
         print(input_filename)
@@ -134,7 +146,7 @@ def run(args):
         tmp_output_filename = os.path.basename(output_filename)
 
         command += f"""ddsim \
-            --compactFile $K4GEO/FCCee/{detector}/compact/{geo}/{geo}.xml \
+            --compactFile  {compact} \
             -I {input_filename} \
             -O {tmp_output_filename} \
             -N -1 --crossingAngleBoost {x_angle} \
@@ -143,8 +155,8 @@ def run(args):
         command += f"mv {tmp_output_filename} {output_filename}"
 
         with open(executable_path, "w") as f:
-            f.write(exec_header)
             f.write(command)
+
         st = os.stat(executable_path)
         os.chmod(executable_path, st.st_mode | stat.S_IEXEC)
         n_jobs += 1

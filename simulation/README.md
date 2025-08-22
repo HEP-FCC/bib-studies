@@ -42,22 +42,18 @@ After the preparation is done, the command to launch the jobs
 
 Example usage command:
 ```
-submit_pairs.py --tag IDEA_my_test --geo IDEA_o1_v03 -n 10
+submit_pairs.py --tag IDEA_my_test --compactFile $K4GEO/FCCee/IDEA/compact/IDEA_o1_v03/IDEA_o1_v03.xml -n 10
 ```
 which will prepare the submission for 10 events (jobs),
 using the `IDEA_o1_v03` geometry description.
 All the available geometries are stored in the
 [`k4geo`](https://github.com/key4hep/k4geo/tree/main)
 repository.
-To specify a different one, use the convention `DETECTOR_oX_vYY`
-(note that sometimes the `oX` is omitted e.g. for ILD).
 
 
-If a custom variation of the standard geometry is needed, 
-uncomment  [these lines](submit_pairs.py#L76-L78)
-in the `exec_header` string,
-and set the path to the customized version of the `k4geo` repo.
-Keep the naming convention `DETECTOR_oX_vYY(_ZZZ).xml`.
+If a custom variation of the standard geometry 
+tha requires recompiling k4geo is needed,
+specify the path to the local build with the `--k4geo` flag [NOT TESTED YET].
 
 All the available options can be seen using the `-h` flag.
 For example the default input path is currently:
