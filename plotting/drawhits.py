@@ -292,11 +292,11 @@ h_hit_t_corr = ROOT.TH1D("hist_hit_t_corr_"+collection, "hist_hit_t_corr_"+colle
 #todo: may need to revisit actual sensor(=bin) positioning and numbers.
 #remember: here we AGGREGATE sensors along phi (to plot z)
 h_zdensity_vs_sensor_cm_layer = []
-h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer0_"+collection, "hist_zdensity_vs_sensor_cm_layer0"+collection+"; ;", 6, -9.6, 9.6))
-h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer1_"+collection, "hist_zdensity_vs_sensor_cm_layer1"+collection+"; ;", 10, -16, 16))
-h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer2_"+collection, "hist_zdensity_vs_sensor_cm_layer2"+collection+"; ;", 15, -24, 24))
-h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer3_"+collection, "hist_zdensity_vs_sensor_cm_layer3"+collection+"; ;", 16, -16, 16))
-h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer4_"+collection, "hist_zdensity_vs_sensor_cm_layer4"+collection+"; ;", 32, -32, 32))
+h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer0_"+collection, "hist_zdensity_vs_sensor_cm_layer0"+collection+"; ;", 6, -96, 96))
+h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer1_"+collection, "hist_zdensity_vs_sensor_cm_layer1"+collection+"; ;", 10, -160, 160))
+h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer2_"+collection, "hist_zdensity_vs_sensor_cm_layer2"+collection+"; ;", 15, -240, 240))
+h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer3_"+collection, "hist_zdensity_vs_sensor_cm_layer3"+collection+"; ;", 16, -160, 160))
+h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer4_"+collection, "hist_zdensity_vs_sensor_cm_layer4"+collection+"; ;", 32, -320, 320))
 
 #to be used to scale down the zdensity histos (so we can calculate per-sensor rate)
 n_staves_layer = [15,24,36,23,51]
@@ -356,21 +356,21 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         #TODO: Handle better cell_id info
         layer = get_layer(cell_id, decoder, sub_detector, detector_dict["typeFlag"])
 
-        x = hit.getPosition().x
-        y = hit.getPosition().y
-        z = hit.getPosition().z
-        r = math.sqrt(math.pow(x, 2) + math.pow(y, 2))
-        phi = math.acos(x/r) * math.copysign(1, y)
+        x_mm = hit.getPosition().x
+        y_mm = hit.getPosition().y
+        z_mm = hit.getPosition().z
+        r_mm = math.sqrt(math.pow(x_mm, 2) + math.pow(y_mm, 2))
+        phi = math.acos(x_mm/r_mm) * math.copysign(1, y_mm)
 
         if is_calo_hit:
             t = -999  # Timing not available for MutableSimCalorimeterHit
         else:
             t = hit.getTime()
 
-        hit_distance = (x**2 + y**2 + z**2)**0.5
+        hit_distance = (x_mm**2 + y_mm**2 + z_mm**2)**0.5
 
-        if x < 0.:
-            r = -1. * r
+        if x_mm < 0.:
+            r_mm = -1. * r_mm
 
         # Deposited energy, converted to MeV
         E_hit = 0
@@ -387,16 +387,16 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         h_hit_E.Fill(E_hit, fill_weight)
         h_hits_x_layer.Fill(layer, fill_weight)
 
-        hist_zr.Fill(z, r, fill_weight)
-        hist_xy.Fill(x, y, fill_weight)
-        hist_zphi.Fill(z, phi, fill_weight)
+        hist_zr.Fill(z_mm, r_mm, fill_weight)
+        hist_xy.Fill(x_mm, y_mm, fill_weight)
+        hist_zphi.Fill(z_mm, phi, fill_weight)
 
         h_hit_t.Fill(t, fill_weight)
         h_hit_t_x_layer.Fill(t, layer, fill_weight)
 
         h_hit_t_corr.Fill(t - (hit_distance / C_MM_NS), fill_weight)
 
-        h_zdensity_vs_sensor_cm_layer[layer].Fill(z,fill_weight*1./n_staves_layer[layer])
+        h_zdensity_vs_sensor_cm_layer[layer].Fill(z_mm, fill_weight*1./n_staves_layer[layer])
 
         if not is_calo_hit:
             particle = hit.getParticle()
