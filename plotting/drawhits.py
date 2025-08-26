@@ -34,6 +34,9 @@ parser = OptionParser()
 parser.add_option('-i', '--infilePath',
                   type=str, default='/eos/home-s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/DDSim_output/bib_v1/',
                   help='path to directory with input files')
+parser.add_option('-o', '--outputFile',
+                  type=str, default='hits.root',
+                  help='Name of output root file (the sample name wilN oul be added as prefix)')
 parser.add_option('-n', '--numberOfFiles',
                   type=int, default=1,
                   help='number of files to consider (1 event per file), put -1 to take all files')
@@ -70,6 +73,7 @@ parser.add_option('-z','--bin_width_z',
 nfiles = options.numberOfFiles
 events_per_file = options.numberOfEvents
 path = options.infilePath
+output_file_name = options.outputFile
 tree_name = options.tree
 sample_name = options.sample
 detector_dict_path = options.detDictFile
@@ -263,6 +267,9 @@ n_layers = len(layer_cells.keys())
 #######################################
 # prepare histograms
 
+# list of the histograms that will be saved in output ROOT file
+histograms = []
+
 collection = detector_dict["hitsCollection"]
 z_range = int(detector_dict["max_z"]*1.1)
 r_range = int(detector_dict["max_r"]*1.1)
@@ -274,29 +281,36 @@ h_hit_E = ROOT.TH1D("h_hit_E_"+collection, "h_hit_E_"+collection, 100, 0, 5)
 h_particle_E = ROOT.TH1D("h_particle_E_"+collection, "h_particle_E_"+collection, 500, 0, 50)
 h_particle_pt = ROOT.TH1D("h_particle_pt_"+collection, "h_particle_pt_"+collection, 500, 0, 50)
 h_particle_eta = ROOT.TH1D("h_particle_eta_"+collection, "h_particle_eta_"+collection, 100, -5, 5)
+histograms += [h_hit_E, h_particle_E, h_particle_pt, h_particle_pt, h_particle_eta]
 
 # ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
 h_particle_ID = ROOT.TH1D("h_particle_ID_"+collection, "h_particle_ID_"+collection, 1, 0, 1)
 h_particle_ID.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
+histograms += [h_particle_ID]
 
 h_hits_x_layer = ROOT.TH1D("h_hits_x_layer_"+collection, "h_hits_x_layer_"+collection, n_layers, -0.5, n_layers-0.5)
 h_avg_occ_x_layer = ROOT.TH1D("h_avg_occ_x_layer_"+collection, "h_avg_occ_x_layer_"+collection, n_layers, -0.5, n_layers-0.5)
+histograms += [h_hits_x_layer, h_avg_occ_x_layer]
 
 h_occ_x_layer = {}
 log_bins = np.logspace(-2,2,50)
 for l in layer_cells.keys():
     h_occ_x_layer[l] = ROOT.TH1D(f"h_occ_x_layer{l}_{collection}", f"h_occ_x_layer{l}_{collection}", len(log_bins)-1, log_bins)
+    histograms += [h_occ_x_layer[l]]
 h_occ = ROOT.TH1D(f"h_occ_tot_{collection}", f"h_occ_tot_{collection}", len(log_bins)-1, log_bins)
+histograms += [h_occ]
 
 # Hit maps definitions
 hist_zr = ROOT.TH2D("hist_zr_"+collection, "hist_zr_"+collection+"; ; ; hits/(%d#times%d) mm^{2} per event"%(bw_z, bw_r), n_bins_z, -z_range, z_range, n_bins_r, -r_range, -r_range)
 hist_xy = ROOT.TH2D("hist_xy_"+collection, "hist_xy_"+collection+"; ; ; hits/(%d#times%d) mm^{2} per event"%(bw_r, bw_r), n_bins_r, -r_range, -r_range, n_bins_r, -r_range, -r_range)
 hist_zphi = ROOT.TH2D("hist_zphi_"+collection, "hist_zphi_"+collection+"; ; ; hits/(0.01#times%d)rad#timesmm per event"%(bw_z), n_bins_z, -z_range, z_range, 700, -3.5, 3.5)
+histograms += [hist_zr, hist_xy, hist_zphi]
+
+# Timing histograms
 h_hit_t = ROOT.TH1D("hist_hit_t_"+collection, "hist_hit_t_"+collection+"; ;", 200, 0, 5)
 h_hit_t_x_layer = ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collection+"; ; ; hits / events", 200, 0, 10, n_layers, -0.5, n_layers-0.5)
-
 h_hit_t_corr = ROOT.TH1D("hist_hit_t_corr_"+collection, "hist_hit_t_corr_"+collection+"; ;", 200, -5, 5)
-#h_hit_t_x_layer_corr = ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collection+"; ; ; hits / events", 200, 0, 10, n_layers, -0.5, n_layers-0.5)
+histograms += [h_hit_t, h_hit_t_x_layer, h_hit_t_corr]
 
 if sub_detector == 'VertexBarrel':
     #per-cell/sensor densities
@@ -483,6 +497,14 @@ if draw_hists:
     if sub_detector == 'VertexBarrel':
         for l, h  in h_occ_x_layer.items():
             draw_hist(h_zdensity_vs_sensor_cm_layer[l], "z (bins=sensors)","Hits/event",  sample_name+f"_ZdensitySensor_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
+
+# Write the histograms to the output file
+output_file_name = sample_name + "_" + output_file_name
+with ROOT.TFile(output_file_name,"RECREATE") as f:
+    for h in histograms:
+        h.Write()
+
+print("Histograms saved in:", output_file_name)
 
 
 if processed_events != n_events:
