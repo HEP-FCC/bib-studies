@@ -10,8 +10,8 @@ def setup_root_style():
     """
     gs = ROOT.gStyle
 
-    gs.SetOptStat(0000)
-    gs.SetOptFit(0000)
+    gs.SetOptStat(111111)
+    gs.SetOptFit(111111)
     
     gs.SetPadTickX(1)
     gs.SetPadTickY(1)

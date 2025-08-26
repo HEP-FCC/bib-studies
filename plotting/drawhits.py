@@ -160,6 +160,9 @@ def get_layer(cell_id, decoder, detector, dtype):
             wheel = decoder.get(cell_id, "wheel") + 1
             return  wheel * side
 
+        case "ECalBarrel": 
+            return  0
+
         case "DCH_v2":
             # Number of layers per super layer could be read from geo file
             nl_x_sl = 8
@@ -184,7 +187,7 @@ def get_layer(cell_id, decoder, detector, dtype):
 
 
 #######################################
-# parse the input path
+# parse the input path and/or files
 
 input_path = glob(path)
 
@@ -196,7 +199,7 @@ elif isinstance(input_path, str):
     list_files = [input_path]
 else:
     list_files = input_path
-
+  
 # list nfiles in the path directory ending in .root  to consider for plotting
 list_input_files = []
 for f in sorted(list_files): #use sorted list to make sure to always take the same files
@@ -220,6 +223,11 @@ print("Retrieve the number of cells per layer")
 layer_cells = {}
 n_tot_cells = 0
 for de, cells in detector_dict["det_element_cells"].items():
+    #for ECalBArrel take the cell from bath - TODO: improve code clarity if possible
+    if de == 'bath':
+        layer_cells[0] = cells
+        n_tot_cells += cells
+    #do detector with atcual layers or wheels    
     side = 0
     try:
         side_name = re.search("(side)(_)?(-)?[0-9]+",de).group(0)
@@ -231,13 +239,16 @@ for de, cells in detector_dict["det_element_cells"].items():
 
     layer_name = "000"
     try:
-        layer_name = re.search("(layer|wheel)(_)?(-)?[0-9]+",de).group(0)
+        layer_name = re.search("(layer|wheel)(_)?(-)?[0-9]+",de).group(0) 
     except AttributeError:
         print("Warning: Couldn't read layer number from", de)
         continue
 
+    
     # Get the layer number, sign based on the side
     ln = int(re.sub(r"[^0-9-]","",layer_name))
+    print (" === layer_name = ", layer_name)
+    print (" === ln = ", ln)
     if side != 0:
         ln *= side
 
@@ -259,7 +270,7 @@ n_bins_z = int(z_range * 2 / bw_z)  # mm binning
 n_bins_r = int(r_range * 2 / bw_r)  # mm binning  
 
 # Profile histograms
-h_hit_E = ROOT.TH1D("h_hit_E_"+collection, "h_hit_E_"+collection, 100, 0, 1)
+h_hit_E = ROOT.TH1D("h_hit_E_"+collection, "h_hit_E_"+collection, 100, 0, 5)
 h_particle_E = ROOT.TH1D("h_particle_E_"+collection, "h_particle_E_"+collection, 500, 0, 50)
 h_particle_pt = ROOT.TH1D("h_particle_pt_"+collection, "h_particle_pt_"+collection, 500, 0, 50)
 h_particle_eta = ROOT.TH1D("h_particle_eta_"+collection, "h_particle_eta_"+collection, 100, -5, 5)
@@ -287,20 +298,22 @@ h_hit_t_x_layer = ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collecti
 h_hit_t_corr = ROOT.TH1D("hist_hit_t_corr_"+collection, "hist_hit_t_corr_"+collection+"; ;", 200, -5, 5)
 #h_hit_t_x_layer_corr = ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collection+"; ; ; hits / events", 200, 0, 10, n_layers, -0.5, n_layers-0.5)
 
-#per-cell/sensor densities
-#doing this per layer, because of different sensor dimensions/locations
-#todo: may need to revisit actual sensor(=bin) positioning and numbers.
-#remember: here we AGGREGATE sensors along phi (to plot z)
-h_zdensity_vs_sensor_cm_layer = []
-h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer0_"+collection, "hist_zdensity_vs_sensor_cm_layer0"+collection+"; ;", 6, -96, 96))
-h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer1_"+collection, "hist_zdensity_vs_sensor_cm_layer1"+collection+"; ;", 10, -160, 160))
-h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer2_"+collection, "hist_zdensity_vs_sensor_cm_layer2"+collection+"; ;", 15, -240, 240))
-h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer3_"+collection, "hist_zdensity_vs_sensor_cm_layer3"+collection+"; ;", 16, -160, 160))
-h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer4_"+collection, "hist_zdensity_vs_sensor_cm_layer4"+collection+"; ;", 32, -320, 320))
+if sub_detector == 'VertexBarrel':
+    #per-cell/sensor densities
+    #doing this per layer, because of different sensor dimensions/locations
+    #todo: may need to revisit actual sensor(=bin) positioning and numbers.
+    #remember: here we AGGREGATE sensors along phi (to plot z)
+    h_zdensity_vs_sensor_cm_layer = []
+    h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer0_"+collection, "hist_zdensity_vs_sensor_cm_layer0"+collection+"; ;", 6, -96, 96))
+    h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer1_"+collection, "hist_zdensity_vs_sensor_cm_layer1"+collection+"; ;", 10, -160, 160))
+    h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer2_"+collection, "hist_zdensity_vs_sensor_cm_layer2"+collection+"; ;", 15, -240, 240))
+    h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer3_"+collection, "hist_zdensity_vs_sensor_cm_layer3"+collection+"; ;", 16, -160, 160))
+    h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer4_"+collection, "hist_zdensity_vs_sensor_cm_layer4"+collection+"; ;", 32, -320, 320))
 
-#to be used to scale down the zdensity histos (so we can calculate per-sensor rate)
-n_staves_layer = [15,24,36,23,51]
+    #to be used to scale down the zdensity histos (so we can calculate per-sensor rate)
+    n_staves_layer = [15,24,36,23,51]
 
+    
 n_events = events_per_file * len(list_input_files)
 
 fill_weight = 1. / (n_events)
@@ -395,8 +408,9 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         h_hit_t_x_layer.Fill(t, layer, fill_weight)
 
         h_hit_t_corr.Fill(t - (hit_distance / C_MM_NS), fill_weight)
-
-        h_zdensity_vs_sensor_cm_layer[layer].Fill(z_mm, fill_weight*1./n_staves_layer[layer])
+        
+        if sub_detector == 'VertexBarrel':
+            h_zdensity_vs_sensor_cm_layer[layer].Fill(z_mm, fill_weight*1./n_staves_layer[layer])
 
         if not is_calo_hit:
             particle = hit.getParticle()
@@ -466,8 +480,9 @@ if draw_hists:
     h_particle_ID.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
     draw_hist(h_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
 
-    for l, h  in h_occ_x_layer.items():
-      draw_hist(h_zdensity_vs_sensor_cm_layer[l], "z (bins=sensors)","Hits/event",  sample_name+f"_ZdensitySensor_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
+    if sub_detector == 'VertexBarrel':
+        for l, h  in h_occ_x_layer.items():
+            draw_hist(h_zdensity_vs_sensor_cm_layer[l], "z (bins=sensors)","Hits/event",  sample_name+f"_ZdensitySensor_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
 
 
 if processed_events != n_events:
