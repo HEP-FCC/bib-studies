@@ -34,6 +34,9 @@ parser = OptionParser()
 parser.add_option('-i', '--infilePath',
                   type=str, default='/eos/home-s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/DDSim_output/bib_v1/',
                   help='path to directory with input files')
+parser.add_option('-o', '--outputFile',
+                  type=str, default='hits',
+                  help='Name of output root file, the sample name will be added as prefix and the detector as suffix')
 parser.add_option('-n', '--numberOfFiles',
                   type=int, default=1,
                   help='number of files to consider (1 event per file), put -1 to take all files')
@@ -60,16 +63,20 @@ parser.add_option('-m', '--draw_maps',
                   help='activate drawing of number of maps plots')
 parser.add_option('-r','--bin_width_r',
                   type=int, default=1,
-                  help='bin width for hit maps in mm (default 1 mm)')
+                  help='bin width for radius r in mm (default 1 mm)')
 parser.add_option('-z','--bin_width_z',
                   type=int, default=1,
-                  help='bin width for hit maps in mm (default 1 mm)')
+                  help='bin width for z in mm (default 1 mm)')
+parser.add_option('-a', '--bin_width_phi',
+                  type=float, default=0.01,
+                  help='bin width for azimuthal angle phi')
 
 (options, args) = parser.parse_args()
 
 nfiles = options.numberOfFiles
 events_per_file = options.numberOfEvents
 path = options.infilePath
+output_file_name = options.outputFile
 tree_name = options.tree
 sample_name = options.sample
 detector_dict_path = options.detDictFile
@@ -78,6 +85,7 @@ draw_maps = options.draw_maps
 draw_hists = options.draw_hists
 bw_r = options.bin_width_r
 bw_z = options.bin_width_z
+bw_phi = options.bin_width_phi
 
 
 #######################################
@@ -227,7 +235,7 @@ for de, cells in detector_dict["det_element_cells"].items():
     if de == 'bath':
         layer_cells[0] = cells
         n_tot_cells += cells
-    #do detector with atcual layers or wheels    
+    #do detector with actual layers or wheels
     side = 0
     try:
         side_name = re.search("(side)(_)?(-)?[0-9]+",de).group(0)
@@ -263,57 +271,67 @@ n_layers = len(layer_cells.keys())
 #######################################
 # prepare histograms
 
+# get the hits collection name
 collection = detector_dict["hitsCollection"]
+
+# list of the histograms that will be saved in output ROOT file
+histograms = []
+
+# Set some of the binning
 z_range = int(detector_dict["max_z"]*1.1)
 r_range = int(detector_dict["max_r"]*1.1)
-n_bins_z = int(z_range * 2 / bw_z)  # mm binning  
-n_bins_r = int(r_range * 2 / bw_r)  # mm binning  
+phi_range = 3.5
+z_binning = [int(z_range * 2 / bw_z), -z_range, z_range]  # mm binning  
+r_binning = [int(r_range * 2 / bw_r), -r_range, r_range]  # mm binning  
+phi_binning = [int(phi_range * 2 / bw_phi), -phi_range, phi_range ] # rad binning
+
 
 # Profile histograms
 h_hit_E = ROOT.TH1D("h_hit_E_"+collection, "h_hit_E_"+collection, 100, 0, 5)
 h_particle_E = ROOT.TH1D("h_particle_E_"+collection, "h_particle_E_"+collection, 500, 0, 50)
 h_particle_pt = ROOT.TH1D("h_particle_pt_"+collection, "h_particle_pt_"+collection, 500, 0, 50)
 h_particle_eta = ROOT.TH1D("h_particle_eta_"+collection, "h_particle_eta_"+collection, 100, -5, 5)
+histograms += [h_hit_E, h_particle_E, h_particle_pt, h_particle_pt, h_particle_eta]
 
 # ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
 h_particle_ID = ROOT.TH1D("h_particle_ID_"+collection, "h_particle_ID_"+collection, 1, 0, 1)
 h_particle_ID.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
+histograms += [h_particle_ID]
 
 h_hits_x_layer = ROOT.TH1D("h_hits_x_layer_"+collection, "h_hits_x_layer_"+collection, n_layers, -0.5, n_layers-0.5)
 h_avg_occ_x_layer = ROOT.TH1D("h_avg_occ_x_layer_"+collection, "h_avg_occ_x_layer_"+collection, n_layers, -0.5, n_layers-0.5)
+histograms += [h_hits_x_layer, h_avg_occ_x_layer]
 
 h_occ_x_layer = {}
 log_bins = np.logspace(-2,2,50)
 for l in layer_cells.keys():
     h_occ_x_layer[l] = ROOT.TH1D(f"h_occ_x_layer{l}_{collection}", f"h_occ_x_layer{l}_{collection}", len(log_bins)-1, log_bins)
+    histograms += [h_occ_x_layer[l]]
 h_occ = ROOT.TH1D(f"h_occ_tot_{collection}", f"h_occ_tot_{collection}", len(log_bins)-1, log_bins)
+histograms += [h_occ]
 
 # Hit maps definitions
-hist_zr = ROOT.TH2D("hist_zr_"+collection, "hist_zr_"+collection+"; ; ; hits/(%d#times%d) mm^{2} per event"%(bw_z, bw_r), n_bins_z, -z_range, z_range, n_bins_r, -r_range, -r_range)
-hist_xy = ROOT.TH2D("hist_xy_"+collection, "hist_xy_"+collection+"; ; ; hits/(%d#times%d) mm^{2} per event"%(bw_r, bw_r), n_bins_r, -r_range, -r_range, n_bins_r, -r_range, -r_range)
-hist_zphi = ROOT.TH2D("hist_zphi_"+collection, "hist_zphi_"+collection+"; ; ; hits/(0.01#times%d)rad#timesmm per event"%(bw_z), n_bins_z, -z_range, z_range, 700, -3.5, 3.5)
-h_hit_t = ROOT.TH1D("hist_hit_t_"+collection, "hist_hit_t_"+collection+"; ;", 200, 0, 5)
+hist_zr = ROOT.TH2D("hist_zr_"+collection, "hist_zr_"+collection+"; ; ; hits/(%d#times%d) mm^{2} per event"%(bw_z, bw_r), *z_binning, *r_binning)
+hist_xy = ROOT.TH2D("hist_xy_"+collection, "hist_xy_"+collection+"; ; ; hits/(%d#times%d) mm^{2} per event"%(bw_r, bw_r), *r_binning, *r_binning)
+hist_zphi = ROOT.TH2D("hist_zphi_"+collection, "hist_zphi_"+collection+"; ; ; hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z), *z_binning, *phi_binning)
+histograms += [hist_zr, hist_xy, hist_zphi]
+
+# Timing histograms
+h_hit_t = ROOT.TH1D("hist_hit_t_"+collection, "hist_hit_t_"+collection, 200, 0, 5)
 h_hit_t_x_layer = ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collection+"; ; ; hits / events", 200, 0, 10, n_layers, -0.5, n_layers-0.5)
+h_hit_t_corr = ROOT.TH1D("hist_hit_t_corr_"+collection, "hist_hit_t_corr_"+collection, 200, -5, 5)
+histograms += [h_hit_t, h_hit_t_x_layer, h_hit_t_corr]
 
-h_hit_t_corr = ROOT.TH1D("hist_hit_t_corr_"+collection, "hist_hit_t_corr_"+collection+"; ;", 200, -5, 5)
-#h_hit_t_x_layer_corr = ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collection+"; ; ; hits / events", 200, 0, 10, n_layers, -0.5, n_layers-0.5)
+# Hit densities per layer
+h_z_density_vs_layer_mm = {}
+h_phi_density_vs_layer = {}
+h_zphi_density_vs_layer = {}
+for l in layer_cells.keys():
+    h_z_density_vs_layer_mm[l] = ROOT.TH1D(f"hist_z_density_vs_layer{l}_mm_{collection}", f"hist_z_density_vs_layer{l}_mm_{collection}", *z_binning)
+    h_phi_density_vs_layer[l] = ROOT.TH1D(f"hist_phi_density_vs_layer{l}_{collection}", f"hist_phi_density_vs_layer{l}_{collection}", *phi_binning)
+    h_zphi_density_vs_layer[l] = ROOT.TH2D(f"hist_zphi_vs_layer{l}"+collection, f"hist_zphi_vs_layer{l}"+collection+"; ; ; hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z), *z_binning, *phi_binning)
+    histograms += [h_z_density_vs_layer_mm[l], h_phi_density_vs_layer[l], h_zphi_density_vs_layer[l]]
 
-if sub_detector == 'VertexBarrel':
-    #per-cell/sensor densities
-    #doing this per layer, because of different sensor dimensions/locations
-    #todo: may need to revisit actual sensor(=bin) positioning and numbers.
-    #remember: here we AGGREGATE sensors along phi (to plot z)
-    h_zdensity_vs_sensor_cm_layer = []
-    h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer0_"+collection, "hist_zdensity_vs_sensor_cm_layer0"+collection+"; ;", 6, -96, 96))
-    h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer1_"+collection, "hist_zdensity_vs_sensor_cm_layer1"+collection+"; ;", 10, -160, 160))
-    h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer2_"+collection, "hist_zdensity_vs_sensor_cm_layer2"+collection+"; ;", 15, -240, 240))
-    h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer3_"+collection, "hist_zdensity_vs_sensor_cm_layer3"+collection+"; ;", 16, -160, 160))
-    h_zdensity_vs_sensor_cm_layer.append(ROOT.TH1D("hist_zdensity_vs_sensor_cm_layer4_"+collection, "hist_zdensity_vs_sensor_cm_layer4"+collection+"; ;", 32, -320, 320))
-
-    #to be used to scale down the zdensity histos (so we can calculate per-sensor rate)
-    n_staves_layer = [15,24,36,23,51]
-
-    
 n_events = events_per_file * len(list_input_files)
 
 fill_weight = 1. / (n_events)
@@ -408,9 +426,10 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         h_hit_t_x_layer.Fill(t, layer, fill_weight)
 
         h_hit_t_corr.Fill(t - (hit_distance / C_MM_NS), fill_weight)
-        
-        if sub_detector == 'VertexBarrel':
-            h_zdensity_vs_sensor_cm_layer[layer].Fill(z_mm, fill_weight*1./n_staves_layer[layer])
+
+        h_z_density_vs_layer_mm[layer].Fill(z_mm, fill_weight)
+        h_phi_density_vs_layer[layer].Fill(phi, fill_weight)
+        h_zphi_density_vs_layer[layer].Fill(z_mm, phi, fill_weight)
 
         if not is_calo_hit:
             particle = hit.getParticle()
@@ -462,6 +481,9 @@ if draw_maps:
     draw_map(hist_xy, "x [mm]", "y [mm]", sample_name+"_map_xy_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_map(hist_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_zphi_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_map(h_hit_t_x_layer, "timing [ns]", "layer number", sample_name+"_map_timing_"+str(n_events)+"evt_"+sub_detector, collection)
+    
+    for l, h in h_zphi_density_vs_layer.items():
+        draw_map(h, "z [mm]", "#phi [rad]", sample_name+f"_map_zphi_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
 
 if draw_hists: 
     draw_hist(h_hit_E, "Deposited energy [MeV]", "Hits / events",  sample_name+"_hit_E_"+str(n_events)+"evt_"+sub_detector, collection)
@@ -480,9 +502,17 @@ if draw_hists:
     h_particle_ID.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
     draw_hist(h_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
 
-    if sub_detector == 'VertexBarrel':
-        for l, h  in h_occ_x_layer.items():
-            draw_hist(h_zdensity_vs_sensor_cm_layer[l], "z (bins=sensors)","Hits/event",  sample_name+f"_ZdensitySensor_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
+    for l in h_z_density_vs_layer_mm.keys():
+        draw_hist(h_z_density_vs_layer_mm[l], "z [mm]","Hits/event",  sample_name+f"_zDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
+        draw_hist(h_phi_density_vs_layer[l],  "phi","Hits/event",  sample_name+f"_phiDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
+
+# Write the histograms to the output file
+output_file_name = f"{sample_name}_{output_file_name}_{sub_detector}.root"
+with ROOT.TFile(output_file_name,"RECREATE") as f:
+    for h in histograms:
+        h.Write()
+
+print("Histograms saved in:", output_file_name)
 
 
 if processed_events != n_events:
