@@ -32,8 +32,8 @@ ROOT.gErrorIgnoreLevel = ROOT.kWarning
 
 parser = OptionParser()
 parser.add_option('-i', '--infilePath',
-                  type=str, default='/eos/home-s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/DDSim_output/bib_v1/',
-                  help='path to directory with input files')
+                  type=str, default='/eos/home-s/sfranche/FCC/samples/bib/ipc/aciarma_4IP_2024may29_Z/CADbp_3998evt_ALLEGRO_o1_v03_r2025-05-29.root',
+                  help='path to input file or input directory')
 parser.add_option('-o', '--outputFile',
                   type=str, default='hits',
                   help='Name of output root file, the sample name will be added as prefix and the detector as suffix')
