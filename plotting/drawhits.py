@@ -32,7 +32,7 @@ ROOT.gErrorIgnoreLevel = ROOT.kWarning
 
 parser = OptionParser()
 parser.add_option('-i', '--infilePath',
-                  type=str, default='/eos/home-s/sfranche/FCC/samples/bib/ipc/aciarma_4IP_2024may29_Z/CADbp_3998evt_ALLEGRO_o1_v03_r2025-05-29.root',
+                  type=str, default='/eos/home-s/sfranche/FCC/samples/bib/ipc/aciarma_4IP_2024may29_Z/CADbp_ALLEGRO_o1_v03_r2025-05-29_3998.root',
                   help='path to input file or input directory')
 parser.add_option('-o', '--outputFile',
                   type=str, default='hits',
