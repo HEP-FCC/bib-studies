@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 
 from collections import Counter, defaultdict
-from glob import glob
 import json
 import math
 import numpy as np
-import os
 from optparse import OptionParser
 import re
 
@@ -14,8 +12,10 @@ from ROOT import dd4hep
 from podio import root_io
 import ROOT
 
-from visualization import setup_root_style
 from constants import C_MM_NS
+from helpers import path_to_list, sorted_n_files
+from visualization import setup_root_style, draw_hist, draw_map
+
 
 
 ######################################
@@ -73,7 +73,7 @@ parser.add_option('-a', '--bin_width_phi',
 
 (options, args) = parser.parse_args()
 
-nfiles = options.numberOfFiles
+n_files = options.numberOfFiles
 events_per_file = options.numberOfEvents
 path = options.infilePath
 output_file_name = options.outputFile
@@ -90,54 +90,6 @@ bw_phi = options.bin_width_phi
 
 #######################################
 # functions
-
-def myText(x, y, color, text, size=0.04, angle=0.):
-    l = ROOT.TLatex()
-    l.SetNDC()
-    l.SetTextColor(color)
-    l.PaintLatex( x, y, angle, size, text)
-    l.DrawLatex(x,y,text)
-
-
-def draw_map(hist, titlex, titley, plot_title, message='', log_x = False, log_y=False):
-
-    cm1 = ROOT.TCanvas("cm1_"+message, "cm1_"+message, 800, 600)
-
-    hist.GetXaxis().SetTitle(titlex)
-    hist.GetYaxis().SetTitle(titley)
-    hist.Draw("COLZ")
-    entries = hist.GetEntries()
-
-    myText(0.20, 0.9, ROOT.kBlack, message + '  , entries = ' + str(entries))
-
-    if log_x:
-        cm1.SetLogx()
-    if log_y:
-        cm1.SetLogy()
-
-    cm1.Print(plot_title+".pdf")
-    #cm1.Print(plot_title+".png")
-
-
-def draw_hist(hist, titlex, titley, plot_title, message='', log_x = False, log_y=False, draw_opt="HistE"):
-
-    cm1 = ROOT.TCanvas("cm1_"+message, "cm1_"+message, 800, 600)
-
-    hist.GetXaxis().SetTitle(titlex)
-    hist.GetYaxis().SetTitle(titley)
-    hist.Draw(draw_opt)
-    entries = hist.GetEntries()
-
-    myText(0.20, 0.9, ROOT.kBlack, message + '  , entries = ' + str(entries))
-
-    if log_x:
-        cm1.SetLogx()
-    if log_y:
-        cm1.SetLogy()
-
-    cm1.Print(plot_title+".pdf")
-    #cm1.Print(plot_title+".png")
-
 
 # Detector types from:
 # https://github.com/AIDASoft/DD4hep/blob/master/DDCore/include/DD4hep/DetType.h
@@ -197,24 +149,11 @@ def get_layer(cell_id, decoder, detector, dtype):
 #######################################
 # parse the input path and/or files
 
-input_path = glob(path)
 
-list_files = []
-if os.path.isdir(input_path[0]):
-    for p in input_path:
-        list_files += glob(p+"/*.root")
-elif isinstance(input_path, str):
-    list_files = [input_path]
-else:
-    list_files = input_path
-  
-# list nfiles in the path directory ending in .root  to consider for plotting
-list_input_files = []
-for f in sorted(list_files): #use sorted list to make sure to always take the same files
-    if f.endswith(".root"):
-        list_input_files.append( os.path.join(path, f) )
-    if nfiles > 0 and len(list_input_files) >= nfiles: #if nfiles=-1 run all files
-        break
+# list n_files in the path directory ending in .root to consider for plotting
+# use sorted list to make sure to always take the same files
+list_files = path_to_list(path)
+list_input_files = sorted_n_files(list_files, n_files)
 
 # Load the detector json dictionary
 detector_dict = {}
