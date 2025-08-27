@@ -3,28 +3,28 @@ import os
 
 
 def path_to_list(path, ext=".root"):
-  """
-  Parse the input path and return a sorted list of ROOT files only. 
-  
-  We can read:
-    1 - path to a ROOT file
-    2 - path to a directory containing ROOT files
-    3 - path with wildcard to ROOT files. eg: "path/to/dir*/*.root", 
-        N.B. the quotation marks ("") are required when passing such path in the CLI
-  """
+    """
+    Parse the input path and return a sorted list of ROOT files only. 
 
-  input_path = glob.glob(path)
+    We can read:
+      1 - path to a ROOT file
+      2 - path to a directory containing ROOT files
+      3 - path with wildcard to ROOT files. eg: "path/to/dir*/*.root", 
+          N.B. the quotation marks ("") are required when passing such path in the CLI
+    """
 
-  list_files = []
-  if os.path.isdir(input_path[0]):
-      for p in input_path:
-          list_files += glob.glob(p+"/*"+ext)
-  elif isinstance(input_path, str):
-      list_files = [input_path]
-  else:
-      list_files = input_path
+    input_path = glob.glob(path)
 
-  return list_files
+    list_files = []
+    if os.path.isdir(input_path[0]):
+        for p in input_path:
+            list_files += glob.glob(p+"/*"+ext)
+    elif isinstance(input_path, str):
+        list_files = [input_path]
+    else:
+        list_files = input_path
+
+    return list_files
 
 
 def sorted_n_files(list_files, n_files=-1, ext=".root"):
