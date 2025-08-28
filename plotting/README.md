@@ -14,6 +14,10 @@ There are 2 scripts in this directory for drawing the hit maps
 - `plot_all_subdetectors.py`: it automatically loops over all the sub-detectors and the hot collections, matching them and reading the sub-detector dimensions directly from the geometry to define plot ranges. For each collection/sub-detector it calls the drawhits.py script (see above) to plot the hit map.
 
 
+## Draw particles info
+
+The `drawparticles.py` script loops over the entire `MCParticles` collection making several kinematic plots.
+
 ## xml2json
 
 Extract detector dimensions from the geometry XML file into a json file.
