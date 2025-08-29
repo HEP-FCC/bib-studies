@@ -120,8 +120,8 @@ def get_layer(cell_id, decoder, detector, dtype):
             wheel = decoder.get(cell_id, "wheel") + 1
             return  wheel * side
 
-        case "ECalBarrel": 
-            return  0
+        # case "ECalBarrel": 
+        #     return  0
 
         case "DCH_v2":
             # Number of layers per super layer could be read from geo file
@@ -191,11 +191,9 @@ for de, cells in detector_dict["det_element_cells"].items():
         print("Warning: Couldn't read layer number from", de)
         continue
 
-    
+
     # Get the layer number, sign based on the side
     ln = int(re.sub(r"[^0-9-]","",layer_name))
-    print (" === layer_name = ", layer_name)
-    print (" === ln = ", ln)
     if side != 0:
         ln *= side
 
@@ -325,6 +323,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
         #TODO: Handle better cell_id info
         layer = get_layer(cell_id, decoder, sub_detector, detector_dict["typeFlag"])
+        print("---> layer:",layer)
 
         x_mm = hit.getPosition().x
         y_mm = hit.getPosition().y

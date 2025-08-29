@@ -63,18 +63,6 @@ def get_cells_map(detector, sub_det, name):
                 cells_map[f"wheel{nw+1}"] = r_layers * z_layers * n_units
                 cells_map[f"wheel-{nw+1}"] = r_layers * z_layers * n_units
 
-            # # Method 2, loop only over the LAr "bath" elements
-            # bath = sub_det.child("bath")
-            # for n, d in bath.children():
-            #     # naming scheme 'activeX_Y' where X is the unit number and Y the wheel number
-            #     n = str(n)
-            #     if not ("active" in n):
-            #         continue
-
-            #     # Get the cells for all the wheels
-            #     nw = int(str(n)[-1])
-            #     cells_map[f"wheel{nw}"] += get_cells(d)
-
         case "HCalThreePartsEndcap":
             # Split only by positive and negative layers
             for de_name, de in sub_det.children():
@@ -83,6 +71,23 @@ def get_cells_map(detector, sub_det, name):
                     cells_map["layer_-1"] += get_cells(de)
                 elif "layer" in layer_name:
                     cells_map["layer_1"] += get_cells(de)
+
+        case "ECalBarrel":
+            # # Method 2, loop only over the LAr "bath" elements
+            # bath = sub_det.child("bath")
+            # for n, d in bath.children():
+            #     # naming scheme 'activeX_Y' where X is the unit number and Y the wheel number
+            #     n = str(n)
+            #     # if not ("active" in n):
+            #     #     continue
+
+            #     # # Get the cells for all the wheels
+            #     # nw = int(str(n)[-1])
+            #     #cells_map[f"wheel{nw}"] += get_cells(d)
+            #     cells_map[n] += get_cells(d)
+
+            n_layers = detector.constantAsLong(f"ECalBarrelNumLayers")
+            cells_map =  {f"layer{i}": 1 for i in range(n_layers)}
 
         case _:
             # Loop over detector elements
