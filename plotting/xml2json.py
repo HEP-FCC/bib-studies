@@ -144,7 +144,9 @@ for subdet_name, sens_det in det.sensitiveDetectors():
     #print("        dimensions = ", [box.x(), box.y(), box.z()])
     # dimensions seem off (ask Brieuc) - for the moment multiply the max by a factor 10
     max_z = 10*math.ceil(box.z()) #max z rounded up
-    max_r = max(10*box.x(),10*box.y())#10*math.ceil(math.sqrt(math.pow(box.x(),2)+math.pow(box.y(),2))) #max r rounded up
+    max_r = 10*math.ceil(math.sqrt(math.pow(box.x(),2)+math.pow(box.y(),2))) #max r rounded up
+    print("        max_z = ", max_z)
+    print("        max_r = ", max_r)
     if(box.x()!=box.y()): print ('WARNING: different X/Y in the detector bounding box X:',box.x(),'Y:',box.y())
 
     if subdet.id()>0.:
