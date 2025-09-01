@@ -233,41 +233,45 @@ phi_binning = [int(phi_range * 2 / bw_phi), -phi_range, phi_range ] # rad binnin
 
 
 # Profile histograms
-h_hit_E_MeV = ROOT.TH1D("h_hit_E_MeV_"+collection, "h_hit_E_MeV_"+collection, 100, 0, 5)
-h_hit_E_keV = ROOT.TH1D("h_hit_E_keV_"+collection, "h_hit_E_MeV_"+collection, 500, 0, 500)
-h_particle_E = ROOT.TH1D("h_particle_E_"+collection, "h_particle_E_"+collection, 500, 0, 50)
-h_particle_pt = ROOT.TH1D("h_particle_pt_"+collection, "h_particle_pt_"+collection, 500, 0, 50)
-h_particle_eta = ROOT.TH1D("h_particle_eta_"+collection, "h_particle_eta_"+collection, 100, -5, 5)
-histograms += [h_hit_E_MeV, h_hit_E_keV, h_particle_E, h_particle_pt, h_particle_pt, h_particle_eta]
+histograms += [
+    h_hit_E_MeV := ROOT.TH1D("h_hit_E_MeV_"+collection, "h_hit_E_MeV_"+collection, 100, 0, 5),
+    h_hit_E_keV := ROOT.TH1D("h_hit_E_keV_"+collection, "h_hit_E_MeV_"+collection, 500, 0, 500),
+    h_particle_E := ROOT.TH1D("h_particle_E_"+collection, "h_particle_E_"+collection, 500, 0, 50),
+    h_particle_pt := ROOT.TH1D("h_particle_pt_"+collection, "h_particle_pt_"+collection, 500, 0, 50),
+    h_particle_eta := ROOT.TH1D("h_particle_eta_"+collection, "h_particle_eta_"+collection, 100, -5, 5),
+]
 
 # ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
-h_particle_ID = ROOT.TH1D("h_particle_ID_"+collection, "h_particle_ID_"+collection, 1, 0, 1)
+histograms += [ h_particle_ID := ROOT.TH1D("h_particle_ID_"+collection, "h_particle_ID_"+collection, 1, 0, 1) ]
 h_particle_ID.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
-histograms += [h_particle_ID]
 
-h_hits_x_layer = ROOT.TH1D("h_hits_x_layer_"+collection, "h_hits_x_layer_"+collection, n_layers, -0.5, n_layers-0.5)
-h_avg_occ_x_layer = ROOT.TH1D("h_avg_occ_x_layer_"+collection, "h_avg_occ_x_layer_"+collection, n_layers, -0.5, n_layers-0.5)
-histograms += [h_hits_x_layer, h_avg_occ_x_layer]
+histograms += [
+    h_hits_x_layer := ROOT.TH1D("h_hits_x_layer_"+collection, "h_hits_x_layer_"+collection, n_layers, -0.5, n_layers-0.5),
+    h_avg_occ_x_layer := ROOT.TH1D("h_avg_occ_x_layer_"+collection, "h_avg_occ_x_layer_"+collection, n_layers, -0.5, n_layers-0.5),
+]
 
+# Occupancy histograms, defined as fraction of cells that fired
+# Requires that the total cells are correctly computed and stored in detector_dict
 h_occ_x_layer = {}
 log_bins = np.logspace(-2,2,50)
 for l in layer_cells.keys():
     h_occ_x_layer[l] = ROOT.TH1D(f"h_occ_x_layer{l}_{collection}", f"h_occ_x_layer{l}_{collection}", len(log_bins)-1, log_bins)
     histograms += [h_occ_x_layer[l]]
-h_occ = ROOT.TH1D(f"h_occ_tot_{collection}", f"h_occ_tot_{collection}", len(log_bins)-1, log_bins)
-histograms += [h_occ]
+histograms += [ h_occ := ROOT.TH1D(f"h_occ_tot_{collection}", f"h_occ_tot_{collection}", len(log_bins)-1, log_bins) ]
 
 # Hit maps definitions
-hist_zr = ROOT.TH2D("hist_zr_"+collection, "hist_zr_"+collection+"; ; ; hits/(%d#times%d) mm^{2} per event"%(bw_z, bw_r), *z_binning, *r_binning)
-hist_xy = ROOT.TH2D("hist_xy_"+collection, "hist_xy_"+collection+"; ; ; hits/(%d#times%d) mm^{2} per event"%(bw_r, bw_r), *r_binning, *r_binning)
-hist_zphi = ROOT.TH2D("hist_zphi_"+collection, "hist_zphi_"+collection+"; ; ; hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z), *z_binning, *phi_binning)
-histograms += [hist_zr, hist_xy, hist_zphi]
+histograms += [
+    hist_zr := ROOT.TH2D("hist_zr_"+collection, "hist_zr_"+collection+"; ; ; hits/(%d#times%d) mm^{2} per event"%(bw_z, bw_r), *z_binning, *r_binning),
+    hist_xy := ROOT.TH2D("hist_xy_"+collection, "hist_xy_"+collection+"; ; ; hits/(%d#times%d) mm^{2} per event"%(bw_r, bw_r), *r_binning, *r_binning),
+    hist_zphi := ROOT.TH2D("hist_zphi_"+collection, "hist_zphi_"+collection+"; ; ; hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z), *z_binning, *phi_binning),
+]
 
 # Timing histograms
-h_hit_t = ROOT.TH1D("hist_hit_t_"+collection, "hist_hit_t_"+collection, 200, 0, 20)
-h_hit_t_x_layer = ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collection+"; ; ; hits / events", 200, 0, 20, n_layers+1, -0.5, n_layers+0.5)
-h_hit_t_corr = ROOT.TH1D("hist_hit_t_corr_"+collection, "hist_hit_t_corr_"+collection, 200, -10, 10)
-histograms += [h_hit_t, h_hit_t_x_layer, h_hit_t_corr]
+histograms += [
+    h_hit_t := ROOT.TH1D("hist_hit_t_"+collection, "hist_hit_t_"+collection, 200, 0, 20),
+    h_hit_t_x_layer := ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collection+"; ; ; hits / events", 200, 0, 20, n_layers+1, -0.5, n_layers+0.5),
+    h_hit_t_corr := ROOT.TH1D("hist_hit_t_corr_"+collection, "hist_hit_t_corr_"+collection, 200, -10, 10),
+]
 
 # Hit densities per layer
 h_z_density_vs_layer_mm = {}
