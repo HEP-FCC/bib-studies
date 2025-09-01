@@ -9,6 +9,8 @@ import subprocess
 from glob import glob
 import os
 
+#TODO: # fix this script
+
 ######################################
 # option parser
 

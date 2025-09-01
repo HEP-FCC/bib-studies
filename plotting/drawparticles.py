@@ -184,46 +184,45 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         fill_kinematics(h_particles["all"], particle, particle_p4, fill_weight)
 
 
-        if not particle.isBackscatter(): #  exclude particles originating from a calorimeter shower
-    
-            
-            if particle.isCreatedInSimulation():
-                # Sim particles
-                fill_kinematics(h_particles["sim"], particle, particle_p4, fill_weight)
+        #if not particle.isBackscatter(): #  exclude particles originating from a calorimeter shower
 
-                # Access the production vertex of the particle
-                vtx = particle.getVertex()
-                x_mm = particle.getVertex().x
-                y_mm = particle.getVertex().y
-                z_mm = particle.getVertex().z
-                r_mm = math.sqrt(math.pow(x_mm, 2) + math.pow(y_mm, 2))
-                phi = math.acos(x_mm/r_mm) * math.copysign(1, y_mm)
-                
-                h_sim_vertex_r_mm.Fill(r_mm, fill_weight)
-                h_sim_vertex_r_mm_tracker.Fill(r_mm, fill_weight)
-                h_sim_vertex_r_mm_vtx_det.Fill(r_mm, fill_weight)
-                h_sim_vertex_phi.Fill(phi, fill_weight)
-                h_sim_vertex_z_mm.Fill(z_mm, fill_weight)
-                h_sim_vertex_z_mm_tracker.Fill(z_mm, fill_weight)
-                m_sim_vertex_xy_mm.Fill(x_mm, y_mm ,fill_weight)
-                m_sim_vertex_xy_mm_tracker.Fill(x_mm, y_mm ,fill_weight)
-                m_sim_vertex_xy_mm_vtx_det.Fill(x_mm, y_mm ,fill_weight)
-                m_sim_vertex_zr_mm.Fill(z_mm, r_mm, fill_weight)
-                m_sim_vertex_zr_mm_tracker.Fill(z_mm, r_mm, fill_weight)
-                m_sim_vertex_zr_mm_vtx_det.Fill(z_mm, r_mm, fill_weight)
-                m_sim_vertex_zphi_mm.Fill(z_mm, phi, fill_weight)
+        if particle.isCreatedInSimulation():
+            # Sim particles
+            fill_kinematics(h_particles["sim"], particle, particle_p4, fill_weight)
 
-            else:
-                # Generator particles
-                fill_kinematics(h_particles["gen"], particle, particle_p4, fill_weight)
+            # Access the production vertex of the particle
+            vtx = particle.getVertex()
+            x_mm = particle.getVertex().x
+            y_mm = particle.getVertex().y
+            z_mm = particle.getVertex().z
+            r_mm = math.sqrt(math.pow(x_mm, 2) + math.pow(y_mm, 2))
+            phi = math.acos(x_mm/r_mm) * math.copysign(1, y_mm)
 
-            # Particles decaying in the calo
-            if particle.isDecayedInCalorimeter():
-                fill_kinematics(h_particles["calorimeter"], particle, particle_p4, fill_weight)
+            h_sim_vertex_r_mm.Fill(r_mm, fill_weight)
+            h_sim_vertex_r_mm_tracker.Fill(r_mm, fill_weight)
+            h_sim_vertex_r_mm_vtx_det.Fill(r_mm, fill_weight)
+            h_sim_vertex_phi.Fill(phi, fill_weight)
+            h_sim_vertex_z_mm.Fill(z_mm, fill_weight)
+            h_sim_vertex_z_mm_tracker.Fill(z_mm, fill_weight)
+            m_sim_vertex_xy_mm.Fill(x_mm, y_mm ,fill_weight)
+            m_sim_vertex_xy_mm_tracker.Fill(x_mm, y_mm ,fill_weight)
+            m_sim_vertex_xy_mm_vtx_det.Fill(x_mm, y_mm ,fill_weight)
+            m_sim_vertex_zr_mm.Fill(z_mm, r_mm, fill_weight)
+            m_sim_vertex_zr_mm_tracker.Fill(z_mm, r_mm, fill_weight)
+            m_sim_vertex_zr_mm_vtx_det.Fill(z_mm, r_mm, fill_weight)
+            m_sim_vertex_zphi_mm.Fill(z_mm, phi, fill_weight)
 
-            # Particles decaying in the tacker
-            if particle.isDecayedInTracker ():
-                fill_kinematics(h_particles["tracker"], particle, particle_p4, fill_weight)
+        else:
+            # Generator particles
+            fill_kinematics(h_particles["gen"], particle, particle_p4, fill_weight)
+
+        # Particles decaying in the calo
+        if particle.isDecayedInCalorimeter():
+            fill_kinematics(h_particles["calorimeter"], particle, particle_p4, fill_weight)
+
+        # Particles decaying in the tacker
+        if particle.isDecayedInTracker():
+            fill_kinematics(h_particles["tracker"], particle, particle_p4, fill_weight)
 
         processed_particles += 1 
     # <--- end of particles loop
