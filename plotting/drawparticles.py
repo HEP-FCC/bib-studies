@@ -108,7 +108,7 @@ for c in collections:
     h_particles[c]["pt_GeV"] = ROOT.TH1D(f"h_{c}_pt_GeV", f"h_{c}_pt_GeV", 500, 0, 50)
     h_particles[c]["pt_MeV"] = ROOT.TH1D(f"h_{c}_pt_MeV", f"h_{c}_pt_MeV", 1000, 0, 1000)
     h_particles[c]["pt_keV"] = ROOT.TH1D(f"h_{c}_pt_keV", f"h_{c}_pt_keV", 1000, 0, 1000)
-    h_particles[c]["eta"] = ROOT.TH1D(f"h_{c}_eta", f"h_{c}_eta", 100, -5, 5)
+    h_particles[c]["eta"] = ROOT.TH1D(f"h_{c}_eta", f"h_{c}_eta", 200, -10, 10)
     h_particles[c]["phi"] = ROOT.TH1D(f"h_{c}_phi", f"h_{c}_phi", *phi_binning)
 
     # ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html

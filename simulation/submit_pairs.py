@@ -15,7 +15,7 @@ import re
 import stat
 
 # Default paths / namings
-input_def_path = "/eos/user/s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/"
+input_def_path = "/eos/home-s/sfranche/FCC/samples/bib/gen-samples/aciarma_4IP_2024may29/Z/"
 output_def_folder = input_def_path+"/DDSim_output/"
 
 
@@ -34,7 +34,7 @@ parser.add_argument('-c', '--compactFile', default="$K4GEO/FCCee/ALLEGRO/compact
 parser.add_argument('-k', '--k4geo', default=None, type=str,
                     help='Path to custom k4geo.')
 parser.add_argument('--crossingAngleBoost', default=0.015, type=str,
-                    help='Detector geometry.')
+                    help='Crossing angle boost to be applied.')
 
 
 # Condor command content

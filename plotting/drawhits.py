@@ -227,8 +227,8 @@ z_range = int(detector_dict["max_z"]*1.2)
 r_range = int(detector_dict["max_r"]*1.2)
 
 phi_range = 3.5
-z_binning = [int(z_range * 2 / bw_z), -z_range, z_range]  # mm binning  
-r_binning = [int(r_range * 2 / bw_r), -r_range, r_range]  # mm binning  
+z_binning = [int(z_range * 2 / bw_z), -z_range, z_range]  # mm binning
+r_binning = [int(r_range * 2 / bw_r), -r_range, r_range]  # mm binning
 phi_binning = [int(phi_range * 2 / bw_phi), -phi_range, phi_range ] # rad binning
 
 
