@@ -121,29 +121,26 @@ for c in collections:
 
 
 # Vertex origin of sim particles
-h_sim_vertex_r_mm = ROOT.TH1D("sim_vertex_r_mm", "sim_vertex_r_mm", *r_binning)
-h_sim_vertex_r_mm_tracker = ROOT.TH1D("sim_vertex_r_mm_tracker", "sim_vertex_r_mm_tracker", 200, 0, 2000)
-h_sim_vertex_r_mm_vtx_det = ROOT.TH1D("sim_vertex_r_mm_vtx_det", "sim_vertex_r_mm_vtx_det", 400, 0, 400)
-h_sim_vertex_z_mm = ROOT.TH1D("sim_vertex_z_mm", "sim_vertex_z_mm", *z_binning)
-h_sim_vertex_z_mm_tracker = ROOT.TH1D("sim_vertex_z_mm_tracker", "sim_vertex_z_mm_tracker", 600, -3000, 3000)
-h_sim_vertex_phi = ROOT.TH1D("sim_vertex_phi", "sim_vertex_phi", *phi_binning)
 histograms += [
-    h_sim_vertex_r_mm, h_sim_vertex_r_mm_tracker, h_sim_vertex_r_mm_vtx_det, 
-    h_sim_vertex_phi, 
-    h_sim_vertex_z_mm, h_sim_vertex_z_mm_tracker ]
+    h_sim_vertex_r_mm := ROOT.TH1D("sim_vertex_r_mm", "sim_vertex_r_mm", *r_binning),
+    h_sim_vertex_r_mm_tracker := ROOT.TH1D("sim_vertex_r_mm_tracker", "sim_vertex_r_mm_tracker", 200, 0, 2000),
+    h_sim_vertex_r_mm_vtx_det := ROOT.TH1D("sim_vertex_r_mm_vtx_det", "sim_vertex_r_mm_vtx_det", 400, 0, 400),
 
-m_sim_vertex_xy_mm = ROOT.TH2D("sim_vertex_xy", "sim_vertex_xy", *sr_binning, *sr_binning)
-m_sim_vertex_xy_mm_tracker = ROOT.TH2D("sim_vertex_xy_tracker", "sim_vertex_xy", 200, -2000, 2000, 200, -2000, 2000)
-m_sim_vertex_xy_mm_vtx_det = ROOT.TH2D("sim_vertex_xy_vtx_det", "sim_vertex_xy", 400, -400, 400, 400, -400, 400)
-m_sim_vertex_zr_mm = ROOT.TH2D("sim_vertex_zr", "sim_vertex_zr", *z_binning, *r_binning)
-m_sim_vertex_zr_mm_tracker = ROOT.TH2D("sim_vertex_zr_tracker", "sim_vertex_zr_tracker", 600, -3000, 3000, 200, 0, 2000)
-m_sim_vertex_zr_mm_vtx_det = ROOT.TH2D("sim_vertex_zr_vtx_det", "sim_vertex_zr_vtx_det", 500, -1000, 1000, 400, 0, 400)
-m_sim_vertex_zphi_mm = ROOT.TH2D("sim_vertex_zphi", "sim_vertex_zphi", *z_binning, *phi_binning)
+    h_sim_vertex_z_mm         := ROOT.TH1D("sim_vertex_z_mm", "sim_vertex_z_mm", *z_binning),
+    h_sim_vertex_z_mm_tracker := ROOT.TH1D("sim_vertex_z_mm_tracker", "sim_vertex_z_mm_tracker", 600, -3000, 3000),
+    
+    h_sim_vertex_phi := ROOT.TH1D("sim_vertex_phi", "sim_vertex_phi", *phi_binning),
 
-histograms += [
-    m_sim_vertex_xy_mm, m_sim_vertex_xy_mm_tracker, m_sim_vertex_xy_mm_vtx_det, 
-    m_sim_vertex_zr_mm, m_sim_vertex_zr_mm_tracker, m_sim_vertex_zr_mm_vtx_det, 
-    m_sim_vertex_zphi_mm]
+    m_sim_vertex_xy_mm := ROOT.TH2D("sim_vertex_xy", "sim_vertex_xy", *sr_binning, *sr_binning),
+    m_sim_vertex_xy_mm_tracker := ROOT.TH2D("sim_vertex_xy_tracker", "sim_vertex_xy", 200, -2000, 2000, 200, -2000, 2000),
+    m_sim_vertex_xy_mm_vtx_det := ROOT.TH2D("sim_vertex_xy_vtx_det", "sim_vertex_xy", 400, -400, 400, 400, -400, 400),
+
+    m_sim_vertex_zr_mm := ROOT.TH2D("sim_vertex_zr", "sim_vertex_zr", *z_binning, *r_binning),
+    m_sim_vertex_zr_mm_tracker := ROOT.TH2D("sim_vertex_zr_tracker", "sim_vertex_zr_tracker", 600, -3000, 3000, 200, 0, 2000),
+    m_sim_vertex_zr_mm_vtx_det := ROOT.TH2D("sim_vertex_zr_vtx_det", "sim_vertex_zr_vtx_det", 500, -1000, 1000, 400, 0, 400),
+    
+    m_sim_vertex_zphi_mm := ROOT.TH2D("sim_vertex_zphi", "sim_vertex_zphi", *z_binning, *phi_binning),
+]
 
 
 n_events = events_per_file * len(list_input_files)
