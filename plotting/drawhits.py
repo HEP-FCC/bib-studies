@@ -44,7 +44,7 @@ parser.add_option('-d', '--detDictFile',
                   help='JSON dictionary with some key detector parameters')
 parser.add_option('-s', '--subDetector',
                   type=str, default='VertexBarrel',
-                  help='variable against with to draw the plots, options are: eta, phi, pt or mu')
+                  help='Name of the sub detector system')
 parser.add_option('-p', '--draw_hists',
                   action="store_true",
                   help='activate drawing of 1D histograms')
@@ -288,8 +288,14 @@ for l in layer_cells.keys():
 
 # Pile-up histograms
 histograms += [
-    h_avg_pu := ROOT.TH1D(f"hist_avg_pu_{collection}",f"hist_avg_pu_{collection}", integration_time+1, -0.5, integration_time+0.5) 
+    h_tot_pu := ROOT.TH1D(f"h_tot_pu_{collection}", f"h_tot_pu_{collection}", integration_time+1, -0.5, integration_time+0.5),
+    h_avg_pu_x_layer := ROOT.TH1D(f"h_avg_pu_x_layer_{collection}", f"h_avg_pu_x_layer_{collection}", n_layers+1, -0.5, n_layers+0.5)
 ]
+
+h_pu_x_layer = {}
+for l in layer_cells.keys():
+    h_pu_x_layer[l] = ROOT.TH1D(f"h_pu_x_layer{l}_{collection}", f"h_pu_x_layer{l}_{collection}", integration_time+1, -0.5, integration_time+0.5)
+    histograms += [h_pu_x_layer[l]]
 
 n_events = events_per_file * len(list_input_files)
 
@@ -349,21 +355,21 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         else:
             fired_cells.append(cell_id)
 
+        #TODO: Handle better cell_id info
+        layer = get_layer(cell_id, decoder, sub_detector, detector_dict["typeFlag"])
+
         # Veto hits in channels that integrating signal
-        if cell_id in veto_channels:
+        if (layer, cell_id) in veto_channels:
 
             # count one hit per event during integration time as pileup
             if not cell_fired:
-                pile_up_counter[cell_id] += 1
+                pile_up_counter[layer,cell_id] += 1
 
         else:
 
             # Start integration, veto subsequent hits
-            veto_channels[cell_id] = integration_time
-            pile_up_counter[cell_id] = 0
-
-            #TODO: Handle better cell_id info
-            layer = get_layer(cell_id, decoder, sub_detector, detector_dict["typeFlag"])
+            veto_channels[layer, cell_id] = integration_time
+            pile_up_counter[layer, cell_id] = 0
 
             x_mm = hit.getPosition().x
             y_mm = hit.getPosition().y
@@ -452,10 +458,12 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         veto_channels[c] -= 1
         if veto_channels[c] <= 0:
             reset_channels.append(c)
-    
+
     for c in reset_channels:
         veto_channels.pop(c)
-        h_avg_pu.Fill(pile_up_counter.pop(c))
+        pu = pile_up_counter.pop(c)
+        h_tot_pu.Fill(pu)
+        h_pu_x_layer[c[0]].Fill(pu)
 
     processed_events +=1
 # <--- end of the event loop
@@ -465,6 +473,10 @@ print(" - Processed events:", processed_events)
 print(" - Processed hits:", processed_hits, 
       f"(avg. per event: {processed_hits/processed_events})")
 
+# Compute the average pile up hits
+for l, h in h_pu_x_layer.items():
+    h_avg_pu_x_layer.SetBinContent(l, h.GetMean())
+    h_avg_pu_x_layer.SetBinError(l, h.GetMeanError())
 
 
 print("####################")
@@ -509,7 +521,8 @@ if draw_hists:
             draw_hist(h_phi_density_vs_layer[l],  "phi","Hits/event",  sample_name+f"_phiDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
     
     if integration_time > 1:
-         draw_hist(h_avg_pu, "Number of pileup hits", "Entries",  sample_name+"_avg_pu_"+str(n_events)+"evt_"+sub_detector, collection)
+         draw_hist(h_tot_pu, "Number of pileup hits", "Entries",  sample_name+"_tot_pu_"+str(n_events)+"evt_"+sub_detector, collection)
+         draw_hist(h_avg_pu_x_layer, "Layer", "Average pileup hits",  sample_name+"_avg_pu_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
 
 # Write the histograms to the output file
 output_file_name = f"{sample_name}_{output_file_name}_{n_events}evt_{sub_detector}.root"
