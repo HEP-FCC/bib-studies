@@ -146,7 +146,6 @@ def get_layer(cell_id, decoder, detector, dtype):
             # Get the side, if available
             side = 0
             if is_endcap(dtype):
-                print("endcap!")
                 side = decoder.get(cell_id, "side")
 
             if side != 0:
@@ -180,6 +179,10 @@ for de, cells in detector_dict["det_element_cells"].items():
 
     layer_cells[ln] = cells
     n_tot_cells += cells
+
+if not layer_cells:
+    print("WARNING: map of cells per layer is empty.")
+    n_tot_cells = 1
 
 print(">>>",layer_cells)
 
@@ -289,9 +292,6 @@ decoder = ROOT.dd4hep.BitFieldCoder(id_encoding)
 processed_events = 0
 processed_hits = 0
 
-max_occ_per_layer = defaultdict(float)
-max_occ_per_layer_evt = defaultdict(str)
-
 integrating_channels = defaultdict(int)
 pile_up_counter = defaultdict(int)
 
@@ -369,9 +369,10 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
         h_hit_t_corr.Fill(t - (hit_distance / C_MM_NS), fill_weight)
 
-        h_z_density_vs_layer_mm[layer_n].Fill(z_mm, fill_weight)
-        h_phi_density_vs_layer[layer_n].Fill(phi, fill_weight)
-        h_zphi_density_vs_layer[layer_n].Fill(z_mm, phi, fill_weight)
+        if layer_cells:
+            h_z_density_vs_layer_mm[layer_n].Fill(z_mm, fill_weight)
+            h_phi_density_vs_layer[layer_n].Fill(phi, fill_weight)
+            h_zphi_density_vs_layer[layer_n].Fill(z_mm, phi, fill_weight)
 
         if not is_calo_hit:
             particle = hit.getParticle()
@@ -384,54 +385,52 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             h_particle_eta.Fill(particle_p4.eta(), fill_weight)
             h_particle_ID.Fill(str(particle.getPDG()), fill_weight)
 
-        # Monitor in channels that are integrating signal 
-        if ((layer_n, cell_id) in integrating_channels) and (integrating_channels[layer_n, cell_id] > 1):
+        # Monitor in channels that are integrating signal
+        if integration_time > 1:
+            if ((layer_n, cell_id) in integrating_channels) and (integrating_channels[layer_n, cell_id] > 1):
 
-            # count one hit per event during integration time as pileup
-            if not cell_fired:
-                pile_up_counter[layer_n, cell_id] += 1
+                # count one hit per event during integration time as pileup
+                if not cell_fired:
+                    pile_up_counter[layer_n, cell_id] += 1
 
-        else:
-            # Start integration, reset pile-up counter
-            integrating_channels[layer_n, cell_id] = integration_time
-            pile_up_counter[layer_n, cell_id] = 0
+            else:
+                # Start integration, reset pile-up counter
+                integrating_channels[layer_n, cell_id] = integration_time
+                pile_up_counter[layer_n, cell_id] = 0
 
         processed_hits += 1
     # <--- end of the hits loop
-    
+
     # Compute the per-event occupancy
     tot_occupancy = 0
+
     for l, fc in fired_cells_x_layer.items():
         tot_occupancy += fc
         #print(f" fc:{fc}, l:{l},  nc:{layer_cells[l]} ")
-        layer_occupancy = fc / layer_cells[l] * 100
-        #print(f" fc:{fc}, nc:{layer_cells[l]}  , occ:{layer_occupancy}")
 
-        h_avg_occ_x_layer.Fill(l, layer_occupancy * fill_weight)
-        h_occ_x_layer[l].Fill(layer_occupancy, fill_weight)
+        if layer_cells:
+            layer_occupancy = fc / layer_cells[l] * 100
+            #print(f" fc:{fc}, nc:{layer_cells[l]}  , occ:{layer_occupancy}")
 
-        if layer_occupancy > max_occ_per_layer[l]:
-            max_occ_per_layer[l] = layer_occupancy
-
-            max_occ_file = int(i / events_per_file)
-            max_occ_event = i -  max_occ_file * events_per_file
-            max_occ_per_layer_evt[l] = f"event: {max_occ_event}, file: {list_input_files[max_occ_file]}"
+            h_avg_occ_x_layer.Fill(l, layer_occupancy * fill_weight)
+            h_occ_x_layer[l].Fill(layer_occupancy, fill_weight)
 
     tot_occupancy = tot_occupancy / n_tot_cells * 100
     h_occ.Fill(tot_occupancy, fill_weight)
 
-    # Update the veto and pileup counters
-    reset_channels = []
-    for c in integrating_channels.keys():
-        integrating_channels[c] -= 1
-        if integrating_channels[c] < 1:
-            reset_channels.append(c)
+    if integration_time > 1:
+        # Update the integration and pileup counters
+        reset_channels = []
+        for c in integrating_channels.keys():
+            integrating_channels[c] -= 1
+            if integrating_channels[c] < 1:
+                reset_channels.append(c)
 
-    for c in reset_channels:
-        integrating_channels.pop(c)
-        pu = pile_up_counter.pop(c)
-        h_tot_pu.Fill(pu)
-        h_pu_x_layer[c[0]].Fill(pu)
+        for c in reset_channels:
+            integrating_channels.pop(c)
+            pu = pile_up_counter.pop(c)
+            h_tot_pu.Fill(pu)
+            h_pu_x_layer[c[0]].Fill(pu)
 
     processed_events +=1
 # <--- end of the event loop
@@ -442,17 +441,12 @@ print(" - Processed hits:", processed_hits,
       f"(avg. per event: {processed_hits/processed_events})")
 
 # Compute the average pile up hits
-for l, h in h_pu_x_layer.items():
-    h_avg_pu_x_layer.Fill(l, h.GetMean())
-    #h_avg_pu_x_layer.SetBinError(l, h.GetMeanError()) #TODO: set the right error
+if integration_time > 1:
+    for l, h in h_pu_x_layer.items():
+        h_avg_pu_x_layer.Fill(l, h.GetMean())
+        #h_avg_pu_x_layer.SetBinError(l, h.GetMeanError()) #TODO: set the right error
 
-
-print("####################")
-print("# Occupancy max values:")
-for i in max_occ_per_layer.keys():
-    print(f"max per layer {i}: {max_occ_per_layer[i]} ({max_occ_per_layer_evt[i]})")
-print("####################")
-
+# Draw the histograms
 if draw_maps:
     draw_map(hist_zr, "z [mm]", "r [mm]", sample_name+"_map_zr_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_map(hist_xy, "x [mm]", "y [mm]", sample_name+"_map_xy_"+str(n_events)+"evt_"+sub_detector, collection)
@@ -492,6 +486,7 @@ if draw_hists:
          draw_hist(h_tot_pu, "Number of pileup hits", "Entries",  sample_name+"_tot_pu_"+str(n_events)+"evt_"+sub_detector, collection)
          draw_hist(h_avg_pu_x_layer, "Layer", "Average pileup hits",  sample_name+"_avg_pu_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
 
+print("Writing histograms...")
 # Write the histograms to the output file
 output_file_name = f"{sample_name}_{output_file_name}_{n_events}evt_{sub_detector}.root"
 with ROOT.TFile(output_file_name,"RECREATE") as f:
