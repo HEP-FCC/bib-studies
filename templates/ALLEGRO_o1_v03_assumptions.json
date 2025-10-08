@@ -1,0 +1,24 @@
+{
+  "VertexBarrel": {
+    "strategy": "hit_counts",
+    "hit_size": {
+      "layer0": 18,
+      "layer1": 18,
+      "layer2": 18,
+      "layer3": 13,
+      "layer4": 13
+    },
+    "modifiers": {
+      "safety_factor": 3,
+      "cluster_size": 5
+    }
+  },
+
+  "DCH_v2": {
+    "strategy": "occupancy",
+    "hit_size": 2,
+    "modifiers": {
+      "n_samples": 400
+    }
+  }
+}
