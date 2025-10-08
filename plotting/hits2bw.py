@@ -99,14 +99,13 @@ h_bw = input_file.Get(h_name).Clone()
 #######################################
 # convert the counts/occupancy histogram to BW
 
-scale_factor = 1
-
 for b in range(1, h_bw.GetNbinsX()+1):
     counts = h_bw.GetBinContent(b)
     error = h_bw.GetBinError(b)
     layer_n = h_bw.GetBinCenter(b)
 
     # convert hits / occupancy to GB / s
+    scale_factor = 1
     try:
         scale_factor *= rate * MHz_to_Hz * hit_size * b_to_GB
     except TypeError:
