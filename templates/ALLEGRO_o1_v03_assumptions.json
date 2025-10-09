@@ -5,9 +5,18 @@
       "layer0": 18,
       "layer1": 18,
       "layer2": 18,
-      "layer3": 13,
-      "layer4": 13
+      "layer3": 15,
+      "layer4": 15
     },
+    "modifiers": {
+      "safety_factor": 3,
+      "cluster_size": 5
+    }
+  },
+
+  "VertexDisks": {
+    "strategy": "hit_counts",
+    "hit_size": 15,
     "modifiers": {
       "safety_factor": 3,
       "cluster_size": 5
