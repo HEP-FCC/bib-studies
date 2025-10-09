@@ -50,13 +50,13 @@ parser.add_option('-m', '--draw_maps',
                   action="store_true",
                   help='activate drawing of number of maps plots')
 parser.add_option('-r','--bin_width_r',
-                  type=int, default=1,
-                  help='bin width for radius r in mm (default 1 mm)')
+                  type=int, default=None,
+                  help='bin width for radius r in mm')
 parser.add_option('-z','--bin_width_z',
-                  type=int, default=1,
-                  help='bin width for z in mm (default 1 mm)')
+                  type=int, default=None,
+                  help='bin width for z in mm')
 parser.add_option('-a', '--bin_width_phi',
-                  type=float, default=0.01,
+                  type=float, default=None,
                   help='bin width for azimuthal angle phi')
 parser.add_option('--stat_box',
                   action="store_true",
@@ -207,8 +207,15 @@ histograms = []
 # Set some of the binning
 z_range = int(detector_dict["max_z"]*1.2)
 r_range = int(detector_dict["max_r"]*1.2)
-
 phi_range = 3.5
+
+if not bw_z:
+    bw_z = (z_range * 2) /  100
+if not bw_r:
+    bw_r = (r_range * 2) /  100
+if not bw_phi:
+    bw_phi = (phi_range * 2) /  100
+
 z_binning = [int(z_range * 2 / bw_z), -z_range, z_range]  # mm binning
 r_binning = [int(r_range * 2 / bw_r), -r_range, r_range]  # mm binning
 phi_binning = [int(phi_range * 2 / bw_phi), -phi_range, phi_range ] # rad binning
