@@ -20,8 +20,13 @@ The `drawparticles.py` script loops over the entire `MCParticles` collection mak
 
 ## xml2json
 
-Extract detector dimensions from the geometry XML file into a json file.
+Extract detector dimensions from the geometry XML file into a json file. E.g:
 
+```sh
+xml2json.py -d $K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml
+#or
+xml2json.py -d $K4GEO/FCCee/IDEA/compact/IDEA_o1_v03/IDEA_o1_v03.xml
+```
 
 ## TODO
 - [ ] In plot_all_subdetectors.py and xml2json when reading the max dimensions of each sub-detector. The results seems to be off by a factor 10 (except for vertex radius). Maybe cm vs mm issue?
