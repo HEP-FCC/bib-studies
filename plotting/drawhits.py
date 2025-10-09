@@ -67,6 +67,9 @@ parser.add_option('--skip_layers',
 parser.add_option('--integration_time',
                   type=int, default=1,
                   help='Integration time in  number of events, to estimate hits pile-up.')
+parser.add_option('--energy_per_layer',
+                  action="store_true",
+                  help='Save histograms of hit energy per layer.')
 
 (options, args) = parser.parse_args()
 
@@ -86,6 +89,7 @@ bw_phi = options.bin_width_phi
 stat_box = options.stat_box
 skip_plot_per_layer = options.skip_layers
 integration_time = options.integration_time
+energy_per_layer = options.energy_per_layer
 
 ######################################
 # style
@@ -234,6 +238,12 @@ histograms += [
     h_particle_pt := ROOT.TH1D("h_particle_pt_"+collection, "h_particle_pt_"+collection, 500, 0, 50),
     h_particle_eta := ROOT.TH1D("h_particle_eta_"+collection, "h_particle_eta_"+collection, 100, -5, 5),
 ]
+
+h_hit_E_MeV_x_layer = {}
+if energy_per_layer:
+    for l in layer_cells.keys():
+        h_hit_E_MeV_x_layer[l] = ROOT.TH1D(f"h_hit_E_MeV_layer{l}_{collection}", f"h_hit_E_MeV_layer{l}_{collection}", 100, 0, 5)
+        histograms += [h_hit_E_MeV_x_layer[l]]
 
 # ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
 histograms += [ h_particle_ID := ROOT.TH1D("h_particle_ID_"+collection, "h_particle_ID_"+collection, 1, 0, 1) ]
@@ -392,6 +402,9 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             h_phi_density_vs_layer[layer_n].Fill(phi, fill_weight)
             h_zphi_density_vs_layer[layer_n].Fill(z_mm, phi, fill_weight)
 
+            if energy_per_layer:
+                h_hit_E_MeV_x_layer[layer_n].Fill(E_hit, fill_weight)
+
         if not is_calo_hit:
             particle = hit.getParticle()
 
@@ -484,8 +497,12 @@ if draw_hists:
     draw_hist(h_avg_occ_x_layer, "Layer number", "Average occupancy [%]",  sample_name+"_avg_occ_x_layer_"+str(n_events)+"evt_"+sub_detector, collection, log_y=False)
     draw_hist(h_occ, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
 
+    if energy_per_layer:
+        for l, h in h_hit_E_MeV_x_layer.items():
+            draw_hist(h, "Deposited energy [MeV]", "Hits per event",  sample_name+f"_hit_E_MeV_x_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
+
     if not skip_plot_per_layer:
-        for l, h  in h_occ_x_layer.items():
+        for l, h in h_occ_x_layer.items():
             draw_hist(h, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_x_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
 
     draw_hist(h_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_particle_E_"+str(n_events)+"evt_"+sub_detector, collection)
