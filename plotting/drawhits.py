@@ -179,14 +179,8 @@ detector_type = detector_dict["typeFlag"]
 print("Retrieve the number of cells per layer")
 layer_cells = {}
 n_tot_cells = 0
-for de, cells in detector_dict["det_element_cells"].items():
-    #for ECalBArrel take the cell from bath - TODO: improve code clarity if possible
-    if de == 'bath':
-        layer_cells[0] = cells
-        n_tot_cells += cells
-
-    ln = layer_number_from_string(de)
-
+for det_element, cells in detector_dict["det_element_cells"].items():
+    ln = layer_number_from_string(det_element)
     layer_cells[ln] = cells
     n_tot_cells += cells
 
