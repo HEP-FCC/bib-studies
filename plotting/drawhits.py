@@ -111,8 +111,6 @@ def get_layer(cell_id, decoder, detector, dtype):
     Run the decoder differently for each detector
     """
 
-    #print(f"layer={layer}, side={side}")
-
     match detector:
         case "HCalThreePartsEndcap":
             # Get only the side of the hit
@@ -139,6 +137,13 @@ def get_layer(cell_id, decoder, detector, dtype):
             super_layer = decoder.get(cell_id, "superlayer")
             return (super_layer * nl_x_sl) + layer + 1
 
+        case "VertexDisks":
+            # shift layer number by 1 to remove degeneracy of layer 0
+            layer = decoder.get(cell_id, "layer") + 1
+            side = decoder.get(cell_id, "side")
+
+            return layer * side
+
         case _:
             # Default way: side * layer, where side should be +/- 1
             layer = decoder.get(cell_id, "layer")
@@ -164,6 +169,7 @@ list_files = path_to_list(input_path)
 list_input_files = sorted_n_files(list_files, n_files)
 
 detector_dict = load_json(detector_dict_path, sub_detector)
+detector_type = detector_dict["typeFlag"]
 
 # Parse the layer name in to an integer number
 print("Retrieve the number of cells per layer")
@@ -207,6 +213,11 @@ z_binning = [int(z_range * 2 / bw_z), -z_range, z_range]  # mm binning
 r_binning = [int(r_range * 2 / bw_r), -r_range, r_range]  # mm binning
 phi_binning = [int(phi_range * 2 / bw_phi), -phi_range, phi_range ] # rad binning
 
+layer_binning = [n_layers + 1, -0.5, n_layers + 0.5]
+if is_endcap(detector_type):
+    max_l = int(n_layers / 2) + 0.5
+    layer_binning = [n_layers + 1, -max_l, +max_l]
+
 
 # Profile histograms
 histograms += [
@@ -222,8 +233,8 @@ histograms += [ h_particle_ID := ROOT.TH1D("h_particle_ID_"+collection, "h_parti
 h_particle_ID.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
 
 histograms += [
-    h_avg_hits_x_layer := ROOT.TH1D("h_avg_hits_x_layer_"+collection, "h_avg_hits_x_layer_"+collection, n_layers, -0.5, n_layers-0.5),
-    h_avg_occ_x_layer := ROOT.TH1D("h_avg_occ_x_layer_"+collection, "h_avg_occ_x_layer_"+collection, n_layers, -0.5, n_layers-0.5),
+    h_avg_hits_x_layer := ROOT.TH1D("h_avg_hits_x_layer_"+collection, "h_avg_hits_x_layer_"+collection, *layer_binning),
+    h_avg_occ_x_layer := ROOT.TH1D("h_avg_occ_x_layer_"+collection, "h_avg_occ_x_layer_"+collection, *layer_binning),
 ]
 
 # Occupancy histograms, defined as fraction of cells that fired
@@ -245,7 +256,7 @@ histograms += [
 # Timing histograms
 histograms += [
     h_hit_t := ROOT.TH1D("hist_hit_t_"+collection, "hist_hit_t_"+collection, 200, 0, 20),
-    h_hit_t_x_layer := ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collection+"; ; ; hits / events", 200, 0, 20, n_layers+1, -0.5, n_layers+0.5),
+    h_hit_t_x_layer := ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collection+"; ; ; hits / events", 200, 0, 20, *layer_binning),
     h_hit_t_corr := ROOT.TH1D("hist_hit_t_corr_"+collection, "hist_hit_t_corr_"+collection, 200, -10, 10),
 ]
 
@@ -262,7 +273,7 @@ for l in layer_cells.keys():
 # Pile-up histograms
 histograms += [
     h_tot_pu := ROOT.TH1D(f"h_tot_pu_{collection}", f"h_tot_pu_{collection}", integration_time+1, -0.5, integration_time+0.5),
-    h_avg_pu_x_layer := ROOT.TH1D(f"h_avg_pu_x_layer_{collection}", f"h_avg_pu_x_layer_{collection}", n_layers+1, -0.5, n_layers+0.5)
+    h_avg_pu_x_layer := ROOT.TH1D(f"h_avg_pu_x_layer_{collection}", f"h_avg_pu_x_layer_{collection}", *layer_binning)
 ]
 
 h_pu_x_layer = {}
@@ -313,7 +324,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         # https://edm4hep.web.cern.ch/classedm4hep_1_1_mutable_sim_calorimeter_hit.html
         # https://edm4hep.web.cern.ch/classedm4hep_1_1_m_c_particle.html
 
-        is_calo_hit = "CalorimeterHit" in str(hit)
+        is_calo_hit = is_calo(detector_type)
 
         cell_id = hit.cellID()
         cell_fired = False
@@ -326,7 +337,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             fired_cells.append(cell_id)
 
         #TODO: Handle better cell_id info
-        layer_n = get_layer(cell_id, decoder, sub_detector, detector_dict["typeFlag"])
+        layer_n = get_layer(cell_id, decoder, sub_detector, detector_type)
 
         x_mm = hit.getPosition().x
         y_mm = hit.getPosition().y
