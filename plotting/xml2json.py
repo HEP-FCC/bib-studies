@@ -48,7 +48,8 @@ def get_cells_map(detector, sub_det, name):
 
     cells_map = defaultdict(int)
 
-    # N.B. this could be affected from naming scheme changes
+    # N.B. this could be affected from naming scheme changes,
+    # will need to keep track also of the geo versions.
     match name:
         case "EMEC_turbine":
             # Method 1, parse the constants from the geo file
@@ -88,6 +89,23 @@ def get_cells_map(detector, sub_det, name):
 
             n_layers = detector.constantAsLong(f"ECalBarrelNumLayers")
             cells_map =  {f"layer{i}": 1 for i in range(n_layers)}
+
+        case "VertexDisks":
+            # Rename layers shifting their value by 1
+            # to remove degeneracy of layer 0
+            # N.B. this needs to be accounted when reading the layer number
+
+            for de_name, de in sub_det.children():
+                cells_map[str(de_name)] = get_cells(de)
+
+            old_keys = list(cells_map.keys())
+            for k in old_keys:
+                ln = re.search("layer[0-9]", k).group(0) 
+                ln = int(ln.strip("layer")) + 1
+                if "side-1" in k:
+                    ln *= -1
+                new_key = f"layer{ln}"
+                cells_map[new_key] = cells_map.pop(k)
 
         case _:
             # Loop over detector elements
@@ -138,10 +156,7 @@ for subdet_name, sens_det in det.sensitiveDetectors():
     # Get max dimensions for the subdetector in x,y,z (half-length form 0)
     volume = subdet.volume()
     box = volume.boundingBox()
-    #mySolid=volume.solid()
-    #print('dims',mySolid.dimensions())
-    #print('IsCylType()',mySolid.IsCylType())
-    #print("        dimensions = ", [box.x(), box.y(), box.z()])
+
     # dimensions seem off (ask Brieuc) - for the moment multiply the max by a factor 10
     max_z = 10*math.ceil(box.z()) #max z rounded up
     max_r = 10*math.ceil(math.sqrt(math.pow(box.x(),2)+math.pow(box.y(),2))) #max r rounded up
@@ -150,19 +165,14 @@ for subdet_name, sens_det in det.sensitiveDetectors():
     if(box.x()!=box.y()): print ('WARNING: different X/Y in the detector bounding box X:',box.x(),'Y:',box.y())
 
     if subdet.id()>0.:
-      dict_sub[str(subdet_name)]={
-          'id': int(subdet.id()),
-          'typeFlag': subdet.typeFlag(),
-          'hitsCollection': hitsCollection,
-          'det_element_cells': det_element_cells,
-          'max_z': max_z, 
-          'max_r': max_r,
-          }
-    # Fill a dictionary to match via ID subdetectors (togheter with its max dimensions)to the SimHits collections
-    #if subdet.id()>0.:
-    #    binning_string = str(nbins_z)+','+str(-max_z)+'.,'+str(max_z)+'.,'+str(nbins_r)+','+str(-max_r)+'.,'+str(max_r)+'.'
-    #    print("        binning = ", binning_string)
-    #    dict_sub[str(subdet.id())] ={"binning":  binning_string}
+        dict_sub[str(subdet_name)]={
+            'id': int(subdet.id()),
+            'typeFlag': subdet.typeFlag(),
+            'hitsCollection': hitsCollection,
+            'det_element_cells': det_element_cells,
+            'max_z': max_z, 
+            'max_r': max_r,
+        }
 
 with open(geo_file_name.split('/')[-1].strip('.xml')+'_DetectorDimensions.json', 'w') as fp:
     json.dump(dict_sub, fp, indent=2)
