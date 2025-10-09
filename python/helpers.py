@@ -96,3 +96,13 @@ def layer_number_from_string(layer_string):
         ln *= side
     
     return ln
+
+
+def simplify_dict(d):
+    """
+    Simplify dict keys to match only the layer number
+    """ 
+    old_keys = list(d.keys())
+    for k in old_keys:
+        d[layer_number_from_string(k)] = d.pop(k)
+    return d

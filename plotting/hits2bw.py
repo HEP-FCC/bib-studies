@@ -5,7 +5,7 @@ import re
 
 import ROOT
 
-from helpers import load_json, layer_number_from_string
+from helpers import load_json, simplify_dict
 from constants import b_to_GB, MHz_to_Hz
 from visualization import setup_root_style, draw_hist
 
@@ -50,15 +50,6 @@ ROOT.gErrorIgnoreLevel = ROOT.kWarning
 
 #######################################
 # functions
-
-def simplify_dict(d):
-    """
-    Simplify dict keys to match only the layer number
-    """ 
-    old_keys = list(d.keys())
-    for k in old_keys:
-        d[layer_number_from_string(k)] = d.pop(k)
-    return d
 
 
 #######################################
