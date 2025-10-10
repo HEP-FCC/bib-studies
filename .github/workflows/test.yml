@@ -11,7 +11,7 @@ on:
 
 
 jobs:
-  build:
+  full-chain-test:
     strategy:
       matrix:
         source_opt: ["", "-n"]
@@ -31,5 +31,5 @@ jobs:
     - name: Run tests
       run: |
         docker exec CI_container /bin/bash -c \
-        source ${{ matrix.source_opt }};\
+        source setup.sh ${{ matrix.source_opt }};\
         cmake -B build -S . &&  ctest --test-dir build/
