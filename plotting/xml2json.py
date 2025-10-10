@@ -90,6 +90,13 @@ def get_cells_map(detector, sub_det, name):
             n_layers = detector.constantAsLong(f"ECalBarrelNumLayers")
             cells_map =  {f"layer{i}": 1 for i in range(n_layers)}
 
+        case "MuonTaggerBarrel":
+            n_layers = detector.constantAsLong(f"MuonTaggerBarrelLayers")
+            cells_map =  {f"layer{i}": 1 for i in range(n_layers)}
+        case "MuonTaggerEndcap":
+            n_layers = detector.constantAsLong(f"MuonTaggerEndcapLayers")
+            cells_map =  {f"layer{i}": 1 for i in range(n_layers)}
+
         case "VertexDisks":
             # Rename layers shifting their value by 1
             # to remove degeneracy of layer 0
