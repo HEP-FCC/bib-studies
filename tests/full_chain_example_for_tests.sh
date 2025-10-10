@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# set-up the Key4hep environment if not already set
+if [[ -z "${KEY4HEP_STACK}" ]]; then
+  source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
+else
+  echo "The Key4hep stack was already loaded in this environment."
+fi
+
+# run the SIM-DIGI-RECO step if the files do not exist yet
+[ -f "ALLEGRO_sim.root" ] && echo "ALLEGRO_sim.root already exists, skipping the SIM step" || ddsim --enableGun --gun.distribution uniform --gun.energy "10*GeV" --gun.particle e- --numberOfEvents 10 --outputFile ALLEGRO_sim.root --random.enableEventSeed --random.seed 42 --compactFile $K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml
+[ -f "ALLEGRO_sim_digi_reco.root" ] && echo "ALLEGRO_sim_digi_reco.root already exists, skipping the DIGI-RECO step" || k4run $FCCCONFIG/FullSim/ALLEGRO/ALLEGRO_o1_v03/run_digi_reco.py --IOSvc.Input ALLEGRO_sim.root --IOSvc.Output ALLEGRO_sim_digi_reco.root --doTopoClustering False
+
+# run local code to make sure it does not break
+path_to_repo=$(git rev-parse --show-toplevel)
+[ -f "ALLEGRO_o1_v03_DetectorDimensions.json" ] && echo "ALLEGRO_o1_v03_DetectorDimensions.json already exists, skipping the JSON generation step" || $path_to_repo/plotting/xml2json.py -d $K4GEO//FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml
+$path_to_repo/plotting/drawhits.py -i ALLEGRO_sim_digi_reco.root -n 1 -s VertexBarrel -d ALLEGRO_o1_v03_DetectorDimensions.json -p -m -z 1 -r 2
+
+
