@@ -37,7 +37,7 @@
     "modifiers": {
       "n_samples": 1
     },
-    "digitized_hits": "EMBCaloTopoClusterCells",
+    "digitized_hits": "ECalBarrelModuleThetaMergedPositioned",
     "E_thr_MeV": {
       "layer0": 0.14,
       "layer1": 0.15,

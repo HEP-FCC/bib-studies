@@ -326,7 +326,7 @@ podio_reader = root_io.Reader(list_input_files)
 # Check if collection is valid and setup a cell ID decoder
 metadata = podio_reader.get("metadata")[0]
 
-id_encoding = metadata.get_parameter(detector_dict["hitsCollection"]+"__CellIDEncoding")
+id_encoding = metadata.get_parameter(collection+"__CellIDEncoding") #detector_dict["hitsCollection"]
 decoder = ROOT.dd4hep.BitFieldCoder(id_encoding)
 #print("HERE",decoder.fieldDescription()) #get possible values
 
