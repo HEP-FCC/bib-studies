@@ -41,7 +41,7 @@ parser.add_option('--sample',
                   type=str, default='ipc',
                   help='sample name to save plots')
 parser.add_option('-d', '--detDictFile',
-                  type=str, default="", default='ALLEGRO_o1_v03_DetectorDimensions.json',
+                  type=str, default='ALLEGRO_o1_v03_DetectorDimensions.json',
                   help='JSON dictionary with some key detector parameters')
 parser.add_option('-s', '--subDetector',
                   type=str, default='VertexBarrel',
