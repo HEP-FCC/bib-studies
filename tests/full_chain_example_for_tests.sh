@@ -1,6 +1,6 @@
 #!/bin/bash
 
-path_to_repo=$(git rev-parse --show-toplevel)
+path_to_repo=${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel 2>/dev/null)}
 
 # set-up the environment
 if echo "$KEY4HEP_STACK" | grep -q nightlies; then
