@@ -31,7 +31,7 @@ jobs:
     - name: Run tests
       run: |
         docker exec CI_container /bin/bash -c \
-        'cd./Package;
+        'cd ./Package;
         source setup.sh ${{ matrix.source_opt }};\
         cmake -B build -S . &&  ctest --test-dir build;
         '
