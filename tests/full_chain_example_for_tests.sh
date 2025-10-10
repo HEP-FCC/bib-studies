@@ -11,6 +11,8 @@ if echo "$KEY4HEP_STACK" | grep -q nightlies; then
 else
     echo "Stable release detected"
     source $path_to_repo/setup.sh
+    # next line to be removed when we will have a new stable release
+    FCCCONFIG=$FCCCONFIG/0.2.0-p32ddy/
 fi
 
 # run the SIM-DIGI-RECO step if the files do not exist yet
