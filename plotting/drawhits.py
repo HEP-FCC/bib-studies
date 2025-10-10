@@ -19,6 +19,9 @@ from visualization import setup_root_style, draw_hist, draw_map
 # option parser
 
 parser = OptionParser()
+parser.add_option('-D', '--debugLevel',
+                  type=int, default=1,
+                  help='debug level (0:quiet, 1:default, 2:verbose)')
 parser.add_option('-i', '--infilePath',
                   type=str, default='/eos/home-s/sfranche/FCC/samples/bib/ipc/aciarma_4IP_2024may29_Z/CADbp_ALLEGRO_o1_v03_r2025-05-29_3998.root',
                   help='path to input file or input directory')
@@ -73,6 +76,7 @@ parser.add_option('--energy_per_layer',
 
 (options, args) = parser.parse_args()
 
+debug = options.debugLevel
 n_files = options.numberOfFiles
 events_per_file = options.numberOfEvents
 input_path = options.infilePath
@@ -211,6 +215,7 @@ histograms = []
 # Set some of the binning
 z_range = int(detector_dict["max_z"]*1.2)
 r_range = int(detector_dict["max_r"]*1.2)
+if debug>1: print(f"z_range: {z_range}, r_range: {r_range}")
 phi_range = 3.5
 
 if not bw_z:
@@ -223,6 +228,7 @@ if not bw_phi:
 z_binning = [int(z_range * 2 / bw_z), -z_range, z_range]  # mm binning
 r_binning = [int(r_range * 2 / bw_r), -r_range, r_range]  # mm binning
 phi_binning = [int(phi_range * 2 / bw_phi), -phi_range, phi_range ] # rad binning
+if debug>1: print(f"z_binning: {z_binning}, r_binning: {r_binning}, phi_binning: {phi_binning}")
 
 layer_binning = [n_layers + 1, -0.5, n_layers + 0.5]
 if is_endcap(detector_type):
@@ -301,6 +307,7 @@ for l in layer_cells.keys():
 n_events = events_per_file * len(list_input_files)
 
 fill_weight = 1. / (n_events)
+if debug>1: print(f"fill weight: {fill_weight}")
 
 #######################################
 # run the event loop
@@ -336,6 +343,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
     # Loop over the hits
     for hit in event.get(collection):
+        if(debug>1): print("Processing hit:", hit)
         # Hits doxy:
         # https://edm4hep.web.cern.ch/classedm4hep_1_1_mutable_sim_tracker_hit.html
         # https://edm4hep.web.cern.ch/classedm4hep_1_1_mutable_sim_calorimeter_hit.html
@@ -526,6 +534,7 @@ print("Writing histograms...")
 output_file_name = f"{sample_name}_{output_file_name}_{n_events}evt_{sub_detector}.root"
 with ROOT.TFile(output_file_name,"RECREATE") as f:
     for h in histograms:
+        if(debug>1): print("Writing histo:", h.GetName())
         h.Write()
 
 print("Histograms saved in:", output_file_name)
