@@ -1,6 +1,8 @@
 #!/bin/bash
 
-path_to_repo=${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel 2>/dev/null)}
+# never managed to get the repository path inside the GitHub runners... Moving to relative paths instead
+#path_to_repo=${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel 2>/dev/null)}
+path_to_repo=../
 
 # set-up the environment
 if echo "$KEY4HEP_STACK" | grep -q nightlies; then
