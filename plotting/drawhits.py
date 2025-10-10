@@ -41,7 +41,7 @@ parser.add_option('--sample',
                   type=str, default='ipc',
                   help='sample name to save plots')
 parser.add_option('-d', '--detDictFile',
-                  type=str, default="",
+                  type=str, default="", default='ALLEGRO_o1_v03_DetectorDimensions.json',
                   help='JSON dictionary with some key detector parameters')
 parser.add_option('-s', '--subDetector',
                   type=str, default='VertexBarrel',
@@ -369,6 +369,8 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         z_mm = hit.getPosition().z
         r_mm = math.sqrt(math.pow(x_mm, 2) + math.pow(y_mm, 2))
         phi = math.acos(x_mm/r_mm) * math.copysign(1, y_mm)
+
+        if(debug>1): print(" cell_id:", cell_id, " layer_n:", layer_n, " x_mm:", x_mm, " y_mm:", y_mm, " z_mm:", z_mm, " r_mm:", r_mm, " phi:", phi)
 
         if is_calo_hit:
             t = -999  # Timing not available for MutableSimCalorimeterHit
