@@ -1,0 +1,314 @@
+{
+  "DCH_v2": {
+    "id": 3,
+    "typeFlag": 529,
+    "hitsCollection": "DCHCollection",
+    "det_element_cells": {
+      "DCH_v2_layer100DE": 768,
+      "DCH_v2_layer101DE": 768,
+      "DCH_v2_layer102DE": 768,
+      "DCH_v2_layer103DE": 768,
+      "DCH_v2_layer104DE": 768,
+      "DCH_v2_layer105DE": 816,
+      "DCH_v2_layer106DE": 816,
+      "DCH_v2_layer107DE": 816,
+      "DCH_v2_layer108DE": 816,
+      "DCH_v2_layer109DE": 816,
+      "DCH_v2_layer10DE": 240,
+      "DCH_v2_layer110DE": 816,
+      "DCH_v2_layer111DE": 816,
+      "DCH_v2_layer112DE": 816,
+      "DCH_v2_layer11DE": 240,
+      "DCH_v2_layer12DE": 240,
+      "DCH_v2_layer13DE": 240,
+      "DCH_v2_layer14DE": 240,
+      "DCH_v2_layer15DE": 240,
+      "DCH_v2_layer16DE": 240,
+      "DCH_v2_layer17DE": 288,
+      "DCH_v2_layer18DE": 288,
+      "DCH_v2_layer19DE": 288,
+      "DCH_v2_layer1DE": 192,
+      "DCH_v2_layer20DE": 288,
+      "DCH_v2_layer21DE": 288,
+      "DCH_v2_layer22DE": 288,
+      "DCH_v2_layer23DE": 288,
+      "DCH_v2_layer24DE": 288,
+      "DCH_v2_layer25DE": 336,
+      "DCH_v2_layer26DE": 336,
+      "DCH_v2_layer27DE": 336,
+      "DCH_v2_layer28DE": 336,
+      "DCH_v2_layer29DE": 336,
+      "DCH_v2_layer2DE": 192,
+      "DCH_v2_layer30DE": 336,
+      "DCH_v2_layer31DE": 336,
+      "DCH_v2_layer32DE": 336,
+      "DCH_v2_layer33DE": 384,
+      "DCH_v2_layer34DE": 384,
+      "DCH_v2_layer35DE": 384,
+      "DCH_v2_layer36DE": 384,
+      "DCH_v2_layer37DE": 384,
+      "DCH_v2_layer38DE": 384,
+      "DCH_v2_layer39DE": 384,
+      "DCH_v2_layer3DE": 192,
+      "DCH_v2_layer40DE": 384,
+      "DCH_v2_layer41DE": 432,
+      "DCH_v2_layer42DE": 432,
+      "DCH_v2_layer43DE": 432,
+      "DCH_v2_layer44DE": 432,
+      "DCH_v2_layer45DE": 432,
+      "DCH_v2_layer46DE": 432,
+      "DCH_v2_layer47DE": 432,
+      "DCH_v2_layer48DE": 432,
+      "DCH_v2_layer49DE": 480,
+      "DCH_v2_layer4DE": 192,
+      "DCH_v2_layer50DE": 480,
+      "DCH_v2_layer51DE": 480,
+      "DCH_v2_layer52DE": 480,
+      "DCH_v2_layer53DE": 480,
+      "DCH_v2_layer54DE": 480,
+      "DCH_v2_layer55DE": 480,
+      "DCH_v2_layer56DE": 480,
+      "DCH_v2_layer57DE": 528,
+      "DCH_v2_layer58DE": 528,
+      "DCH_v2_layer59DE": 528,
+      "DCH_v2_layer5DE": 192,
+      "DCH_v2_layer60DE": 528,
+      "DCH_v2_layer61DE": 528,
+      "DCH_v2_layer62DE": 528,
+      "DCH_v2_layer63DE": 528,
+      "DCH_v2_layer64DE": 528,
+      "DCH_v2_layer65DE": 576,
+      "DCH_v2_layer66DE": 576,
+      "DCH_v2_layer67DE": 576,
+      "DCH_v2_layer68DE": 576,
+      "DCH_v2_layer69DE": 576,
+      "DCH_v2_layer6DE": 192,
+      "DCH_v2_layer70DE": 576,
+      "DCH_v2_layer71DE": 576,
+      "DCH_v2_layer72DE": 576,
+      "DCH_v2_layer73DE": 624,
+      "DCH_v2_layer74DE": 624,
+      "DCH_v2_layer75DE": 624,
+      "DCH_v2_layer76DE": 624,
+      "DCH_v2_layer77DE": 624,
+      "DCH_v2_layer78DE": 624,
+      "DCH_v2_layer79DE": 624,
+      "DCH_v2_layer7DE": 192,
+      "DCH_v2_layer80DE": 624,
+      "DCH_v2_layer81DE": 672,
+      "DCH_v2_layer82DE": 672,
+      "DCH_v2_layer83DE": 672,
+      "DCH_v2_layer84DE": 672,
+      "DCH_v2_layer85DE": 672,
+      "DCH_v2_layer86DE": 672,
+      "DCH_v2_layer87DE": 672,
+      "DCH_v2_layer88DE": 672,
+      "DCH_v2_layer89DE": 720,
+      "DCH_v2_layer8DE": 192,
+      "DCH_v2_layer90DE": 720,
+      "DCH_v2_layer91DE": 720,
+      "DCH_v2_layer92DE": 720,
+      "DCH_v2_layer93DE": 720,
+      "DCH_v2_layer94DE": 720,
+      "DCH_v2_layer95DE": 720,
+      "DCH_v2_layer96DE": 720,
+      "DCH_v2_layer97DE": 768,
+      "DCH_v2_layer98DE": 768,
+      "DCH_v2_layer99DE": 768,
+      "DCH_v2_layer9DE": 240
+    },
+    "max_z": 2250,
+    "max_r": 2850
+  },
+  "ECalBarrel": {
+    "id": 4,
+    "typeFlag": 2066,
+    "hitsCollection": "ECalBarrelModuleThetaMerged",
+    "det_element_cells": {
+      "layer0": 1,
+      "layer1": 1,
+      "layer2": 1,
+      "layer3": 1,
+      "layer4": 1,
+      "layer5": 1,
+      "layer6": 1,
+      "layer7": 1,
+      "layer8": 1,
+      "layer9": 1,
+      "layer10": 1
+    },
+    "max_z": 3100,
+    "max_r": 3850
+  },
+  "EMEC_turbine": {
+    "id": 5,
+    "typeFlag": 2058,
+    "hitsCollection": "ECalEndcapTurbine",
+    "det_element_cells": {
+      "wheel1": 19200,
+      "wheel-1": 19200,
+      "wheel2": 10080,
+      "wheel-2": 10080,
+      "wheel3": 46240,
+      "wheel-3": 46240
+    },
+    "max_z": 3850,
+    "max_r": 4110
+  },
+  "HCalBarrel": {
+    "id": 8,
+    "typeFlag": 4114,
+    "hitsCollection": "HCalBarrelReadout",
+    "det_element_cells": {
+      "HCalEndPlateNeg": 1,
+      "HCalEndPlatePos": 1,
+      "HCalFacePlate": 1,
+      "HCalSteelSupport": 1,
+      "layer0": 310,
+      "layer1": 310,
+      "layer10": 310,
+      "layer11": 310,
+      "layer12": 310,
+      "layer2": 310,
+      "layer3": 310,
+      "layer4": 310,
+      "layer5": 310,
+      "layer6": 310,
+      "layer7": 310,
+      "layer8": 310,
+      "layer9": 310
+    },
+    "max_z": 2800,
+    "max_r": 6370
+  },
+  "HCalThreePartsEndcap": {
+    "id": 9,
+    "typeFlag": 4106,
+    "hitsCollection": "HCalEndcapReadout",
+    "det_element_cells": {
+      "layer_-1": 2275,
+      "layer_1": 2275
+    },
+    "max_z": 5450,
+    "max_r": 6370
+  },
+  "LumiCal": {
+    "id": 15,
+    "typeFlag": 2090,
+    "hitsCollection": "LumiCalCollection",
+    "det_element_cells": {
+      "Calorimeter1": 1,
+      "Calorimeter2": 1
+    },
+    "max_z": 1190,
+    "max_r": 160
+  },
+  "LumiCalBackShield": {
+    "id": 18,
+    "typeFlag": 2090,
+    "hitsCollection": "LumiCalCollection",
+    "det_element_cells": {
+      "Calorimeter1": 1,
+      "Calorimeter2": 1
+    },
+    "max_z": 1200,
+    "max_r": 210
+  },
+  "LumiCalCooling": {
+    "id": 17,
+    "typeFlag": 2090,
+    "hitsCollection": "LumiCalCollection",
+    "det_element_cells": {
+      "Calorimeter1": 1,
+      "Calorimeter2": 1
+    },
+    "max_z": 1190,
+    "max_r": 210
+  },
+  "LumiCalInstrumentation": {
+    "id": 16,
+    "typeFlag": 2090,
+    "hitsCollection": "LumiCalCollection",
+    "det_element_cells": {
+      "Calorimeter1": 1,
+      "Calorimeter2": 1
+    },
+    "max_z": 1190,
+    "max_r": 190
+  },
+  "MuonTaggerBarrel": {
+    "id": 12,
+    "typeFlag": 8210,
+    "hitsCollection": "MuonTaggerBarrelPhiTheta",
+    "det_element_cells": {
+      "layer0": 1,
+      "layer1": 1
+    },
+    "max_z": 6000,
+    "max_r": 6580
+  },
+  "MuonTaggerEndcap": {
+    "id": 13,
+    "typeFlag": 8202,
+    "hitsCollection": "MuonTaggerEndcapPhiTheta",
+    "det_element_cells": {
+      "layer0": 1,
+      "layer1": 1
+    },
+    "max_z": 6000,
+    "max_r": 6370
+  },
+  "SiWrB": {
+    "id": 23,
+    "typeFlag": 273,
+    "hitsCollection": "SiWrBCollection",
+    "det_element_cells": {
+      "layer_0_side0": 151,
+      "layer_1_side0": 151
+    },
+    "max_z": 2400,
+    "max_r": 2950
+  },
+  "SiWrD": {
+    "id": 24,
+    "typeFlag": 265,
+    "hitsCollection": "SiWrDCollection",
+    "det_element_cells": {
+      "SiWrD_side-1_layer0": 1284,
+      "SiWrD_side-1_layer1": 1244,
+      "SiWrD_side1_layer0": 1284,
+      "SiWrD_side1_layer1": 1244
+    },
+    "max_z": 2340,
+    "max_r": 2890
+  },
+  "VertexBarrel": {
+    "id": 1,
+    "typeFlag": 337,
+    "hitsCollection": "VertexBarrelCollection",
+    "det_element_cells": {
+      "layer_0_side0": 90,
+      "layer_1_side0": 240,
+      "layer_2_side0": 540,
+      "layer_3_side0": 736,
+      "layer_4_side0": 3264
+    },
+    "max_z": 360,
+    "max_r": 470
+  },
+  "VertexDisks": {
+    "id": 2,
+    "typeFlag": 329,
+    "hitsCollection": "VertexEndcapCollection",
+    "det_element_cells": {
+      "layer-1": 976,
+      "layer-2": 992,
+      "layer-3": 864,
+      "layer1": 976,
+      "layer2": 992,
+      "layer3": 864
+    },
+    "max_z": 950,
+    "max_r": 420
+  }
+}
