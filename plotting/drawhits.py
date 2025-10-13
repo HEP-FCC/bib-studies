@@ -246,6 +246,8 @@ fullRun_fired_cellIDs = set()
 histograms = []
 
 # Set some of the binning
+x_range = int(detector_dict["max_r"]*1.2)
+y_range = int(detector_dict["max_r"]*1.2)
 z_range = int(detector_dict["max_z"]*1.2)
 r_range = int(detector_dict["max_r"]*1.2)
 if debug>1: print(f"z_range: {z_range}, r_range: {r_range}")
@@ -253,11 +255,15 @@ phi_range = 3.5
 
 if not bw_z:
     bw_z = (z_range * 2) /  100
+bw_x = (x_range * 2) /  1000
+bw_y = (y_range * 2) /  1000
 if not bw_r:
     bw_r = (r_range * 2) /  100
 if not bw_phi:
     bw_phi = (phi_range * 2) /  100
 
+x_binning = [int(x_range * 2 / bw_x), -x_range, x_range]  # mm binning
+y_binning = [int(y_range * 2 / bw_y), -y_range, y_range]  # mm binning
 z_binning = [int(z_range * 2 / bw_z), -z_range, z_range]  # mm binning
 r_binning = [int(r_range * 2 / bw_r), -r_range, r_range]  # mm binning
 phi_binning = [int(phi_range * 2 / bw_phi), -phi_range, phi_range ] # rad binning
@@ -271,6 +277,10 @@ if is_endcap(detector_type):
 
 # Profile histograms
 histograms += [
+    h_hit_x_mm := ROOT.TH1D("h_hit_x_mm_"+collection, "h_hit_x_mm"+collection, 10000, -x_range, x_range),
+    h_hit_y_mm := ROOT.TH1D("h_hit_y_mm_"+collection, "h_hit_y_mm"+collection, 10000, -y_range, y_range),
+    h_hit_z_mm := ROOT.TH1D("h_hit_z_mm_"+collection, "h_hit_z_mm"+collection, 10000, -z_range, z_range),
+    h_hit_r_mm := ROOT.TH1D("h_hit_r_mm_"+collection, "h_hit_r_mm_"+collection,10000, -r_range, r_range),
     h_hit_E_MeV := ROOT.TH1D("h_hit_E_MeV_"+collection, "h_hit_E_MeV_"+collection, 100, 0, 5),
     h_hit_E_keV := ROOT.TH1D("h_hit_E_keV_"+collection, "h_hit_E_MeV_"+collection, 500, 0, 500),
     h_particle_E := ROOT.TH1D("h_particle_E_"+collection, "h_particle_E_"+collection, 500, 0, 50),
@@ -390,6 +400,8 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
         #TODO: Handle better cell_id info
         layer_n = get_layer(cell_id, decoder, sub_detector, detector_type)
+        #print z pos
+        #print(f"z pos: {hit.getPosition().z}")
 
         x_mm = hit.getPosition().x
         y_mm = hit.getPosition().y
@@ -421,6 +433,10 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             fired_cells_x_layer[layer_n] += 1
 
         # Fill the hits histograms
+        h_hit_x_mm.Fill(x_mm, fill_weight)
+        h_hit_y_mm.Fill(y_mm, fill_weight)
+        h_hit_z_mm.Fill(z_mm, fill_weight)
+        h_hit_r_mm.Fill(r_mm, fill_weight)
         h_hit_E_MeV.Fill(E_hit, fill_weight)
         h_hit_E_keV.Fill(E_hit * 1e3, fill_weight)
         h_avg_hits_x_layer.Fill(layer_n, fill_weight)
