@@ -17,3 +17,23 @@ source setup.sh 2025-05-29
 #or for given nightly
 source setup.sh -n 2025-07-22
 ```
+
+## Repo structure
+
+...
+
+## Getting started
+
+```sh
+git clone g clone git@github.com:HEP-FCC/bib-studies.git
+cd bib-studies
+source setup.sh
+cd plotting
+drawhits.py -s MuonTaggerBarrel -d ALLEGRO_o1_v03_DetectorDimensions.json -e 10 -D 0
+#will produce a root file with histograms
+```
+
+### drawhits.py histograms
+
+- h_hit_xx_mm_<sub-detector>: x position of all hits that matched this sub-detector
+- ...
