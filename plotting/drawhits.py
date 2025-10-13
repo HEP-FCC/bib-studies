@@ -235,6 +235,8 @@ print(">>>",layer_cells)
 
 n_layers = len(layer_cells.keys())
 
+#set of cellIDs that fired in the run (set=> unique entries)
+fullRun_fired_cellIDs = set()
 
 #######################################
 # prepare histograms
@@ -381,6 +383,10 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             cell_fired = True
         else:
             fired_cells.append(cell_id)
+            # count cellIDs that fired in the run
+            fullRun_fired_cellIDs.add(cell_id)
+
+            
 
         #TODO: Handle better cell_id info
         layer_n = get_layer(cell_id, decoder, sub_detector, detector_type)
@@ -501,6 +507,8 @@ print("Loop done!")
 print(" - Processed events:", processed_events)
 print(" - Processed hits:", processed_hits, 
       f"(avg. per event: {processed_hits/processed_events})")
+print(" - Number of unique cells fired:", len(fullRun_fired_cellIDs), 
+      f"(avg. per event: {len(fullRun_fired_cellIDs)/processed_events})")
 
 # Compute the average pile up hits
 if integration_time > 1:
