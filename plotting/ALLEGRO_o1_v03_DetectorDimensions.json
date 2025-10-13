@@ -241,8 +241,8 @@
     "typeFlag": 8210,
     "hitsCollection": "MuonTaggerBarrelPhiTheta",
     "det_element_cells": {
-      "layer0": 1,
-      "layer1": 1
+      "layer0": 157696.0,
+      "layer1": 157696.0
     },
     "max_z": 6000,
     "max_r": 6580
@@ -252,8 +252,10 @@
     "typeFlag": 8202,
     "hitsCollection": "MuonTaggerEndcapPhiTheta",
     "det_element_cells": {
-      "layer0": 1,
-      "layer1": 1
+      "layer-2": 78848.0,
+      "layer-1": 78848.0,
+      "layer1": 78848.0,
+      "layer2": 78848.0
     },
     "max_z": 6000,
     "max_r": 6370
