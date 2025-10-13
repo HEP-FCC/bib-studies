@@ -193,9 +193,24 @@ def get_layer(cell_id, decoder, detector, dtype):
 # use sorted list to make sure to always take the same files
 list_files = path_to_list(input_path)
 list_input_files = sorted_n_files(list_files, n_files)
+print("Initializing the PODIO reader...")
+
+podio_reader = root_io.Reader(list_input_files)
+
+# Check if collection is valid and setup a cell ID decoder
+metadata = podio_reader.get("metadata")[0]
+
+nEvents_fullFileList = len(podio_reader.get("events"))
+print(f"Number of events in the full file list: {nEvents_fullFileList}")
 
 detector_dict = load_json(detector_dict_path, sub_detector)
 detector_type = detector_dict["typeFlag"]
+
+# get the hits collection name
+collection = detector_dict["hitsCollection"]
+id_encoding = metadata.get_parameter(collection+"__CellIDEncoding")
+decoder = ROOT.dd4hep.BitFieldCoder(id_encoding)
+#print("HERE",decoder.fieldDescription()) #get possible values
 
 # Parse the layer name in to an integer number
 print("Retrieve the number of cells per layer")
@@ -224,8 +239,6 @@ n_layers = len(layer_cells.keys())
 #######################################
 # prepare histograms
 
-# get the hits collection name
-collection = detector_dict["hitsCollection"]
 
 # list of the histograms that will be saved in output ROOT file
 histograms = []
@@ -324,22 +337,12 @@ for l in layer_cells.keys():
 
 n_events = events_per_file * len(list_input_files)
 
+
 fill_weight = 1. / (n_events)
 if debug>1: print(f"fill weight: {fill_weight}")
 
 #######################################
 # run the event loop
-
-print("Initializing the PODIO reader...")
-
-podio_reader = root_io.Reader(list_input_files)
-
-# Check if collection is valid and setup a cell ID decoder
-metadata = podio_reader.get("metadata")[0]
-
-id_encoding = metadata.get_parameter(collection+"__CellIDEncoding")
-decoder = ROOT.dd4hep.BitFieldCoder(id_encoding)
-#print("HERE",decoder.fieldDescription()) #get possible values
 
 # Counters for the event / hit loops
 processed_events = 0
