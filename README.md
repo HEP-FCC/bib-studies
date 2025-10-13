@@ -3,23 +3,17 @@
 Code and scripts developed to run beam induced background (BIB) studies.
 The main folders contain dedicated `READMEs` with explanations of the scripts.
 
-
 ## Setup
 
 The `setup.sh` script will setup this repository paths and 
 the latest *stable* release of the `key4hep` software stack:
-```
+```sh
 source setup.sh
-```
-To use the latest *nightly* add the `-n` flag:
-```
+#or, for latest nightly:
 source setup.sh -n
-```
-If you need a given release, specify it as the last argument, e.g.:
-```
+
+#for a given release:
 source setup.sh 2025-05-29
-```
-or for nightlies, e.g.:
-```
+#or for given nightly
 source setup.sh -n 2025-07-22
 ```
