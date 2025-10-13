@@ -3,7 +3,7 @@
 from collections import Counter, defaultdict
 import math
 import numpy as np
-from optparse import OptionParser
+import argparse
 
 import dd4hep as dd4hepModule
 from ROOT import dd4hep
@@ -18,63 +18,69 @@ from visualization import setup_root_style, draw_hist, draw_map
 ######################################
 # option parser
 
-parser = OptionParser()
-parser.add_option('-D', '--debugLevel',
-                  type=int, default=1,
-                  help='debug level (0:quiet, 1:default, 2:verbose)')
-parser.add_option('-i', '--infilePath',
-                  type=str, default='/eos/home-s/sfranche/FCC/samples/bib/ipc/aciarma_4IP_2024may29_Z/CADbp_ALLEGRO_o1_v03_r2025-05-29_3998.root',
-                  help='path to input file or input directory')
-parser.add_option('-o', '--outputFile',
-                  type=str, default='hits',
-                  help='Name of output root file, the sample name will be added as prefix and the detector as suffix')
-parser.add_option('-n', '--numberOfFiles',
-                  type=int, default=1,
-                  help='number of files to consider (1 event per file), put -1 to take all files')
-parser.add_option('-e', '--numberOfEvents',
-                  type=int, default=1,
-                  help='number of events per file to consider, put -1 to take all events')
-parser.add_option('-t', '--tree',
-                  type=str, default='events',
-                  help='name of the tree in the root file')
-parser.add_option('--sample',
-                  type=str, default='ipc',
-                  help='sample name to save plots')
-parser.add_option('-d', '--detDictFile',
-                  type=str, default='ALLEGRO_o1_v03_DetectorDimensions.json',
-                  help='JSON dictionary with some key detector parameters')
-parser.add_option('-s', '--subDetector',
-                  type=str, default='VertexBarrel',
-                  help='Name of the sub detector system')
-parser.add_option('-p', '--draw_hists',
-                  action="store_true",
-                  help='activate drawing of 1D histograms')
-parser.add_option('-m', '--draw_maps',
-                  action="store_true",
-                  help='activate drawing of number of maps plots')
-parser.add_option('-r','--bin_width_r',
-                  type=int, default=None,
-                  help='bin width for radius r in mm')
-parser.add_option('-z','--bin_width_z',
-                  type=int, default=None,
-                  help='bin width for z in mm')
-parser.add_option('-a', '--bin_width_phi',
-                  type=float, default=None,
-                  help='bin width for azimuthal angle phi')
-parser.add_option('--stat_box',
-                  action="store_true",
-                  help='draw the ROOT stat box')
-parser.add_option('--skip_layers',
-                  action="store_true",
-                  help='Skip plots per single layer, useful for sub-detectors with many layers (e.g. drift chamber)')
-parser.add_option('--integration_time',
-                  type=int, default=1,
-                  help='Integration time in  number of events, to estimate hits pile-up.')
-parser.add_option('--energy_per_layer',
-                  action="store_true",
-                  help='Save histograms of hit energy per layer.')
+def parse_args():
+    parser = argparse.ArgumentParser(description='drawhits.py', 
+        epilog='Example:\ndrawhits.py -s MuonTaggerBarrel -d ALLEGRO_o1_v03_DetectorDimensions.json -e -1 -D 0',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-(options, args) = parser.parse_args()
+    parser.add_argument('-D', '--debugLevel',
+                    type=int, default=1,
+                    help='debug level (0:quiet, 1:default, 2:verbose)')
+    parser.add_argument('-i', '--infilePath',
+                    type=str, default='/eos/home-s/sfranche/FCC/samples/bib/ipc/aciarma_4IP_2024may29_Z/CADbp_ALLEGRO_o1_v03_r2025-05-29_3998.root',
+                    help='path to input file or input directory')
+    parser.add_argument('-o', '--outputFile',
+                    type=str, default='hits',
+                    help='Name of output root file, the sample name will be added as prefix and the detector as suffix')
+    parser.add_argument('-n', '--numberOfFiles',
+                    type=int, default=1,
+                    help='number of files to consider (1 event per file), put -1 to take all files')
+    parser.add_argument('-e', '--numberOfEvents',
+                    type=int, default=1,
+                    help='number of events per file to consider, put -1 to take all events')
+    parser.add_argument('-t', '--tree',
+                    type=str, default='events',
+                    help='name of the tree in the root file')
+    parser.add_argument('--sample',
+                    type=str, default='ipc',
+                    help='sample name to save plots')
+    parser.add_argument('-d', '--detDictFile',
+                    type=str, default='ALLEGRO_o1_v03_DetectorDimensions.json',
+                    help='JSON dictionary with some key detector parameters')
+    parser.add_argument('-s', '--subDetector',
+                    type=str, default='VertexBarrel',
+                    help='Name of the sub detector system')
+    parser.add_argument('-p', '--draw_hists',
+                    action="store_true",
+                    help='activate drawing of 1D histograms')
+    parser.add_argument('-m', '--draw_maps',
+                    action="store_true",
+                    help='activate drawing of number of maps plots')
+    parser.add_argument('-r','--bin_width_r',
+                    type=int, default=None,
+                    help='bin width for radius r in mm')
+    parser.add_argument('-z','--bin_width_z',
+                    type=int, default=None,
+                    help='bin width for z in mm')
+    parser.add_argument('-a', '--bin_width_phi',
+                    type=float, default=None,
+                    help='bin width for azimuthal angle phi')
+    parser.add_argument('--stat_box',
+                    action="store_true",
+                    help='draw the ROOT stat box')
+    parser.add_argument('--skip_layers',
+                    action="store_true",
+                    help='Skip plots per single layer, useful for sub-detectors with many layers (e.g. drift chamber)')
+    parser.add_argument('--integration_time',
+                    type=int, default=1,
+                    help='Integration time in  number of events, to estimate hits pile-up.')
+    parser.add_argument('--energy_per_layer',
+                    action="store_true",
+                    help='Save histograms of hit energy per layer.')
+
+    return(parser.parse_args())
+
+options = parse_args()
 
 debug = options.debugLevel
 n_files = options.numberOfFiles
