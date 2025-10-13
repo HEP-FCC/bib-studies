@@ -62,21 +62,23 @@ parser.add_option('--bin_width_phi',
                   type=float, default=None,
                   help='bin width for azimuthal angle phi')
 parser.add_option('--stat_box',
-                  action="store_true",
+                  action='store_true',
                   help='draw the ROOT stat box')
 parser.add_option('--skip_layers',
-                  action="store_true",
+                  action='store_true',
                   help='Skip plots per single layer, useful for sub-detectors with many layers (e.g. drift chamber)')
 parser.add_option('--integration_time',
                   type=int, default=1,
                   help='Integration time in  number of events, to estimate hits pile-up.')
 parser.add_option('--energy_per_layer',
-                  action="store_true",
+                  action='store_true',
                   help='Save histograms of hit energy per layer.')
-
 parser.add_option('--digi',
-                  default='',
-                  help='run on digitized hits, using the specified collection.')
+                  action='store_true',
+                  help='run on digitized hits (requires to pass also the assumptions dict with info on the digitized collection).')
+parser.add_option('--e_cut',
+                  action='store_true',
+                  help='apply energy cut (requires to pass also the assumptions dict with energy threshold).')
 
 (options, args) = parser.parse_args()
 
@@ -99,6 +101,7 @@ skip_plot_per_layer = options.skip_layers
 integration_time = options.integration_time
 energy_per_layer = options.energy_per_layer
 digi = options.digi
+e_cut = options.e_cut
 
 ######################################
 # style
@@ -201,23 +204,35 @@ print(">>>",layer_cells)
 
 n_layers = len(layer_cells.keys())
 
-# Read the assumptions dictionary and set energy threshold
+# Read the assumptions dictionary
 assumptions = load_json(assumptions_path, sub_detector) if assumptions_path else None  #TODO: set default path to the /templates folder
 
-E_thr_MeV = -999
-if assumptions and ("E_thr_MeV" in assumptions):
-    E_thr_MeV = assumptions["E_thr_MeV"]
-    if isinstance(E_thr_MeV,dict):
-        E_thr_MeV = simplify_dict(E_thr_MeV)  # set the dict keys to match only the layer number (as int)
+if (e_cut or digi) and assumptions == None:
+    raise ValueError(f"Given the input settings (e_cut={e_cut}, digi={digi})," +
+                     "an 'assumption' JSON is needed as input")
 
-print(">>> Cutting Hits with energy below:", E_thr_MeV)
+# Set the energy thresholds, if required
+E_thr_MeV = 0
+if e_cut:
+    if digi:
+        E_thr_MeV = assumptions["digitized_hits"]["E_thr_MeV"]
+    else:
+        E_thr_MeV = assumptions["E_thr_MeV"]
+
+    # if the thresholds are defined for each layer, simplify the dictionary keys
+    if isinstance(E_thr_MeV,dict):
+        E_thr_MeV = simplify_dict(E_thr_MeV) 
+
+    print(">>> Cutting Hits with energy below:", E_thr_MeV)
 
 
 #######################################
 # prepare histograms
 
 # get the hits collection name
-collection = digi if digi else detector_dict["hitsCollection"]
+collection =  detector_dict["hitsCollection"]
+if digi:
+    collection = assumptions["digitized_hits"]["collection"]
 
 # list of the histograms that will be saved in output ROOT file
 histograms = []
@@ -246,7 +261,7 @@ if is_endcap(detector_type):
 
 # Profile histograms
 histograms += [
-    h_hit_E_MeV := ROOT.TH1D("h_hit_E_MeV_"+collection, "h_hit_E_MeV_"+collection, 100, 0, 5),
+    h_hit_E_MeV := ROOT.TH1D("h_hit_E_MeV_"+collection, "h_hit_E_MeV_"+collection, 500, 0, 50),
     h_hit_E_keV := ROOT.TH1D("h_hit_E_keV_"+collection, "h_hit_E_MeV_"+collection, 500, 0, 500),
     h_particle_E := ROOT.TH1D("h_particle_E_"+collection, "h_particle_E_"+collection, 500, 0, 50),
     h_particle_pt := ROOT.TH1D("h_particle_pt_"+collection, "h_particle_pt_"+collection, 500, 0, 50),
@@ -256,7 +271,7 @@ histograms += [
 h_hit_E_MeV_x_layer = {}
 if energy_per_layer:
     for l in layer_cells.keys():
-        h_hit_E_MeV_x_layer[l] = ROOT.TH1D(f"h_hit_E_MeV_layer{l}_{collection}", f"h_hit_E_MeV_layer{l}_{collection}", 100, 0, 5)
+        h_hit_E_MeV_x_layer[l] = ROOT.TH1D(f"h_hit_E_MeV_layer{l}_{collection}", f"h_hit_E_MeV_layer{l}_{collection}", 500, 0, 50)
         histograms += [h_hit_E_MeV_x_layer[l]]
 
 # ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
@@ -385,7 +400,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             E_hit = hit.getEDep() * 1e3  # For tracker hits
 
         # Apply cut deposited energy
-        if E_hit >= E_hit_thr:
+        if E_hit >= E_hit_thr or (not e_cut):
 
             x_mm = hit.getPosition().x
             y_mm = hit.getPosition().y
