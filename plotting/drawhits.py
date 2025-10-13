@@ -117,7 +117,7 @@ ROOT.gErrorIgnoreLevel = ROOT.kWarning
 # Detector types from:
 # https://github.com/AIDASoft/DD4hep/blob/master/DDCore/include/DD4hep/DetType.h
 is_calo = lambda x: (x & dd4hep.DetType.CALORIMETER) == dd4hep.DetType.CALORIMETER
-is_endcap = lambda x: (x & dd4hep.DetType.ENDCAP) == dd4hep.DetType.ENDCAP
+is_endcap = lambda x: (x & dd4hep.DetType.ENDCAP) == dd4hep.DetType.ENDCAP #DetType_ENDCAP in xml
 
 
 def get_layer(cell_id, decoder, detector, dtype):
@@ -158,8 +158,20 @@ def get_layer(cell_id, decoder, detector, dtype):
 
             return layer * side
 
-        case _:
+        case "MuonTaggerEndcap":
             # Default way: side * layer, where side should be +/- 1
+            layer = decoder.get(cell_id, "layer") + 1
+            #probably no side available in decoder (see xml readout part)
+            theta = decoder.get(cell_id, "theta")
+            #print(f"layer={layer}, theta={theta}")
+
+            side=-1
+            if theta<168:
+              side = 1
+
+            return layer * side
+
+        case _:           
             layer = decoder.get(cell_id, "layer")
 
             # Get the side, if available
