@@ -24,6 +24,8 @@ source setup.sh -n 2025-07-22
 
 ## Getting started
 
+### Example: Hits & occupancy plots for sub-detector
+
 ```sh
 git clone g clone git@github.com:HEP-FCC/bib-studies.git
 cd bib-studies
@@ -33,7 +35,9 @@ drawhits.py -s MuonTaggerBarrel -d ALLEGRO_o1_v03_DetectorDimensions.json -e 10 
 #will produce a root file with histograms
 ```
 
-### drawhits.py histograms
+#### drawhits.py histograms
 
 - h_hit_xx_mm_<sub-detector>: x position of all hits that matched this sub-detector
 - ...
+
+### Example: other..
