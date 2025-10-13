@@ -91,11 +91,29 @@ def get_cells_map(detector, sub_det, name):
             cells_map =  {f"layer{i}": 1 for i in range(n_layers)}
 
         case "MuonTaggerBarrel":
+            #from XML file in 2025:
+            # theta = 336 bins
+            # phi   = 704 bins
+            # => full muon system has 336*704 cells
+            #todo: FIX THIS APPROXIMATION:
+            # theta binning not yet clear from XML, so very roughly assigning:
+            total_cells = 2/3 * 336 * 704
+
+
             n_layers = detector.constantAsLong(f"MuonTaggerBarrelLayers")
-            cells_map =  {f"layer{i}": 1 for i in range(n_layers)}
+            cells_map =  {f"layer{i}": total_cells for i in range(n_layers)}
         case "MuonTaggerEndcap":
+            #todo: need to clarify with MuonTagger experts if this is correct (see also barrel above)
+            #todo: FIX THIS APPROXIMATION:
+            # theta binning not yet clear from XML, so very roughly assigning:
+            total_cells = 1/3 * 336 * 704
             n_layers = detector.constantAsLong(f"MuonTaggerEndcapLayers")
-            cells_map =  {f"layer{i}": 1 for i in range(n_layers)}
+            cells_map =  {}
+            #todo: fix this fix
+            #loop from -2 to 2, skipping 0, to set the layers indices for the endcaps
+            for i in range(-2,3):
+                if i==0: continue
+                cells_map[f"layer{i}"] = total_cells
 
         case "VertexDisks":
             # Rename layers shifting their value by 1
