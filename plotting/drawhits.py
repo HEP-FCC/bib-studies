@@ -347,6 +347,8 @@ for l in layer_cells.keys():
     h_pu_x_layer[l] = ROOT.TH1D(f"h_pu_x_layer{l}_{collection}", f"h_pu_x_layer{l}_{collection}", integration_time+1, -0.5, integration_time+0.5)
     histograms += [h_pu_x_layer[l]]
 
+if events_per_file==-1: 
+    events_per_file = nEvents_fullFileList
 n_events = events_per_file * len(list_input_files)
 
 
