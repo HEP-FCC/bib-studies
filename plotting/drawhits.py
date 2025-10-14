@@ -65,7 +65,7 @@ def parse_args():
     parser.add_argument('-z','--bin_width_z',
                     type=int, default=None,
                     help='bin width for z in mm')
-    parser.add_argument('-a', '--bin_width_phi',
+    parser.add_argument('--bin_width_phi',
                     type=float, default=None,
                     help='bin width for azimuthal angle phi')
     parser.add_argument('--stat_box',
