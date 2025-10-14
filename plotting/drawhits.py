@@ -3,7 +3,7 @@
 from collections import Counter, defaultdict
 import math
 import numpy as np
-from optparse import OptionParser
+import argparse
 
 import dd4hep as dd4hepModule
 from ROOT import dd4hep
@@ -18,70 +18,80 @@ from visualization import setup_root_style, draw_hist, draw_map
 ######################################
 # option parser
 
-parser = OptionParser()
-parser.add_option('-i', '--infilePath',
-                  type=str, default='/eos/home-s/sfranche/FCC/samples/bib/ipc/aciarma_4IP_2024may29_Z/CADbp_ALLEGRO_o1_v03_r2025-05-29_3998.root',
-                  help='path to input file or input directory')
-parser.add_option('-o', '--outputFile',
-                  type=str, default='hits',
-                  help='Name of output root file, the sample name will be added as prefix and the detector as suffix')
-parser.add_option('-n', '--numberOfFiles',
-                  type=int, default=1,
-                  help='number of files to consider (1 event per file), put -1 to take all files')
-parser.add_option('-e', '--numberOfEvents',
-                  type=int, default=1,
-                  help='number of events per file to consider, put -1 to take all events')
-parser.add_option('-t', '--tree',
-                  type=str, default='events',
-                  help='name of the tree in the root file')
-parser.add_option('--sample',
-                  type=str, default='ipc',
-                  help='sample name to save plots')
-parser.add_option('-d', '--detDictFile',
-                  type=str, default="",
-                  help='JSON dictionary with some key detector parameters')
-parser.add_option('-a', '--assumptions',
-                  type=str, default="",
-                  help='JSON dictionary with assumptions')
-parser.add_option('-s', '--subDetector',
-                  type=str, default='VertexBarrel',
-                  help='Name of the sub detector system')
-parser.add_option('-p', '--draw_hists',
-                  action="store_true",
-                  help='activate drawing of 1D histograms')
-parser.add_option('-m', '--draw_maps',
-                  action="store_true",
-                  help='activate drawing of number of maps plots')
-parser.add_option('-r','--bin_width_r',
-                  type=int, default=None,
-                  help='bin width for radius r in mm')
-parser.add_option('-z','--bin_width_z',
-                  type=int, default=None,
-                  help='bin width for z in mm')
-parser.add_option('--bin_width_phi',
-                  type=float, default=None,
-                  help='bin width for azimuthal angle phi')
-parser.add_option('--stat_box',
-                  action='store_true',
-                  help='draw the ROOT stat box')
-parser.add_option('--skip_layers',
-                  action='store_true',
-                  help='Skip plots per single layer, useful for sub-detectors with many layers (e.g. drift chamber)')
-parser.add_option('--integration_time',
-                  type=int, default=1,
-                  help='Integration time in  number of events, to estimate hits pile-up.')
-parser.add_option('--energy_per_layer',
-                  action='store_true',
-                  help='Save histograms of hit energy per layer.')
-parser.add_option('--digi',
-                  action='store_true',
-                  help='run on digitized hits (requires to pass also the assumptions dict with info on the digitized collection).')
-parser.add_option('--e_cut',
-                  action='store_true',
-                  help='apply energy cut (requires to pass also the assumptions dict with energy threshold).')
+def parse_args():
+    parser = argparse.ArgumentParser(description='drawhits.py', 
+        epilog='Example:\ndrawhits.py -s MuonTaggerBarrel -d ALLEGRO_o1_v03_DetectorDimensions.json -e -1 -D 0',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-(options, args) = parser.parse_args()
+    parser.add_argument('-D', '--debugLevel',
+                    type=int, default=1,
+                    help='debug level (0:quiet, 1:default, 2:verbose)')
+    parser.add_argument('-i', '--infilePath',
+                    type=str, default='/eos/home-s/sfranche/FCC/samples/bib/ipc/aciarma_4IP_2024may29_Z/CADbp_ALLEGRO_o1_v03_r2025-05-29_3998.root',
+                    help='path to input file or input directory')
+    parser.add_argument('-o', '--outputFile',
+                    type=str, default='hits',
+                    help='Name of output root file, the sample name will be added as prefix and the detector as suffix')
+    parser.add_argument('-n', '--numberOfFiles',
+                    type=int, default=1,
+                    help='number of files to consider (1 event per file), put -1 to take all files')
+    parser.add_argument('-e', '--numberOfEvents',
+                    type=int, default=1,
+                    help='number of events per file to consider, put -1 to take all events')
+    parser.add_argument('-t', '--tree',
+                    type=str, default='events',
+                    help='name of the tree in the root file')
+    parser.add_argument('--sample',
+                    type=str, default='ipc',
+                    help='sample name to save plots')
+    parser.add_argument('-d', '--detDictFile',
+                    type=str, default='ALLEGRO_o1_v03_DetectorDimensions.json',
+                    help='JSON dictionary with some key detector parameters')
+    parser.add_argument('-a', '--assumptions',
+                    type=str, default=None,
+                    help='JSON dictionary with assumptions')
+    parser.add_argument('-s', '--subDetector',
+                    type=str, default='VertexBarrel',
+                    help='Name of the sub detector system')
+    parser.add_argument('-p', '--draw_hists',
+                    action="store_true",
+                    help='activate drawing of 1D histograms')
+    parser.add_argument('-m', '--draw_maps',
+                    action="store_true",
+                    help='activate drawing of number of maps plots')
+    parser.add_argument('-r','--bin_width_r',
+                    type=int, default=None,
+                    help='bin width for radius r in mm')
+    parser.add_argument('-z','--bin_width_z',
+                    type=int, default=None,
+                    help='bin width for z in mm')
+    parser.add_argument('-a', '--bin_width_phi',
+                    type=float, default=None,
+                    help='bin width for azimuthal angle phi')
+    parser.add_argument('--stat_box',
+                    action="store_true",
+                    help='draw the ROOT stat box')
+    parser.add_argument('--skip_layers',
+                    action="store_true",
+                    help='Skip plots per single layer, useful for sub-detectors with many layers (e.g. drift chamber)')
+    parser.add_argument('--integration_time',
+                    type=int, default=1,
+                    help='Integration time in  number of events, to estimate hits pile-up.')
+    parser.add_argument('--energy_per_layer',
+                    action="store_true",
+                    help='Save histograms of hit energy per layer.')
+    parser.add_argument('--digi',
+                    action='store_true',
+                    help='run on digitized hits (requires to pass also the assumptions dict with info on the digitized collection).')
+    parser.add_argument('--e_cut',
+                    action='store_true',
+                    help='apply energy cut (requires to pass also the assumptions dict with energy threshold).')
 
+    return (parser.parse_args())
+
+options = parse_args()
+
+debug = options.debugLevel
 n_files = options.numberOfFiles
 events_per_file = options.numberOfEvents
 input_path = options.infilePath
@@ -119,7 +129,7 @@ ROOT.gErrorIgnoreLevel = ROOT.kWarning
 # Detector types from:
 # https://github.com/AIDASoft/DD4hep/blob/master/DDCore/include/DD4hep/DetType.h
 is_calo = lambda x: (x & dd4hep.DetType.CALORIMETER) == dd4hep.DetType.CALORIMETER
-is_endcap = lambda x: (x & dd4hep.DetType.ENDCAP) == dd4hep.DetType.ENDCAP
+is_endcap = lambda x: (x & dd4hep.DetType.ENDCAP) == dd4hep.DetType.ENDCAP #DetType_ENDCAP in xml
 
 
 def get_layer(cell_id, decoder, detector, dtype):
@@ -160,8 +170,20 @@ def get_layer(cell_id, decoder, detector, dtype):
 
             return layer * side
 
-        case _:
+        case "MuonTaggerEndcap":
             # Default way: side * layer, where side should be +/- 1
+            layer = decoder.get(cell_id, "layer") + 1
+            #probably no side available in decoder (see xml readout part)
+            theta = decoder.get(cell_id, "theta")
+            #print(f"layer={layer}, theta={theta}")
+
+            side=-1
+            if theta<168:
+              side = 1
+
+            return layer * side
+
+        case _:           
             layer = decoder.get(cell_id, "layer")
 
             # Get the side, if available
@@ -184,8 +206,27 @@ def get_layer(cell_id, decoder, detector, dtype):
 list_files = path_to_list(input_path)
 list_input_files = sorted_n_files(list_files, n_files)
 
+print("Initializing the PODIO reader...")
+podio_reader = root_io.Reader(list_input_files)
+
+# Check if collection is valid and setup a cell ID decoder
+metadata = podio_reader.get("metadata")[0]
+
+nEvents_fullFileList = len(podio_reader.get("events"))
+print(f"Number of events in the full file list: {nEvents_fullFileList}")
+
+# Read the detector and assumptions dictionaries
 detector_dict = load_json(detector_dict_path, sub_detector)
 detector_type = detector_dict["typeFlag"]
+assumptions = load_json(assumptions_path, sub_detector) if assumptions_path else None  #TODO: set default path to the /templates folder
+
+# get the hits collection name
+collection =  detector_dict["hitsCollection"]
+if digi:
+    collection = assumptions["digitized_hits"]["collection"]
+id_encoding = metadata.get_parameter(collection+"__CellIDEncoding")
+decoder = ROOT.dd4hep.BitFieldCoder(id_encoding)
+#print("HERE",decoder.fieldDescription()) #get possible values
 
 # Parse the layer name in to an integer number
 print("Retrieve the number of cells per layer")
@@ -203,9 +244,6 @@ if not layer_cells:
 print(">>>",layer_cells)
 
 n_layers = len(layer_cells.keys())
-
-# Read the assumptions dictionary
-assumptions = load_json(assumptions_path, sub_detector) if assumptions_path else None  #TODO: set default path to the /templates folder
 
 if (e_cut or digi) and assumptions == None:
     raise ValueError(f"Given the input settings (e_cut={e_cut}, digi={digi})," +
@@ -225,33 +263,38 @@ if e_cut:
 
     print(">>> Cutting Hits with energy below:", E_thr_MeV)
 
+#set of cellIDs that fired in the run (set=> unique entries)
+fullRun_fired_cellIDs = set()
 
 #######################################
 # prepare histograms
-
-# get the hits collection name
-collection =  detector_dict["hitsCollection"]
-if digi:
-    collection = assumptions["digitized_hits"]["collection"]
 
 # list of the histograms that will be saved in output ROOT file
 histograms = []
 
 # Set some of the binning
+x_range = int(detector_dict["max_r"]*1.2)
+y_range = int(detector_dict["max_r"]*1.2)
 z_range = int(detector_dict["max_z"]*1.2)
 r_range = int(detector_dict["max_r"]*1.2)
+if debug>1: print(f"z_range: {z_range}, r_range: {r_range}")
 phi_range = 3.5
 
 if not bw_z:
     bw_z = (z_range * 2) /  100
+bw_x = (x_range * 2) /  1000
+bw_y = (y_range * 2) /  1000
 if not bw_r:
     bw_r = (r_range * 2) /  100
 if not bw_phi:
     bw_phi = (phi_range * 2) /  100
 
+x_binning = [int(x_range * 2 / bw_x), -x_range, x_range]  # mm binning
+y_binning = [int(y_range * 2 / bw_y), -y_range, y_range]  # mm binning
 z_binning = [int(z_range * 2 / bw_z), -z_range, z_range]  # mm binning
 r_binning = [int(r_range * 2 / bw_r), -r_range, r_range]  # mm binning
 phi_binning = [int(phi_range * 2 / bw_phi), -phi_range, phi_range ] # rad binning
+if debug>1: print(f"z_binning: {z_binning}, r_binning: {r_binning}, phi_binning: {phi_binning}")
 
 layer_binning = [n_layers + 1, -0.5, n_layers + 0.5]
 if is_endcap(detector_type):
@@ -261,8 +304,12 @@ if is_endcap(detector_type):
 
 # Profile histograms
 histograms += [
+    h_hit_x_mm := ROOT.TH1D("h_hit_x_mm_"+collection, "h_hit_x_mm"+collection, 10000, -x_range, x_range),
+    h_hit_y_mm := ROOT.TH1D("h_hit_y_mm_"+collection, "h_hit_y_mm"+collection, 10000, -y_range, y_range),
+    h_hit_z_mm := ROOT.TH1D("h_hit_z_mm_"+collection, "h_hit_z_mm"+collection, 10000, -z_range, z_range),
+    h_hit_r_mm := ROOT.TH1D("h_hit_r_mm_"+collection, "h_hit_r_mm_"+collection,10000, -r_range, r_range),
     h_hit_E_MeV := ROOT.TH1D("h_hit_E_MeV_"+collection, "h_hit_E_MeV_"+collection, 500, 0, 50),
-    h_hit_E_keV := ROOT.TH1D("h_hit_E_keV_"+collection, "h_hit_E_MeV_"+collection, 500, 0, 500),
+    h_hit_E_keV := ROOT.TH1D("h_hit_E_keV_"+collection, "h_hit_E_keV_"+collection, 500, 0, 500),
     h_particle_E := ROOT.TH1D("h_particle_E_"+collection, "h_particle_E_"+collection, 500, 0, 50),
     h_particle_pt := ROOT.TH1D("h_particle_pt_"+collection, "h_particle_pt_"+collection, 500, 0, 50),
     h_particle_eta := ROOT.TH1D("h_particle_eta_"+collection, "h_particle_eta_"+collection, 100, -5, 5),
@@ -328,23 +375,16 @@ for l in layer_cells.keys():
     h_pu_x_layer[l] = ROOT.TH1D(f"h_pu_x_layer{l}_{collection}", f"h_pu_x_layer{l}_{collection}", integration_time+1, -0.5, integration_time+0.5)
     histograms += [h_pu_x_layer[l]]
 
+if events_per_file==-1: 
+    events_per_file = nEvents_fullFileList
 n_events = events_per_file * len(list_input_files)
 
+
 fill_weight = 1. / (n_events)
+if debug>1: print(f"fill weight: {fill_weight}")
 
 #######################################
 # run the event loop
-
-print("Initializing the PODIO reader...")
-
-podio_reader = root_io.Reader(list_input_files)
-
-# Check if collection is valid and setup a cell ID decoder
-metadata = podio_reader.get("metadata")[0]
-
-id_encoding = metadata.get_parameter(collection+"__CellIDEncoding") #detector_dict["hitsCollection"]
-decoder = ROOT.dd4hep.BitFieldCoder(id_encoding)
-#print("HERE",decoder.fieldDescription()) #get possible values
 
 # Counters for the event / hit loops
 processed_events = 0
@@ -366,6 +406,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
     # Loop over the hits
     for hit in event.get(collection):
+        if(debug>1): print("Processing hit:", hit)
         # Hits doxy:
         # https://edm4hep.web.cern.ch/classedm4hep_1_1_mutable_sim_tracker_hit.html
         # https://edm4hep.web.cern.ch/classedm4hep_1_1_mutable_sim_calorimeter_hit.html
@@ -382,14 +423,20 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             cell_fired = True
         else:
             fired_cells.append(cell_id)
+            # count cellIDs that fired in the run
+            fullRun_fired_cellIDs.add(cell_id)
+
+            
 
         #TODO: Handle better cell_id info
         layer_n = get_layer(cell_id, decoder, sub_detector, detector_type)
 
-
         E_hit_thr = 0
         if isinstance(E_thr_MeV, dict):
             E_hit_thr = E_thr_MeV[layer_n]
+
+        if is_calo_hit:
+            t = -999  # Timing not available for MutableSimCalorimeterHit
         else:
             E_hit_thr = E_thr_MeV
 
@@ -403,11 +450,61 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         # Apply cut deposited energy
         if E_hit >= E_hit_thr or (not e_cut):
 
+
+<<<<<<< HEAD
             x_mm = hit.getPosition().x
             y_mm = hit.getPosition().y
             z_mm = hit.getPosition().z
             r_mm = math.sqrt(math.pow(x_mm, 2) + math.pow(y_mm, 2))
             phi = math.acos(x_mm/r_mm) * math.copysign(1, y_mm)
+
+            if(debug>1): print(" cell_id:", cell_id, " layer_n:", layer_n, " x_mm:", x_mm, " y_mm:", y_mm, " z_mm:", z_mm, " r_mm:", r_mm, " phi:", phi)
+=======
+        # Fill the hits histograms
+        h_hit_x_mm.Fill(x_mm, fill_weight)
+        h_hit_y_mm.Fill(y_mm, fill_weight)
+        h_hit_z_mm.Fill(z_mm, fill_weight)
+        h_hit_r_mm.Fill(r_mm, fill_weight)
+        h_hit_E_MeV.Fill(E_hit, fill_weight)
+        h_hit_E_keV.Fill(E_hit * 1e3, fill_weight)
+        h_avg_hits_x_layer.Fill(layer_n, fill_weight)
+
+        hist_zr.Fill(z_mm, r_mm, fill_weight)
+        hist_xy.Fill(x_mm, y_mm, fill_weight)
+        hist_zphi.Fill(z_mm, phi, fill_weight)
+
+        h_hit_t.Fill(t, fill_weight)
+        h_hit_t_x_layer.Fill(t, layer_n, fill_weight)
+
+        h_hit_t_corr.Fill(t - (hit_distance / C_MM_NS), fill_weight)
+
+        if layer_cells:
+            h_z_density_vs_layer_mm[layer_n].Fill(z_mm, fill_weight)
+            h_phi_density_vs_layer[layer_n].Fill(phi, fill_weight)
+            h_zphi_density_vs_layer[layer_n].Fill(z_mm, phi, fill_weight)
+
+            if energy_per_layer:
+                h_hit_E_MeV_x_layer[layer_n].Fill(E_hit, fill_weight)
+
+        if not is_calo_hit:
+            particle = hit.getParticle()
+
+            particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
+
+            # Fill MC particle histograms
+            h_particle_E.Fill(particle_p4.E(), fill_weight)
+            h_particle_pt.Fill(particle_p4.pt(), fill_weight)
+            h_particle_eta.Fill(particle_p4.eta(), fill_weight)
+            h_particle_ID.Fill(str(particle.getPDG()), fill_weight)
+
+        # Monitor in channels that are integrating signal
+        if integration_time > 1:
+            if ((layer_n, cell_id) in integrating_channels) and (integrating_channels[layer_n, cell_id] > 1):
+
+                # count one hit per event during integration time as pileup
+                if not cell_fired:
+                    pile_up_counter[layer_n, cell_id] += 1
+>>>>>>> 6ca534023c601efa12dd3e4238058a73c67f42ed
 
             if is_calo_hit:
                 t = -999  # Timing not available for MutableSimCalorimeterHit
@@ -424,6 +521,10 @@ for i,event in enumerate(podio_reader.get(tree_name)):
                 fired_cells_x_layer[layer_n] += 1
 
             # Fill the hits histograms
+            h_hit_x_mm.Fill(x_mm, fill_weight)
+            h_hit_y_mm.Fill(y_mm, fill_weight)
+            h_hit_z_mm.Fill(z_mm, fill_weight)
+            h_hit_r_mm.Fill(r_mm, fill_weight)
             h_hit_E_MeV.Fill(E_hit, fill_weight)
             h_hit_E_keV.Fill(E_hit * 1e3, fill_weight)
             h_avg_hits_x_layer.Fill(layer_n, fill_weight)
@@ -512,6 +613,8 @@ print("Loop done!")
 print(" - Processed events:", processed_events)
 print(" - Processed hits:", processed_hits, 
       f"(avg. per event: {processed_hits/processed_events})")
+print(" - Number of unique cells fired:", len(fullRun_fired_cellIDs), 
+      f"(avg. per event: {len(fullRun_fired_cellIDs)/processed_events})")
 
 # Compute the average pile up hits
 if integration_time > 1:
@@ -569,6 +672,7 @@ print("Writing histograms...")
 output_file_name = f"{sample_name}_{output_file_name}_{n_events}evt_{sub_detector}.root"
 with ROOT.TFile(output_file_name,"RECREATE") as f:
     for h in histograms:
+        if(debug>1): print("Writing histo:", h.GetName())
         h.Write()
 
 print("Histograms saved in:", output_file_name)
