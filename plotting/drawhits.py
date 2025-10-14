@@ -450,61 +450,11 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         # Apply cut deposited energy
         if E_hit >= E_hit_thr or (not e_cut):
 
-
-<<<<<<< HEAD
             x_mm = hit.getPosition().x
             y_mm = hit.getPosition().y
             z_mm = hit.getPosition().z
             r_mm = math.sqrt(math.pow(x_mm, 2) + math.pow(y_mm, 2))
             phi = math.acos(x_mm/r_mm) * math.copysign(1, y_mm)
-
-            if(debug>1): print(" cell_id:", cell_id, " layer_n:", layer_n, " x_mm:", x_mm, " y_mm:", y_mm, " z_mm:", z_mm, " r_mm:", r_mm, " phi:", phi)
-=======
-        # Fill the hits histograms
-        h_hit_x_mm.Fill(x_mm, fill_weight)
-        h_hit_y_mm.Fill(y_mm, fill_weight)
-        h_hit_z_mm.Fill(z_mm, fill_weight)
-        h_hit_r_mm.Fill(r_mm, fill_weight)
-        h_hit_E_MeV.Fill(E_hit, fill_weight)
-        h_hit_E_keV.Fill(E_hit * 1e3, fill_weight)
-        h_avg_hits_x_layer.Fill(layer_n, fill_weight)
-
-        hist_zr.Fill(z_mm, r_mm, fill_weight)
-        hist_xy.Fill(x_mm, y_mm, fill_weight)
-        hist_zphi.Fill(z_mm, phi, fill_weight)
-
-        h_hit_t.Fill(t, fill_weight)
-        h_hit_t_x_layer.Fill(t, layer_n, fill_weight)
-
-        h_hit_t_corr.Fill(t - (hit_distance / C_MM_NS), fill_weight)
-
-        if layer_cells:
-            h_z_density_vs_layer_mm[layer_n].Fill(z_mm, fill_weight)
-            h_phi_density_vs_layer[layer_n].Fill(phi, fill_weight)
-            h_zphi_density_vs_layer[layer_n].Fill(z_mm, phi, fill_weight)
-
-            if energy_per_layer:
-                h_hit_E_MeV_x_layer[layer_n].Fill(E_hit, fill_weight)
-
-        if not is_calo_hit:
-            particle = hit.getParticle()
-
-            particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
-
-            # Fill MC particle histograms
-            h_particle_E.Fill(particle_p4.E(), fill_weight)
-            h_particle_pt.Fill(particle_p4.pt(), fill_weight)
-            h_particle_eta.Fill(particle_p4.eta(), fill_weight)
-            h_particle_ID.Fill(str(particle.getPDG()), fill_weight)
-
-        # Monitor in channels that are integrating signal
-        if integration_time > 1:
-            if ((layer_n, cell_id) in integrating_channels) and (integrating_channels[layer_n, cell_id] > 1):
-
-                # count one hit per event during integration time as pileup
-                if not cell_fired:
-                    pile_up_counter[layer_n, cell_id] += 1
->>>>>>> 6ca534023c601efa12dd3e4238058a73c67f42ed
 
             if is_calo_hit:
                 t = -999  # Timing not available for MutableSimCalorimeterHit
@@ -519,6 +469,8 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             # For layer percentage occupancy, count cells only once
             if not cell_fired:
                 fired_cells_x_layer[layer_n] += 1
+
+            if(debug>1): print(" cell_id:", cell_id, " layer_n:", layer_n, " x_mm:", x_mm, " y_mm:", y_mm, " z_mm:", z_mm, " r_mm:", r_mm, " phi:", phi)
 
             # Fill the hits histograms
             h_hit_x_mm.Fill(x_mm, fill_weight)
