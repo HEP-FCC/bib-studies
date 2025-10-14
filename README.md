@@ -27,6 +27,7 @@ source setup.sh -n 2025-07-22
 ### Example: Hits & occupancy plots for sub-detector
 
 ```sh
+#starting in an AFS/EOS folder with cvmfs+eos access
 git clone g clone git@github.com:HEP-FCC/bib-studies.git
 cd bib-studies
 source setup.sh
@@ -39,5 +40,15 @@ drawhits.py -s MuonTaggerBarrel -d ALLEGRO_o1_v03_DetectorDimensions.json -e 10 
 
 - h_hit_xx_mm_<sub-detector>: x position of all hits that matched this sub-detector
 - ...
+
+### Example: Updated reduced geometry json file
+
+```sh
+#see above for setup..
+cd plotting
+xml2json.py -d $K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml
+#creates local .json file, with reduced geometry information extracted/assumed from the detector XML, required for plotting+occupancy calculation
+#detector id, type, hits collection name, #cells per layer, max z/r
+```
 
 ### Example: other..
