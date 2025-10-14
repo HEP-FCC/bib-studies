@@ -209,7 +209,7 @@ assumptions = load_json(assumptions_path, sub_detector) if assumptions_path else
 
 if (e_cut or digi) and assumptions == None:
     raise ValueError(f"Given the input settings (e_cut={e_cut}, digi={digi})," +
-                     "an 'assumption' JSON is needed as input")
+                     "an 'assumptions' JSON is needed as input (-a/--assumptions <assumptions.json>)")
 
 # Set the energy thresholds, if required
 E_thr_MeV = 0
@@ -280,6 +280,7 @@ h_particle_ID.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past
 
 histograms += [
     h_avg_hits_x_layer := ROOT.TH1D("h_avg_hits_x_layer_"+collection, "h_avg_hits_x_layer_"+collection, *layer_binning),
+    h_avg_firing_cells_x_layer := ROOT.TH1D("h_avg_firing_cells_x_layer_"+collection, "h_avg_firing_cells_x_layer_"+collection, *layer_binning),
     h_avg_occ_x_layer := ROOT.TH1D("h_avg_occ_x_layer_"+collection, "h_avg_occ_x_layer_"+collection, *layer_binning),
 ]
 
@@ -426,6 +427,8 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             h_hit_E_MeV.Fill(E_hit, fill_weight)
             h_hit_E_keV.Fill(E_hit * 1e3, fill_weight)
             h_avg_hits_x_layer.Fill(layer_n, fill_weight)
+            if not cell_fired:
+                h_avg_firing_cells_x_layer.Fill(layer_n, fill_weight)
 
             hist_zr.Fill(z_mm, r_mm, fill_weight)
             hist_xy.Fill(x_mm, y_mm, fill_weight)
@@ -532,7 +535,8 @@ if draw_hists:
     draw_hist(h_hit_E_keV, "Deposited energy [keV]", "Hits / events",  sample_name+"_hit_E_keV_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_hit_t, "Timing [ns]", "Hits / events",  sample_name+"_hit_t_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_hit_t_corr, "Timing - TOF [ns]", "Hits / events",  sample_name+"_hit_t_corr_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_avg_hits_x_layer, "Layer number", "Hits / events",  sample_name+"_hits_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_avg_hits_x_layer, "Layer number", "Hits / events",  sample_name+"_avg_hits_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_avg_firing_cells_x_layer, "Layer number", "Firing cells / events",  sample_name+"_avg_firing_cells_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_avg_occ_x_layer, "Layer number", "Average occupancy [%]",  sample_name+"_avg_occ_x_layer_"+str(n_events)+"evt_"+sub_detector, collection, log_y=False)
     draw_hist(h_occ, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
 
