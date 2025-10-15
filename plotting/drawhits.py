@@ -11,7 +11,7 @@ from podio import root_io
 import ROOT
 
 from constants import C_MM_NS
-from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string
+from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict
 from visualization import setup_root_style, draw_hist, draw_map
 
 
@@ -47,6 +47,9 @@ def parse_args():
     parser.add_argument('-d', '--detDictFile',
                     type=str, default='ALLEGRO_o1_v03_DetectorDimensions.json',
                     help='JSON dictionary with some key detector parameters')
+    parser.add_argument('-a', '--assumptions',
+                    type=str, default=None,
+                    help='JSON dictionary with assumptions')
     parser.add_argument('-s', '--subDetector',
                     type=str, default='VertexBarrel',
                     help='Name of the sub detector system')
@@ -62,7 +65,7 @@ def parse_args():
     parser.add_argument('-z','--bin_width_z',
                     type=int, default=None,
                     help='bin width for z in mm')
-    parser.add_argument('-a', '--bin_width_phi',
+    parser.add_argument('--bin_width_phi',
                     type=float, default=None,
                     help='bin width for azimuthal angle phi')
     parser.add_argument('--stat_box',
@@ -77,8 +80,14 @@ def parse_args():
     parser.add_argument('--energy_per_layer',
                     action="store_true",
                     help='Save histograms of hit energy per layer.')
+    parser.add_argument('--digi',
+                    action='store_true',
+                    help='run on digitized hits (requires to pass also the assumptions dict with info on the digitized collection).')
+    parser.add_argument('--e_cut',
+                    action='store_true',
+                    help='apply energy cut (requires to pass also the assumptions dict with energy threshold).')
 
-    return(parser.parse_args())
+    return (parser.parse_args())
 
 options = parse_args()
 
@@ -90,6 +99,7 @@ output_file_name = options.outputFile
 tree_name = options.tree
 sample_name = options.sample
 detector_dict_path = options.detDictFile
+assumptions_path = options.assumptions
 sub_detector = options.subDetector
 draw_maps = options.draw_maps
 draw_hists = options.draw_hists
@@ -100,6 +110,8 @@ stat_box = options.stat_box
 skip_plot_per_layer = options.skip_layers
 integration_time = options.integration_time
 energy_per_layer = options.energy_per_layer
+digi = options.digi
+e_cut = options.e_cut
 
 ######################################
 # style
@@ -193,8 +205,8 @@ def get_layer(cell_id, decoder, detector, dtype):
 # use sorted list to make sure to always take the same files
 list_files = path_to_list(input_path)
 list_input_files = sorted_n_files(list_files, n_files)
-print("Initializing the PODIO reader...")
 
+print("Initializing the PODIO reader...")
 podio_reader = root_io.Reader(list_input_files)
 
 # Check if collection is valid and setup a cell ID decoder
@@ -203,11 +215,15 @@ metadata = podio_reader.get("metadata")[0]
 nEvents_fullFileList = len(podio_reader.get("events"))
 print(f"Number of events in the full file list: {nEvents_fullFileList}")
 
+# Read the detector and assumptions dictionaries
 detector_dict = load_json(detector_dict_path, sub_detector)
 detector_type = detector_dict["typeFlag"]
+assumptions = load_json(assumptions_path, sub_detector) if assumptions_path else None  #TODO: set default path to the /templates folder
 
 # get the hits collection name
-collection = detector_dict["hitsCollection"]
+collection =  detector_dict["hitsCollection"]
+if digi:
+    collection = assumptions["digitized_hits"]["collection"]
 id_encoding = metadata.get_parameter(collection+"__CellIDEncoding")
 decoder = ROOT.dd4hep.BitFieldCoder(id_encoding)
 #print("HERE",decoder.fieldDescription()) #get possible values
@@ -216,14 +232,8 @@ decoder = ROOT.dd4hep.BitFieldCoder(id_encoding)
 print("Retrieve the number of cells per layer")
 layer_cells = {}
 n_tot_cells = 0
-for de, cells in detector_dict["det_element_cells"].items():
-    #for ECalBArrel take the cell from bath - TODO: improve code clarity if possible
-    if de == 'bath':
-        layer_cells[0] = cells
-        n_tot_cells += cells
-
-    ln = layer_number_from_string(de)
-
+for det_element, cells in detector_dict["det_element_cells"].items():
+    ln = layer_number_from_string(det_element)
     layer_cells[ln] = cells
     n_tot_cells += cells
 
@@ -235,12 +245,29 @@ print(">>>",layer_cells)
 
 n_layers = len(layer_cells.keys())
 
+if (e_cut or digi) and assumptions == None:
+    raise ValueError(f"Given the input settings (e_cut={e_cut}, digi={digi})," +
+                     "an 'assumptions' JSON is needed as input (-a/--assumptions <assumptions.json>)")
+
+# Set the energy thresholds, if required
+E_thr_MeV = 0
+if e_cut:
+    if digi:
+        E_thr_MeV = assumptions["digitized_hits"]["E_thr_MeV"]
+    else:
+        E_thr_MeV = assumptions["E_thr_MeV"]
+
+    # if the thresholds are defined for each layer, simplify the dictionary keys
+    if isinstance(E_thr_MeV,dict):
+        E_thr_MeV = simplify_dict(E_thr_MeV) 
+
+    print(">>> Cutting Hits with energy below:", E_thr_MeV)
+
 #set of cellIDs that fired in the run (set=> unique entries)
 fullRun_fired_cellIDs = set()
 
 #######################################
 # prepare histograms
-
 
 # list of the histograms that will be saved in output ROOT file
 histograms = []
@@ -281,7 +308,7 @@ histograms += [
     h_hit_y_mm := ROOT.TH1D("h_hit_y_mm_"+collection, "h_hit_y_mm"+collection, 10000, -y_range, y_range),
     h_hit_z_mm := ROOT.TH1D("h_hit_z_mm_"+collection, "h_hit_z_mm"+collection, 10000, -z_range, z_range),
     h_hit_r_mm := ROOT.TH1D("h_hit_r_mm_"+collection, "h_hit_r_mm_"+collection,10000, -r_range, r_range),
-    h_hit_E_MeV := ROOT.TH1D("h_hit_E_MeV_"+collection, "h_hit_E_MeV_"+collection, 100, 0, 5),
+    h_hit_E_MeV := ROOT.TH1D("h_hit_E_MeV_"+collection, "h_hit_E_MeV_"+collection, 500, 0, 50),
     h_hit_E_keV := ROOT.TH1D("h_hit_E_keV_"+collection, "h_hit_E_keV_"+collection, 500, 0, 500),
     h_particle_E := ROOT.TH1D("h_particle_E_"+collection, "h_particle_E_"+collection, 500, 0, 50),
     h_particle_pt := ROOT.TH1D("h_particle_pt_"+collection, "h_particle_pt_"+collection, 500, 0, 50),
@@ -291,7 +318,7 @@ histograms += [
 h_hit_E_MeV_x_layer = {}
 if energy_per_layer:
     for l in layer_cells.keys():
-        h_hit_E_MeV_x_layer[l] = ROOT.TH1D(f"h_hit_E_MeV_layer{l}_{collection}", f"h_hit_E_MeV_layer{l}_{collection}", 100, 0, 5)
+        h_hit_E_MeV_x_layer[l] = ROOT.TH1D(f"h_hit_E_MeV_layer{l}_{collection}", f"h_hit_E_MeV_layer{l}_{collection}", 500, 0, 50)
         histograms += [h_hit_E_MeV_x_layer[l]]
 
 # ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
@@ -300,6 +327,7 @@ h_particle_ID.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past
 
 histograms += [
     h_avg_hits_x_layer := ROOT.TH1D("h_avg_hits_x_layer_"+collection, "h_avg_hits_x_layer_"+collection, *layer_binning),
+    h_avg_firing_cells_x_layer := ROOT.TH1D("h_avg_firing_cells_x_layer_"+collection, "h_avg_firing_cells_x_layer_"+collection, *layer_binning),
     h_avg_occ_x_layer := ROOT.TH1D("h_avg_occ_x_layer_"+collection, "h_avg_occ_x_layer_"+collection, *layer_binning),
 ]
 
@@ -402,26 +430,15 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
         #TODO: Handle better cell_id info
         layer_n = get_layer(cell_id, decoder, sub_detector, detector_type)
-        #print z pos
-        #print(f"z pos: {hit.getPosition().z}")
 
-        x_mm = hit.getPosition().x
-        y_mm = hit.getPosition().y
-        z_mm = hit.getPosition().z
-        r_mm = math.sqrt(math.pow(x_mm, 2) + math.pow(y_mm, 2))
-        phi = math.acos(x_mm/r_mm) * math.copysign(1, y_mm)
-
-        if(debug>1): print(" cell_id:", cell_id, " layer_n:", layer_n, " x_mm:", x_mm, " y_mm:", y_mm, " z_mm:", z_mm, " r_mm:", r_mm, " phi:", phi)
+        E_hit_thr = 0
+        if isinstance(E_thr_MeV, dict):
+            E_hit_thr = E_thr_MeV[layer_n]
 
         if is_calo_hit:
             t = -999  # Timing not available for MutableSimCalorimeterHit
         else:
-            t = hit.getTime()
-
-        hit_distance = (x_mm**2 + y_mm**2 + z_mm**2)**0.5
-
-        if x_mm < 0.:
-            r_mm = -1. * r_mm
+            E_hit_thr = E_thr_MeV
 
         # Deposited energy, converted to MeV
         E_hit = 0
@@ -430,59 +447,82 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         else:
             E_hit = hit.getEDep() * 1e3  # For tracker hits
 
-        # For layer percentage occupancy, count cells only once
-        if not cell_fired:
-            fired_cells_x_layer[layer_n] += 1
+        # Apply cut deposited energy
+        if E_hit >= E_hit_thr or (not e_cut):
 
-        # Fill the hits histograms
-        h_hit_x_mm.Fill(x_mm, fill_weight)
-        h_hit_y_mm.Fill(y_mm, fill_weight)
-        h_hit_z_mm.Fill(z_mm, fill_weight)
-        h_hit_r_mm.Fill(r_mm, fill_weight)
-        h_hit_E_MeV.Fill(E_hit, fill_weight)
-        h_hit_E_keV.Fill(E_hit * 1e3, fill_weight)
-        h_avg_hits_x_layer.Fill(layer_n, fill_weight)
+            x_mm = hit.getPosition().x
+            y_mm = hit.getPosition().y
+            z_mm = hit.getPosition().z
+            r_mm = math.sqrt(math.pow(x_mm, 2) + math.pow(y_mm, 2))
+            phi = math.acos(x_mm/r_mm) * math.copysign(1, y_mm)
 
-        hist_zr.Fill(z_mm, r_mm, fill_weight)
-        hist_xy.Fill(x_mm, y_mm, fill_weight)
-        hist_zphi.Fill(z_mm, phi, fill_weight)
-
-        h_hit_t.Fill(t, fill_weight)
-        h_hit_t_x_layer.Fill(t, layer_n, fill_weight)
-
-        h_hit_t_corr.Fill(t - (hit_distance / C_MM_NS), fill_weight)
-
-        if layer_cells:
-            h_z_density_vs_layer_mm[layer_n].Fill(z_mm, fill_weight)
-            h_phi_density_vs_layer[layer_n].Fill(phi, fill_weight)
-            h_zphi_density_vs_layer[layer_n].Fill(z_mm, phi, fill_weight)
-
-            if energy_per_layer:
-                h_hit_E_MeV_x_layer[layer_n].Fill(E_hit, fill_weight)
-
-        if not is_calo_hit:
-            particle = hit.getParticle()
-
-            particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
-
-            # Fill MC particle histograms
-            h_particle_E.Fill(particle_p4.E(), fill_weight)
-            h_particle_pt.Fill(particle_p4.pt(), fill_weight)
-            h_particle_eta.Fill(particle_p4.eta(), fill_weight)
-            h_particle_ID.Fill(str(particle.getPDG()), fill_weight)
-
-        # Monitor in channels that are integrating signal
-        if integration_time > 1:
-            if ((layer_n, cell_id) in integrating_channels) and (integrating_channels[layer_n, cell_id] > 1):
-
-                # count one hit per event during integration time as pileup
-                if not cell_fired:
-                    pile_up_counter[layer_n, cell_id] += 1
-
+            if is_calo_hit:
+                t = -999  # Timing not available for MutableSimCalorimeterHit
             else:
-                # Start integration, reset pile-up counter
-                integrating_channels[layer_n, cell_id] = integration_time
-                pile_up_counter[layer_n, cell_id] = 0
+                t = hit.getTime()
+
+            hit_distance = (x_mm**2 + y_mm**2 + z_mm**2)**0.5
+
+            if x_mm < 0.:
+                r_mm = -1. * r_mm
+
+            # For layer percentage occupancy, count cells only once
+            if not cell_fired:
+                fired_cells_x_layer[layer_n] += 1
+
+            if(debug>1): print(" cell_id:", cell_id, " layer_n:", layer_n, " x_mm:", x_mm, " y_mm:", y_mm, " z_mm:", z_mm, " r_mm:", r_mm, " phi:", phi)
+
+            # Fill the hits histograms
+            h_hit_x_mm.Fill(x_mm, fill_weight)
+            h_hit_y_mm.Fill(y_mm, fill_weight)
+            h_hit_z_mm.Fill(z_mm, fill_weight)
+            h_hit_r_mm.Fill(r_mm, fill_weight)
+            h_hit_E_MeV.Fill(E_hit, fill_weight)
+            h_hit_E_keV.Fill(E_hit * 1e3, fill_weight)
+            h_avg_hits_x_layer.Fill(layer_n, fill_weight)
+            if not cell_fired:
+                h_avg_firing_cells_x_layer.Fill(layer_n, fill_weight)
+
+            hist_zr.Fill(z_mm, r_mm, fill_weight)
+            hist_xy.Fill(x_mm, y_mm, fill_weight)
+            hist_zphi.Fill(z_mm, phi, fill_weight)
+
+            h_hit_t.Fill(t, fill_weight)
+            h_hit_t_x_layer.Fill(t, layer_n, fill_weight)
+
+            h_hit_t_corr.Fill(t - (hit_distance / C_MM_NS), fill_weight)
+
+            if layer_cells:
+                h_z_density_vs_layer_mm[layer_n].Fill(z_mm, fill_weight)
+                h_phi_density_vs_layer[layer_n].Fill(phi, fill_weight)
+                h_zphi_density_vs_layer[layer_n].Fill(z_mm, phi, fill_weight)
+
+                if energy_per_layer:
+                    h_hit_E_MeV_x_layer[layer_n].Fill(E_hit, fill_weight)
+
+            if not is_calo_hit:
+                particle = hit.getParticle()
+
+                particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
+
+                # Fill MC particle histograms
+                h_particle_E.Fill(particle_p4.E(), fill_weight)
+                h_particle_pt.Fill(particle_p4.pt(), fill_weight)
+                h_particle_eta.Fill(particle_p4.eta(), fill_weight)
+                h_particle_ID.Fill(str(particle.getPDG()), fill_weight)
+
+            # Monitor in channels that are integrating signal
+            if integration_time > 1:
+                if ((layer_n, cell_id) in integrating_channels) and (integrating_channels[layer_n, cell_id] > 1):
+
+                    # count one hit per event during integration time as pileup
+                    if not cell_fired:
+                        pile_up_counter[layer_n, cell_id] += 1
+
+                else:
+                    # Start integration, reset pile-up counter
+                    integrating_channels[layer_n, cell_id] = integration_time
+                    pile_up_counter[layer_n, cell_id] = 0
 
         processed_hits += 1
     # <--- end of the hits loop
@@ -550,7 +590,8 @@ if draw_hists:
     draw_hist(h_hit_E_keV, "Deposited energy [keV]", "Hits / events",  sample_name+"_hit_E_keV_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_hit_t, "Timing [ns]", "Hits / events",  sample_name+"_hit_t_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_hit_t_corr, "Timing - TOF [ns]", "Hits / events",  sample_name+"_hit_t_corr_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_avg_hits_x_layer, "Layer number", "Hits / events",  sample_name+"_hits_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_avg_hits_x_layer, "Layer number", "Hits / events",  sample_name+"_avg_hits_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_avg_firing_cells_x_layer, "Layer number", "Firing cells / events",  sample_name+"_avg_firing_cells_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_avg_occ_x_layer, "Layer number", "Average occupancy [%]",  sample_name+"_avg_occ_x_layer_"+str(n_events)+"evt_"+sub_detector, collection, log_y=False)
     draw_hist(h_occ, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
 
