@@ -125,17 +125,17 @@
     "typeFlag": 2066,
     "hitsCollection": "ECalBarrelModuleThetaMerged",
     "det_element_cells": {
-      "layer0": 1,
-      "layer1": 1,
-      "layer2": 1,
-      "layer3": 1,
-      "layer4": 1,
-      "layer5": 1,
-      "layer6": 1,
-      "layer7": 1,
-      "layer8": 1,
-      "layer9": 1,
-      "layer10": 1
+      "layer0": 142080,
+      "layer1": 569856,
+      "layer2": 142080,
+      "layer3": 142080,
+      "layer4": 142080,
+      "layer5": 142080,
+      "layer6": 142080,
+      "layer7": 142080,
+      "layer8": 142080,
+      "layer9": 142080,
+      "layer10": 142080
     },
     "max_z": 3100,
     "max_r": 3850
@@ -205,7 +205,7 @@
   },
   "LumiCalBackShield": {
     "id": 18,
-    "typeFlag": 2090,
+    "typeFlag": 147496,
     "hitsCollection": "LumiCalCollection",
     "det_element_cells": {
       "Calorimeter1": 1,
@@ -216,7 +216,7 @@
   },
   "LumiCalCooling": {
     "id": 17,
-    "typeFlag": 2090,
+    "typeFlag": 147496,
     "hitsCollection": "LumiCalCollection",
     "det_element_cells": {
       "Calorimeter1": 1,
@@ -227,7 +227,7 @@
   },
   "LumiCalInstrumentation": {
     "id": 16,
-    "typeFlag": 2090,
+    "typeFlag": 147496,
     "hitsCollection": "LumiCalCollection",
     "det_element_cells": {
       "Calorimeter1": 1,
@@ -245,7 +245,7 @@
       "layer1": 157696.0
     },
     "max_z": 6000,
-    "max_r": 6580
+    "max_r": 7080
   },
   "MuonTaggerEndcap": {
     "id": 13,
