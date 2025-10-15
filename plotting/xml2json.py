@@ -93,18 +93,18 @@ def get_cells_map(detector, sub_det, name):
             segmentation = detector.sensitiveDetector(name).readout().segmentation().segmentation()
             d_theta = float(segmentation.parameter("grid_size_theta").value())         # Grid cell size along theta
             merged_theta_cells = segmentation.parameter("mergedCells_Theta").value()   # List of number of merged cells per layer
-            phi_merged_planes = segmentation.parameter("mergedModules").value()        # List of number of merged segments (planes) along phi
+            merged_phi_planes = segmentation.parameter("mergedModules").value()        # List of number of merged segments (planes) along phi
 
             n_avg_theta_cells = (((math.pi/ 2) - theta) * 2) / d_theta  # number of cells along theta per layer, on average
 
             merged_theta_cells = merged_theta_cells.split(' ')  # numbers are encoded in as single string, separated with whites spaces
-            phi_merged_planes = phi_merged_planes.split(' ')    # same as above
+            merged_phi_planes = merged_phi_planes.split(' ')    # same as above
 
             tot_cells = 0
             # Calculate manually the number of cells per layer
             for l in range(n_layers):
                 m_theta = int(merged_theta_cells[l])
-                m_phi = int(phi_merged_planes[l])
+                m_phi = int(merged_phi_planes[l])
 
                 n_theta = int(n_avg_theta_cells / m_theta)
                 n_phi = int(n_planes / m_phi)
