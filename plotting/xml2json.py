@@ -74,21 +74,44 @@ def get_cells_map(detector, sub_det, name):
                     cells_map["layer_1"] += get_cells(de)
 
         case "ECalBarrel":
-            # # Method 2, loop only over the LAr "bath" elements
-            # bath = sub_det.child("bath")
-            # for n, d in bath.children():
-            #     # naming scheme 'activeX_Y' where X is the unit number and Y the wheel number
-            #     n = str(n)
-            #     # if not ("active" in n):
-            #     #     continue
+            # The ECal barrel is defined as a ECalBarrel_NobleLiquid_InclinedTrapezoids_o1_v03 object
+            # and has a readout implemented as a geometrical grid of the type FCCSWGridModuleThetaMerged_k4geo.
+            # This (probably) means that hits happen in active material and then are associated to a cellID
+            # that is defined from the grid object, without any sub-sub-...-sub-detector element associated.
+            # Hence, the number of cells must be calculated from the detector and the grid parameters.
 
-            #     # # Get the cells for all the wheels
-            #     # nw = int(str(n)[-1])
-            #     #cells_map[f"wheel{nw}"] += get_cells(d)
-            #     cells_map[n] += get_cells(d)
+            n_layers = detector.constantAsLong("ECalBarrelNumLayers")  # Number of layers
+            n_planes = detector.constantAsLong("ECalBarrelNumPlanes")  # Planes used to segment the phi angle
+            r_min = detector.constantAsDouble("Bath_rmin")             # Inner radius of the active material
+            r_max = detector.constantAsDouble("Bath_rmax")             # Outer radius of the active material
+            dz = detector.constantAsDouble("EMBarrel_dz")              # Half length of the barrel
 
-            n_layers = detector.constantAsLong(f"ECalBarrelNumLayers")
-            cells_map =  {f"layer{i}": 1 for i in range(n_layers)}
+            # Consider only avg radius as approximation
+            theta = math.atan( (r_min + r_max) * 0.5 / dz)
+
+            # Retrieve the segmentation object
+            segmentation = detector.sensitiveDetector(name).readout().segmentation().segmentation()
+            d_theta = float(segmentation.parameter("grid_size_theta").value())         # Grid cell size along theta
+            merged_theta_cells = segmentation.parameter("mergedCells_Theta").value()   # List of number of merged cells per layer
+            phi_merged_planes = segmentation.parameter("mergedModules").value()        # List of number of merged segments (planes) along phi
+
+            n_avg_theta_cells = (((math.pi/ 2) - theta) * 2) / d_theta  # number of cells along theta per layer, on average
+
+            merged_theta_cells = merged_theta_cells.split(' ')  # numbers are encoded in as single string, separated with whites spaces
+            phi_merged_planes = phi_merged_planes.split(' ')    # same as above
+
+            tot_cells = 0
+            # Calculate manually the number of cells per layer
+            for l in range(n_layers):
+                m_theta = int(merged_theta_cells[l])
+                m_phi = int(phi_merged_planes[l])
+
+                n_theta = int(n_avg_theta_cells / m_theta)
+                n_phi = int(n_planes / m_phi)
+
+                cells_map[f"layer{l}"] = n_theta * n_phi
+                tot_cells += n_theta * n_phi
+            print("         - Total cells calculated:",tot_cells)
 
         case "MuonTaggerBarrel":
             #from XML file in 2025:
@@ -102,6 +125,7 @@ def get_cells_map(detector, sub_det, name):
 
             n_layers = detector.constantAsLong(f"MuonTaggerBarrelLayers")
             cells_map =  {f"layer{i}": total_cells for i in range(n_layers)}
+
         case "MuonTaggerEndcap":
             #todo: need to clarify with MuonTagger experts if this is correct (see also barrel above)
             #todo: FIX THIS APPROXIMATION:
