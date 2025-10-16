@@ -37,7 +37,6 @@
     "modifiers": {
       "n_samples": 1
     },
-
     "digitized_hits": {
       "collection": "ECalBarrelModuleThetaMergedPositioned",
       "E_thr_MeV": {
@@ -52,6 +51,25 @@
         "layer8": 1.7,
         "layer9": 1.8,
         "layer10": 1.9
+      }
+    }
+  },
+
+  "EMEC_turbine": {
+    "strategy": "hit_counts",
+    "hit_size": 2,
+    "modifiers": {
+      "n_samples": 1
+    },
+    "digitized_hits": {
+      "collection": "ECalEndcapTurbinePositioned",
+      "E_thr_MeV": {
+        "layer1": 1.0,
+        "layer-1": 1.0,
+        "layer2": 1.0,
+        "layer-2": 1.0,
+        "layer3": 1.0,
+        "layer-3": 1.0
       }
     }
   }
