@@ -52,6 +52,7 @@ def get_cells_map(detector, sub_det, name):
     # will need to keep track also of the geo versions.
     match name:
         case "EMEC_turbine":
+            # TODO: Fix this part, this should use detector segmentation instead!
             # Method 1, parse the constants from the geo file
             n_wheels = detector.constantAsLong("nWheels")
 
@@ -180,7 +181,7 @@ def get_cells_map(detector, sub_det, name):
 # https://dd4hep.web.cern.ch/dd4hep/reference/DD4hep_2Detector_8h_source.html
 
 # Get detector name
-detector = geo_file_name.split("/")[-1].strip(".xml")
+detector = geo_file_name.split("/")[-1].strip(".xml") 
 # Load geometry
 det = dd4hep.Detector.getInstance()
 det.fromXML(geo_file_name)
