@@ -38,12 +38,12 @@ DETECTOR=${DETECTOR%.xml}
 
 
 #####################################################
-## Barrel calib:  muon @ 30 GeV gun, theta 90 deg
+## Barrel calib:  muon @ 10 GeV gun, theta 90 deg
 #####################################################
 
 ddsim --enableGun \
       --gun.distribution uniform \
-      --gun.energy "30*GeV" \
+      --gun.energy "10*GeV" \
       --gun.particle mu- \
       --gun.thetaMin "89*deg" \
       --gun.thetaMax "91*deg" \
@@ -53,16 +53,16 @@ ddsim --enableGun \
       --random.enableEventSeed \
       --random.seed 42 \
       --compactFile $COMPACT \
-      --outputFile ${DETECTOR}_mu30GeV_theta90deg.root
+      --outputFile ${DETECTOR}_mu10GeV_theta90deg.root
 
 
 #####################################################
-## Endcap calib:  muon @ 30 GeV gun, theta 15-45 deg
+## Endcap calib:  muon @ 10 GeV gun, theta 15-45 deg
 #####################################################
 
 ddsim --enableGun \
       --gun.distribution uniform \
-      --gun.energy "30*GeV" \
+      --gun.energy "10*GeV" \
       --gun.particle mu- \
       --gun.thetaMin "5*deg" \
       --gun.thetaMax "45*deg" \
@@ -72,4 +72,4 @@ ddsim --enableGun \
       --random.enableEventSeed \
       --random.seed 42 \
       --compactFile $COMPACT \
-      --outputFile ${DETECTOR}_mu30GeV_theta5_45deg.root
+      --outputFile ${DETECTOR}_mu10GeV_theta5_45deg.root
