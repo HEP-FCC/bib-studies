@@ -334,7 +334,7 @@ histograms += [
 # Occupancy histograms, defined as fraction of cells that fired
 # Requires that the total cells are correctly computed and stored in detector_dict
 h_occ_x_layer = {}
-log_bins = np.logspace(-2,2,50)
+log_bins = np.hstack([0,np.logspace(-2,2,50)]) #add 0 value to log bins (to avoid underflow in some histos)
 for l in layer_cells.keys():
     h_occ_x_layer[l] = ROOT.TH1D(f"h_occ_x_layer{l}_{collection}", f"h_occ_x_layer{l}_{collection} ; fired cells / total layer cells [%];;", len(log_bins)-1, log_bins)
     histograms += [h_occ_x_layer[l]]
