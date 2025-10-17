@@ -145,12 +145,12 @@
     "typeFlag": 2058,
     "hitsCollection": "ECalEndcapTurbine",
     "det_element_cells": {
-      "wheel1": 19200,
-      "wheel-1": 19200,
-      "wheel2": 10080,
-      "wheel-2": 10080,
-      "wheel3": 46240,
-      "wheel-3": 46240
+      "wheel1":  38400,
+      "wheel-1": 38400,
+      "wheel2":  100800,
+      "wheel-2": 100800,
+      "wheel3":  462400,
+      "wheel-3": 462400
     },
     "max_z": 3850,
     "max_r": 4110
@@ -205,7 +205,7 @@
   },
   "LumiCalBackShield": {
     "id": 18,
-    "typeFlag": 2090,
+    "typeFlag": 147496,
     "hitsCollection": "LumiCalCollection",
     "det_element_cells": {
       "Calorimeter1": 1,
@@ -216,7 +216,7 @@
   },
   "LumiCalCooling": {
     "id": 17,
-    "typeFlag": 2090,
+    "typeFlag": 147496,
     "hitsCollection": "LumiCalCollection",
     "det_element_cells": {
       "Calorimeter1": 1,
@@ -227,7 +227,7 @@
   },
   "LumiCalInstrumentation": {
     "id": 16,
-    "typeFlag": 2090,
+    "typeFlag": 147496,
     "hitsCollection": "LumiCalCollection",
     "det_element_cells": {
       "Calorimeter1": 1,
@@ -245,7 +245,7 @@
       "layer1": 157696.0
     },
     "max_z": 6000,
-    "max_r": 6580
+    "max_r": 7080
   },
   "MuonTaggerEndcap": {
     "id": 13,

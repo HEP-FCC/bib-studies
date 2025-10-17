@@ -58,8 +58,8 @@ def get_cells_map(detector, sub_det, name):
 
             for nw in range(n_wheels):
                 # Uses "Calib" instead of ReadOut layers (need to check with a detector expert)
-                r_layers = detector.constantAsLong(f"ECalEndcapNumCalibRhoLayersWheel{nw+1}")
-                z_layers = detector.constantAsLong(f"ECalEndcapNumCalibZLayersWheel{nw+1}")
+                r_layers = detector.constantAsLong(f"ECalEndcapNumReadoutRhoLayersWheel{nw+1}")
+                z_layers = detector.constantAsLong(f"ECalEndcapNumReadoutZLayersWheel{nw+1}")
                 n_units = detector.constantAsLong(f"nUnitCells{nw+1}")
 
                 cells_map[f"wheel{nw+1}"] = r_layers * z_layers * n_units
