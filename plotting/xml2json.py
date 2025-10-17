@@ -141,7 +141,7 @@ def get_cells_map(detector, sub_det, name):
                 cells_map[f"layer{i}"] = total_cells
 
 
-        case "VertexDisks" | "SiWrD":
+        case "VertexDisks":
             # Rename layers shifting their value by 1
             # to remove degeneracy of layer 0
             # N.B. this needs to be accounted when reading the layer number
@@ -157,6 +157,18 @@ def get_cells_map(detector, sub_det, name):
                     ln *= -1
                 new_key = f"layer{ln}"
                 cells_map[new_key] = cells_map.pop(k)
+
+
+        case "SiWrD":
+            #loop from -2 to 2, skipping 0, to set the layers indices for the endcaps
+            for i in range(-2,3):
+                if i==0: continue
+                cells_map[f"layer{i}"] = 7500 #hardcoding channels per layer for now
+
+        case "SiWrB":
+            #loop from -2 to 2, skipping 0, to set the layers indices for the endcaps
+            for i in range(2):
+                cells_map[f"layer{i}"] = 20_000 #hardcoding channels per layer for now, https://arxiv.org/abs/2502.21223v4
 
         case _:
             # Loop over detector elements

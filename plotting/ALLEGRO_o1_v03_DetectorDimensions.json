@@ -205,7 +205,7 @@
   },
   "LumiCalBackShield": {
     "id": 18,
-    "typeFlag": 147496,
+    "typeFlag": 2090,
     "hitsCollection": "LumiCalCollection",
     "det_element_cells": {
       "Calorimeter1": 1,
@@ -216,7 +216,7 @@
   },
   "LumiCalCooling": {
     "id": 17,
-    "typeFlag": 147496,
+    "typeFlag": 2090,
     "hitsCollection": "LumiCalCollection",
     "det_element_cells": {
       "Calorimeter1": 1,
@@ -227,7 +227,7 @@
   },
   "LumiCalInstrumentation": {
     "id": 16,
-    "typeFlag": 147496,
+    "typeFlag": 2090,
     "hitsCollection": "LumiCalCollection",
     "det_element_cells": {
       "Calorimeter1": 1,
@@ -245,7 +245,7 @@
       "layer1": 157696.0
     },
     "max_z": 6000,
-    "max_r": 7080
+    "max_r": 6580
   },
   "MuonTaggerEndcap": {
     "id": 13,
@@ -265,8 +265,8 @@
     "typeFlag": 273,
     "hitsCollection": "SiWrBCollection",
     "det_element_cells": {
-      "layer_0_side0": 151,
-      "layer_1_side0": 151
+      "layer0": 20000,
+      "layer1": 20000
     },
     "max_z": 2400,
     "max_r": 2950
@@ -276,10 +276,10 @@
     "typeFlag": 265,
     "hitsCollection": "SiWrDCollection",
     "det_element_cells": {
-      "layer-1": 1284,
-      "layer-2": 1244,
-      "layer1": 1284,
-      "layer2": 1244
+      "layer-2": 7500,
+      "layer-1": 7500,
+      "layer1": 7500,
+      "layer2": 7500
     },
     "max_z": 2340,
     "max_r": 2890
