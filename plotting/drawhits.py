@@ -304,21 +304,21 @@ if is_endcap(detector_type):
 
 # Profile histograms
 histograms += [
-    h_hit_x_mm := ROOT.TH1D("h_hit_x_mm_"+collection, "h_hit_x_mm"+collection, 10000, -x_range, x_range),
-    h_hit_y_mm := ROOT.TH1D("h_hit_y_mm_"+collection, "h_hit_y_mm"+collection, 10000, -y_range, y_range),
-    h_hit_z_mm := ROOT.TH1D("h_hit_z_mm_"+collection, "h_hit_z_mm"+collection, 10000, -z_range, z_range),
-    h_hit_r_mm := ROOT.TH1D("h_hit_r_mm_"+collection, "h_hit_r_mm_"+collection,10000, -r_range, r_range),
-    h_hit_E_MeV := ROOT.TH1D("h_hit_E_MeV_"+collection, "h_hit_E_MeV_"+collection, 500, 0, 50),
-    h_hit_E_keV := ROOT.TH1D("h_hit_E_keV_"+collection, "h_hit_E_keV_"+collection, 500, 0, 500),
-    h_particle_E := ROOT.TH1D("h_particle_E_"+collection, "h_particle_E_"+collection, 500, 0, 50),
-    h_particle_pt := ROOT.TH1D("h_particle_pt_"+collection, "h_particle_pt_"+collection, 500, 0, 50),
-    h_particle_eta := ROOT.TH1D("h_particle_eta_"+collection, "h_particle_eta_"+collection, 100, -5, 5),
+    h_hit_x_mm     := ROOT.TH1D("h_hit_x_mm_"+collection    , "h_hit_x_mm_"+collection    +"; [mm] ; hits;", 10000, -x_range, x_range),
+    h_hit_y_mm     := ROOT.TH1D("h_hit_y_mm_"+collection    , "h_hit_y_mm_"+collection    +"; [mm] ; hits;", 10000, -y_range, y_range),
+    h_hit_z_mm     := ROOT.TH1D("h_hit_z_mm_"+collection    , "h_hit_z_mm_"+collection    +"; [mm] ; hits;", 10000, -z_range, z_range),
+    h_hit_r_mm     := ROOT.TH1D("h_hit_r_mm_"+collection    , "h_hit_r_mm_"+collection    +"; [mm] ; hits;",10000, -r_range, r_range),
+    h_hit_E_MeV    := ROOT.TH1D("h_hit_E_MeV_"+collection   , "h_hit_E_MeV_"+collection   +"; [MeV]; hits;", 500, 0, 50),
+    h_hit_E_keV    := ROOT.TH1D("h_hit_E_keV_"+collection   , "h_hit_E_keV_"+collection   +"; [keV]; hits;", 500, 0, 500),
+    h_particle_E   := ROOT.TH1D("h_particle_E_"+collection  , "h_particle_E_"+collection  +"; [E] ; hits;", 500, 0, 50),
+    h_particle_pt  := ROOT.TH1D("h_particle_pt_"+collection , "h_particle_pt_"+collection +"; [E/c] ; hits;", 500, 0, 50),
+    h_particle_eta := ROOT.TH1D("h_particle_eta_"+collection, "h_particle_eta_"+collection+"; [eta] ; hits;", 100, -5, 5),
 ]
 
 h_hit_E_MeV_x_layer = {}
 if energy_per_layer:
     for l in layer_cells.keys():
-        h_hit_E_MeV_x_layer[l] = ROOT.TH1D(f"h_hit_E_MeV_layer{l}_{collection}", f"h_hit_E_MeV_layer{l}_{collection}", 500, 0, 50)
+        h_hit_E_MeV_x_layer[l] = ROOT.TH1D(f"h_hit_E_MeV_layer{l}_{collection}", f"h_hit_E_MeV_layer{l}_{collection}; hit energy [MeV]", 500, 0, 50)
         histograms += [h_hit_E_MeV_x_layer[l]]
 
 # ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
@@ -326,9 +326,9 @@ histograms += [ h_particle_ID := ROOT.TH1D("h_particle_ID_"+collection, "h_parti
 h_particle_ID.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
 
 histograms += [
-    h_avg_hits_x_layer := ROOT.TH1D("h_avg_hits_x_layer_"+collection, "h_avg_hits_x_layer_"+collection, *layer_binning),
-    h_avg_firing_cells_x_layer := ROOT.TH1D("h_avg_firing_cells_x_layer_"+collection, "h_avg_firing_cells_x_layer_"+collection, *layer_binning),
-    h_avg_occ_x_layer := ROOT.TH1D("h_avg_occ_x_layer_"+collection, "h_avg_occ_x_layer_"+collection, *layer_binning),
+    h_avg_hits_x_layer := ROOT.TH1D("h_avg_hits_x_layer_"+collection, "h_avg_hits_x_layer_"+collection+";layer index;avg hits/evt", *layer_binning),
+    h_avg_firing_cells_x_layer := ROOT.TH1D("h_avg_firing_cells_x_layer_"+collection, "h_avg_firing_cells_x_layer_"+collection+";layer index;avg cellsFired/evt", *layer_binning),
+    h_avg_occ_x_layer := ROOT.TH1D("h_avg_occ_x_layer_"+collection, "h_avg_occ_x_layer_"+collection+";layer index;avg occupancy/evt [%]", *layer_binning),
 ]
 
 # Occupancy histograms, defined as fraction of cells that fired
@@ -336,15 +336,15 @@ histograms += [
 h_occ_x_layer = {}
 log_bins = np.logspace(-2,2,50)
 for l in layer_cells.keys():
-    h_occ_x_layer[l] = ROOT.TH1D(f"h_occ_x_layer{l}_{collection}", f"h_occ_x_layer{l}_{collection}", len(log_bins)-1, log_bins)
+    h_occ_x_layer[l] = ROOT.TH1D(f"h_occ_x_layer{l}_{collection}", f"h_occ_x_layer{l}_{collection} ; fired cells / total layer cells [%];;", len(log_bins)-1, log_bins)
     histograms += [h_occ_x_layer[l]]
-histograms += [ h_occ := ROOT.TH1D(f"h_occ_tot_{collection}", f"h_occ_tot_{collection}", len(log_bins)-1, log_bins) ]
+histograms += [ h_occ := ROOT.TH1D(f"h_occ_tot_{collection}", f"h_occ_tot_{collection} ; total fired cells / total layer cells [%]", len(log_bins)-1, log_bins) ]
 
 # Hit maps definitions
 histograms += [
-    hist_zr := ROOT.TH2D("hist_zr_"+collection, "hist_zr_"+collection+"; ; ; hits/(%d#times%d) mm^{2} per event"%(bw_z, bw_r), *z_binning, *r_binning),
-    hist_xy := ROOT.TH2D("hist_xy_"+collection, "hist_xy_"+collection+"; ; ; hits/(%d#times%d) mm^{2} per event"%(bw_r, bw_r), *r_binning, *r_binning),
-    hist_zphi := ROOT.TH2D("hist_zphi_"+collection, "hist_zphi_"+collection+"; ; ; hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z), *z_binning, *phi_binning),
+    hist_zr := ROOT.TH2D("hist_zr_"+collection, "hist_zr_"+collection+";  z (bin=%dmm) ;r (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z, bw_r,bw_z, bw_r), *z_binning, *r_binning),
+    hist_xy := ROOT.TH2D("hist_xy_"+collection, "hist_xy_"+collection+";  x (bin=%dmm) ;y (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_r, bw_r,bw_r, bw_r), *r_binning, *r_binning),
+    hist_zphi := ROOT.TH2D("hist_zphi_"+collection, "hist_zphi_"+collection+"; phi (bin=%1.2frad) ; z (bin=%dmm); hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z,bw_phi,bw_z), *z_binning, *phi_binning),
 ]
 
 # Timing histograms
