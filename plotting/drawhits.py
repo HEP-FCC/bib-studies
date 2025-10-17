@@ -241,7 +241,7 @@ if not layer_cells:
     print("WARNING: map of cells per layer is empty.")
     n_tot_cells = 1
 
-print(">>>",layer_cells)
+print(">>>",dict(sorted(layer_cells.items())))
 
 n_layers = len(layer_cells.keys())
 
