@@ -402,7 +402,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         print('processing event number = ' + str(i) + ' / ' + str(n_events) )
 
     fired_cells = []
-    fired_cells_x_layer = Counter()
+    fired_cells_x_layer = {l: 0 for l in layer_cells.keys()}  # Initialize to 0 for all the layers to ensure that also events with 0 occupancy are correctly counted
 
     # Loop over the hits
     for hit in event.get(collection):
