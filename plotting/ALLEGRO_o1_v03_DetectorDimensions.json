@@ -276,10 +276,10 @@
     "typeFlag": 265,
     "hitsCollection": "SiWrDCollection",
     "det_element_cells": {
-      "SiWrD_side-1_layer0": 1284,
-      "SiWrD_side-1_layer1": 1244,
-      "SiWrD_side1_layer0": 1284,
-      "SiWrD_side1_layer1": 1244
+      "layer-1": 1284,
+      "layer-2": 1244,
+      "layer1": 1284,
+      "layer2": 1244
     },
     "max_z": 2340,
     "max_r": 2890

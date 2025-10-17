@@ -163,7 +163,7 @@ def get_layer(cell_id, decoder, detector, dtype):
             super_layer = decoder.get(cell_id, "superlayer")
             return (super_layer * nl_x_sl) + layer + 1
 
-        case "VertexDisks":
+        case "VertexDisks" | "SiWrD":
             # shift layer number by 1 to remove degeneracy of layer 0
             layer = decoder.get(cell_id, "layer") + 1
             side = decoder.get(cell_id, "side")

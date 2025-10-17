@@ -140,7 +140,8 @@ def get_cells_map(detector, sub_det, name):
                 if i==0: continue
                 cells_map[f"layer{i}"] = total_cells
 
-        case "VertexDisks":
+
+        case "VertexDisks" | "SiWrD":
             # Rename layers shifting their value by 1
             # to remove degeneracy of layer 0
             # N.B. this needs to be accounted when reading the layer number
