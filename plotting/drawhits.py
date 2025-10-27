@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from collections import Counter, defaultdict
+from collections import defaultdict
 import math
 import numpy as np
 import argparse

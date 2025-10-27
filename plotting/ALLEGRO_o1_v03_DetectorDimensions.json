@@ -145,11 +145,11 @@
     "typeFlag": 2058,
     "hitsCollection": "ECalEndcapTurbine",
     "det_element_cells": {
-      "wheel1":  38400,
+      "wheel1": 38400,
       "wheel-1": 38400,
-      "wheel2":  100800,
+      "wheel2": 100800,
       "wheel-2": 100800,
-      "wheel3":  462400,
+      "wheel3": 462400,
       "wheel-3": 462400
     },
     "max_z": 3850,
