@@ -147,7 +147,8 @@ class DetFilePath:
     Class to handle detector file naming information.
     """
     def __init__(self, path):
-        self.path    = os.path.expandvars(path)                               # Full path to XML/JSON file
-        self.name    = self.path.split("/")[-1].strip(".xml").strip(".json")  # Get detector name and version
-        self.short   = re.sub("_o[0-9]_v[0-9]{2}_.*", "", self.name)          # Get name only
-        self.version = re.search("o[0-9]_v[0-9]{2}", self.name).group(0)      # Get version only
+        self.path    = os.path.expandvars(path)                                # Full path to XML/JSON file
+        self.f_name  = self.path.split("/")[-1].strip(".xml").strip(".json")   # Get the file name
+        self.name    = re.search(".*_o[0-9]_v[0-9]{2}", self.f_name).group(0)  # Get detector name and version
+        self.short   = re.sub("_o[0-9]_v[0-9]{2}", "", self.name)              # Get name only
+        self.version = re.search("o[0-9]_v[0-9]{2}", self.name).group(0)       # Get version only
