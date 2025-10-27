@@ -3,6 +3,9 @@ import json
 import os
 import re
 
+import dd4hep as dd4hepModule
+from ROOT import dd4hep
+
 ######################################
 # Functions
 
@@ -66,7 +69,7 @@ def load_json(path, sub_dict=None):
         except KeyError:
             raise KeyError(f"'{sub_dict}' is not available, valid sub-dictionary entries are: "
                         +" | ".join(json_dict.keys()))
-    
+
     return out_dict
 
 
@@ -96,7 +99,7 @@ def layer_number_from_string(layer_string):
     ln = int(re.sub(r"[^0-9-]","",layer_name))
     if side != 0:
         ln *= side
-    
+
     return ln
 
 
@@ -130,15 +133,21 @@ def get_cells(detector, n_cells = 0):
             n_cells = get_cells(d[1], n_cells)
     return n_cells
 
+# Read detector types as defined in the XML
+is_calo = lambda x: (x & dd4hep.DetType.CALORIMETER) == dd4hep.DetType.CALORIMETER  #e.g. DetType_CALORIMETER in xml
+is_endcap = lambda x: (x & dd4hep.DetType.ENDCAP) == dd4hep.DetType.ENDCAP          #e.g. DetType_ENDCAP in xml
+# All DetType definitions can be found here:
+# https://github.com/AIDASoft/DD4hep/blob/master/DDCore/include/DD4hep/DetType.h
+
 ######################################
 # Classes
 
-class GeoFile:
+class DetFilePath:
     """
-    Class to handle geometry file information.
+    Class to handle detector file naming information.
     """
     def __init__(self, path):
-        self.path = path                                                 # Full path to XML file
-        self.name = path.split("/")[-1].strip(".xml")                    # Get detector name and version
-        self.short = re.sub("_o[0-9]_v[0-9]{2}","",self.name)            # Get name only
-        self.version = re.search("o[0-9]_v[0-9]{2}",self.name).group(0)  # Get version only
+        self.path    = os.path.expandvars(path)                               # Full path to XML/JSON file
+        self.name    = self.path.split("/")[-1].strip(".xml").strip(".json")  # Get detector name and version
+        self.short   = re.sub("_o[0-9]_v[0-9]{2}_.*", "", self.name)          # Get name only
+        self.version = re.search("o[0-9]_v[0-9]{2}", self.name).group(0)      # Get version only

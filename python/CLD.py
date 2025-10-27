@@ -5,7 +5,7 @@
 from collections import defaultdict
 import re
 
-from helpers import get_cells
+from helpers import get_cells, is_endcap
 
 def get_cells_map(detector, sub_det, name, skip_pattern = r"(supportTube)|(cryo)"):
     """
@@ -36,3 +36,25 @@ def get_cells_map(detector, sub_det, name, skip_pattern = r"(supportTube)|(cryo)
                 cells_map[str(de_name)] = get_cells(de)
 
     return cells_map
+
+
+def get_layer(cell_id, decoder, detector, dtype):
+    """
+    Run the decoder differently for each sub-detector
+    """
+
+    match detector:
+
+        case _:
+            layer = decoder.get(cell_id, "layer")
+
+            # Get the side, if available
+            side = 0
+            if is_endcap(dtype):
+                side = decoder.get(cell_id, "side")
+
+            if side != 0:
+                layer *= side
+
+            return layer
+    return

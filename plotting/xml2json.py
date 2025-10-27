@@ -8,7 +8,7 @@ import re
 import dd4hep as dd4hepModule
 from ROOT import dd4hep
 
-from helpers import GeoFile
+from helpers import DetFilePath
 
 
 ######################################
@@ -20,7 +20,7 @@ parser.add_option('-d', '--detGeoFile',
 
 (options, args) = parser.parse_args()
 
-geo_file = GeoFile(options.detGeoFile)
+geo_file = DetFilePath(options.detGeoFile)
 
 ######################################
 # Functions

@@ -6,7 +6,7 @@ from collections import defaultdict
 import math
 import re
 
-from helpers import get_cells
+from helpers import get_cells, is_endcap
 
 def get_cells_map(detector, sub_det, name, skip_pattern = r"(supportTube)|(cryo)"):
     """
@@ -155,3 +155,66 @@ def get_cells_map(detector, sub_det, name, skip_pattern = r"(supportTube)|(cryo)
                 cells_map[str(de_name)] = get_cells(de)
 
     return cells_map
+
+
+def get_layer(cell_id, decoder, detector, dtype):
+    """
+    Run the decoder differently for each sub-detector
+    """
+
+    match detector:
+        case "HCalThreePartsEndcap":
+            # Get only the side of the hit
+            # type = 0,1,2 for positive side
+            # type = 3,4,5 for negative side
+            tp =  decoder.get(cell_id,"type") #FIXME: Appears to be always 0?! double check using nightly sim. events
+            #print(f"layer={layer}, side={side}, type={tp}")
+            if tp > 2:
+                return -1
+            return 1
+
+        case "EMEC_turbine":
+            side = decoder.get(cell_id, "side")
+            wheel = decoder.get(cell_id, "wheel") + 1
+            return  wheel * side
+
+        case "DCH_v2":
+            # Number of layers per super layer could be read from geo file
+            nl_x_sl = 8
+            layer = decoder.get(cell_id, "layer")
+            super_layer = decoder.get(cell_id, "superlayer")
+            return (super_layer * nl_x_sl) + layer + 1
+
+        case "VertexDisks" | "SiWrD":
+            # shift layer number by 1 to remove degeneracy of layer 0
+            layer = decoder.get(cell_id, "layer") + 1
+            side = decoder.get(cell_id, "side")
+
+            return layer * side
+
+        case "MuonTaggerEndcap":
+            # Default way: side * layer, where side should be +/- 1
+            layer = decoder.get(cell_id, "layer") + 1
+            #probably no side available in decoder (see xml readout part)
+            theta = decoder.get(cell_id, "theta")
+            #print(f"layer={layer}, theta={theta}")
+
+            side=-1
+            if theta<168:
+              side = 1
+
+            return layer * side
+
+        case _:
+            layer = decoder.get(cell_id, "layer")
+
+            # Get the side, if available
+            side = 0
+            if is_endcap(dtype):
+                side = decoder.get(cell_id, "side")
+
+            if side != 0:
+                layer *= side
+
+            return layer
+    return
