@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 
-from collections import Counter, defaultdict
+from collections import defaultdict
 import math
 import numpy as np
 import argparse
 
-import dd4hep as dd4hepModule
-from ROOT import dd4hep
+# import dd4hep as dd4hepModule
+# from ROOT import dd4hep
 from podio import root_io
 import ROOT
 
 from constants import C_MM_NS
-from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict
+from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict, is_calo, is_endcap, DetFilePath
 from visualization import setup_root_style, draw_hist, draw_map
 
 
@@ -20,7 +20,7 @@ from visualization import setup_root_style, draw_hist, draw_map
 
 def parse_args():
     parser = argparse.ArgumentParser(description='drawhits.py', 
-        epilog='Example:\ndrawhits.py -s MuonTaggerBarrel -d ALLEGRO_o1_v03_DetectorDimensions.json -e -1 -D 0',
+        epilog='Example:\ndrawhits.py -s MuonTaggerBarrel -d $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json -e -1 -D 0',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('-D', '--debugLevel',
@@ -45,7 +45,7 @@ def parse_args():
                     type=str, default='ipc',
                     help='sample name to save plots')
     parser.add_argument('-d', '--detDictFile',
-                    type=str, default='ALLEGRO_o1_v03_DetectorDimensions.json',
+                    type=str, default='$BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json',
                     help='JSON dictionary with some key detector parameters')
     parser.add_argument('-a', '--assumptions',
                     type=str, default=None,
@@ -98,7 +98,7 @@ input_path = options.infilePath
 output_file_name = options.outputFile
 tree_name = options.tree
 sample_name = options.sample
-detector_dict_path = options.detDictFile
+det_file =  DetFilePath(options.detDictFile)
 assumptions_path = options.assumptions
 sub_detector = options.subDetector
 draw_maps = options.draw_maps
@@ -126,75 +126,18 @@ ROOT.gErrorIgnoreLevel = ROOT.kWarning
 #######################################
 # functions
 
-# Detector types from:
-# https://github.com/AIDASoft/DD4hep/blob/master/DDCore/include/DD4hep/DetType.h
-is_calo = lambda x: (x & dd4hep.DetType.CALORIMETER) == dd4hep.DetType.CALORIMETER
-is_endcap = lambda x: (x & dd4hep.DetType.ENDCAP) == dd4hep.DetType.ENDCAP #DetType_ENDCAP in xml
-
-
-def get_layer(cell_id, decoder, detector, dtype):
-    """
-    Run the decoder differently for each detector
-    """
-
-    match detector:
-        case "HCalThreePartsEndcap":
-            # Get only the side of the hit
-            # type = 0,1,2 for positive side
-            # type = 3,4,5 for negative side
-            tp =  decoder.get(cell_id,"type") #FIXME: Appears to be always 0?! double check using nightly sim. events
-            #print(f"layer={layer}, side={side}, type={tp}")
-            if tp > 2:
-                return -1
-            return 1
-
-        case "EMEC_turbine":
-            side = decoder.get(cell_id, "side")
-            wheel = decoder.get(cell_id, "wheel") + 1
-            return  wheel * side
-
-        # case "ECalBarrel": 
-        #     return  0
-
-        case "DCH_v2":
-            # Number of layers per super layer could be read from geo file
-            nl_x_sl = 8
-            layer = decoder.get(cell_id, "layer")
-            super_layer = decoder.get(cell_id, "superlayer")
-            return (super_layer * nl_x_sl) + layer + 1
-
-        case "VertexDisks" | "SiWrD":
-            # shift layer number by 1 to remove degeneracy of layer 0
-            layer = decoder.get(cell_id, "layer") + 1
-            side = decoder.get(cell_id, "side")
-
-            return layer * side
-
-        case "MuonTaggerEndcap":
-            # Default way: side * layer, where side should be +/- 1
-            layer = decoder.get(cell_id, "layer") + 1
-            #probably no side available in decoder (see xml readout part)
-            theta = decoder.get(cell_id, "theta")
-            #print(f"layer={layer}, theta={theta}")
-
-            side=-1
-            if theta<168:
-              side = 1
-
-            return layer * side
-
-        case _:           
-            layer = decoder.get(cell_id, "layer")
-
-            # Get the side, if available
-            side = 0
-            if is_endcap(dtype):
-                side = decoder.get(cell_id, "side")
-
-            if side != 0:
-                layer *= side
-
-            return layer
+print("Importing detector specific functions for:", det_file.short)
+match det_file.short:
+    case "ALLEGRO":
+        from ALLEGRO import get_layer
+    case "IDEA":
+        from IDEA import get_layer
+    case "CLD":
+        from CLD import get_layer
+    case "ILD_FCCee":
+        from ILD_FCCee import get_layer
+    case _:
+        raise NotImplementedError(f"get_layer not implemented for detector {det_file.short}")
 
 
 #######################################
@@ -216,7 +159,7 @@ nEvents_fullFileList = len(podio_reader.get("events"))
 print(f"Number of events in the full file list: {nEvents_fullFileList}")
 
 # Read the detector and assumptions dictionaries
-detector_dict = load_json(detector_dict_path, sub_detector)
+detector_dict = load_json(det_file.path, sub_detector)
 detector_type = detector_dict["typeFlag"]
 assumptions = load_json(assumptions_path, sub_detector) if assumptions_path else None  #TODO: set default path to the /templates folder
 
@@ -425,8 +368,6 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             fired_cells.append(cell_id)
             # count cellIDs that fired in the run
             fullRun_fired_cellIDs.add(cell_id)
-
-            
 
         #TODO: Handle better cell_id info
         layer_n = get_layer(cell_id, decoder, sub_detector, detector_type)
