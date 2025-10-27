@@ -54,8 +54,8 @@ def load_json(path, sub_dict=None):
     only that one will be loaded, otherwise the entire JSON is passed.
     """
     out_dict = {}
-    
-    with open(path,"r") as f:
+
+    with open(os.path.expandvars(path),"r") as f:
         json_dict = json.load(f)
 
         if sub_dict==None:

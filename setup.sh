@@ -13,12 +13,12 @@ if [[ $1 == "-h" ]]; then
 fi
 
 # Path to this setup.sh script
-export BIB_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd -P )
+export BIB_STUDIES=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd -P )
 
 # Install the repo paths
-export PATH=$BIB_DIR/simulation:$PATH
-export PATH=$BIB_DIR/plotting:$PATH
-export PYTHONPATH=$BIB_DIR/python:$PYTHONPATH
+export PATH=$BIB_STUDIES/simulation:$PATH
+export PATH=$BIB_STUDIES/plotting:$PATH
+export PYTHONPATH=$BIB_STUDIES/python:$PYTHONPATH
 
 # Default setup is stable release
 COMMAND="source /cvmfs/sw.hsf.org/key4hep/setup.sh"

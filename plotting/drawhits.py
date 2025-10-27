@@ -45,7 +45,7 @@ def parse_args():
                     type=str, default='ipc',
                     help='sample name to save plots')
     parser.add_argument('-d', '--detDictFile',
-                    type=str, default='ALLEGRO_o1_v03_DetectorDimensions.json',
+                    type=str, default='$BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json',
                     help='JSON dictionary with some key detector parameters')
     parser.add_argument('-a', '--assumptions',
                     type=str, default=None,
