@@ -1,0 +1,76 @@
+{
+  "VertexBarrel": {
+    "strategy": "hit_counts",
+    "hit_size": {
+      "layer0": 18,
+      "layer1": 18,
+      "layer2": 18,
+      "layer3": 15,
+      "layer4": 15
+    },
+    "modifiers": {
+      "safety_factor": 3,
+      "cluster_size": 5
+    }
+  },
+
+  "VertexDisks": {
+    "strategy": "hit_counts",
+    "hit_size": 15,
+    "modifiers": {
+      "safety_factor": 3,
+      "cluster_size": 5
+    }
+  },
+
+  "DCH_v2": {
+    "strategy": "occupancy",
+    "hit_size": 2,
+    "modifiers": {
+      "n_samples": 400
+    }
+  },
+
+  "ECalBarrel": {
+    "strategy": "hit_counts",
+    "hit_size": 2,
+    "modifiers": {
+      "n_samples": 1
+    },
+    "digitized_hits": {
+      "collection": "ECalBarrelModuleThetaMergedPositioned",
+      "E_thr_MeV": {
+        "layer0": 0.36,
+        "layer1": 1.1,
+        "layer2": 1.16,
+        "layer3": 1.2,
+        "layer4": 1.3,
+        "layer5": 1.4,
+        "layer6": 1.5,
+        "layer7": 1.6,
+        "layer8": 1.7,
+        "layer9": 1.8,
+        "layer10": 1.9
+      }
+    }
+  },
+
+  "EMEC_turbine": {
+    "strategy": "hit_counts",
+    "hit_size": 2,
+    "modifiers": {
+      "n_samples": 1
+    },
+    "digitized_hits": {
+      "collection": "ECalEndcapTurbinePositioned",
+      "E_thr_MeV": {
+        "layer1": 1.0,
+        "layer-1": 1.0,
+        "layer2": 1.0,
+        "layer-2": 1.0,
+        "layer3": 1.0,
+        "layer-3": 1.0
+      }
+    }
+  }
+}
