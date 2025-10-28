@@ -85,7 +85,11 @@ Notes:
 
 Example:
 ```sh
-hits2bw.py -i myhits_100evt_ECalBarrel.root -d ALLEGRO_o1_v03_DetectorDimensions.json -a ALLEGRO_o1_v03_assumptions.json -r 52.0 -o bandwidths
+# first produce the hits file
+drawhits.py -e 100 -s VertexDisks --sample myhits
+
+# then use the its output root file to estimate bandwidths
+hits2bw.py -i myhits_hits_100evt_VertexDisks.root -d $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json -a $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_assumptions.json
 ```
 
 ## Draw particles info
