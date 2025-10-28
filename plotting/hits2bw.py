@@ -67,7 +67,7 @@ assumptions_dict = load_json(assumptions_path, sub_detector)
 hits_collection = detector_dict["hitsCollection"]
 strategy = assumptions_dict["strategy"]
 hit_size = assumptions_dict["hit_size"]
-modifiers = assumptions_dict["modifiers"]
+multipliers = assumptions_dict["multipliers"]
 
 # Update layer related dictionary to have identical keys
 channels = simplify_dict(detector_dict["det_element_cells"])
@@ -106,7 +106,7 @@ for b in range(1, h_bw.GetNbinsX()+1):
         scale_factor *= channels[layer_n] * 0.01
 
     # Consider additional modifiers
-    for m in modifiers.values():
+    for m in multipliers.values():
         scale_factor *= m
 
     h_bw.SetBinContent(b, counts * scale_factor)
