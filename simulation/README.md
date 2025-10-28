@@ -1,7 +1,49 @@
 # Simulation
 
-Helper scripts for preparing and submitting simulations of background samples.
+Preparing and submitting simulations of background samples.
 
+## Running detector simulation
+
+Example for processing through the ALLEGRO detector simulation 
+an incoherent pair creation (IPC) file `pairs.pairs` 
+(a text file with all particles' positions) generated with GuineaPig:
+
+```
+ddsim -N -1 \
+ --inputFile /eos/experiment/fcc/users/a/aciarma/pairs/4IP_2024may29/Z/data1/pairs.pairs \
+ --crossingAngleBoost 0.015 \
+ --compactFile $K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml \
+ --outputFile sim_IPC_test.root
+```
+Note that a crossing angle boost of 0.015 needs to be applied.
+
+For other detectors, it may be required to also specify a steering file, with more elaborate
+options for ddsim. Centrally maintained steering files are stored in the [`FCC-Config`](https://github.com/HEP-FCC/FCC-config) repo,
+which is included in the `key4hep` software stack.
+For example, the [IDEA_o1_v03](https://github.com/HEP-FCC/FCC-config/blob/main/FCCee/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py)
+steering file can file can be passed to the ddsim command with:
+```
+ddsim --steeringFile $FCCCONFIG/share/FCC-config/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py ...
+```
+
+When running on signal sample, a smearing to the vertex need also to be included, with the option:
+```
+--vertexSigma 0.0098 2.54e-5 0.646 0.0063
+```
+(These numbers may change in the future)
+
+### Running the digitization
+
+To run digitization, please refer always to the FCC-config instructions for a given detector.
+
+Currently available options:
+- [ALLEGRO_o1_v02](https://github.com/HEP-FCC/FCC-config/tree/main/FCCee/FullSim/ALLEGRO/ALLEGRO_o1_v02#running-the-digitization-and-reconstruction)
+- [ALLEGRO_o1_v03](https://github.com/HEP-FCC/FCC-config/tree/main/FCCee/FullSim/ALLEGRO/ALLEGRO_o1_v03#running-the-digitization-and-reconstruction)
+- [IDEA_o1_v03](https://github.com/HEP-FCC/FCC-config/tree/main/FCCee/FullSim/IDEA/IDEA_o1_v03#running-the-digitization-and-reconstruction)
+
+
+Note: this process run also some reconstruction by default, which can be computationally intensive and memory demanding.
+For specific studies, some algorithms that aren't needed can be turned off (e.g. `--doTopoClustering=false`).
 
 ## Production of IPC backgrounds
 
@@ -61,4 +103,14 @@ For example the default input path is currently:
 /eos/user/s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/
 ``` 
 but can be modified specifying `--input <your/path>`.
+
+
+## Calorimeter calibration
+
+TODO: add docu
+
+## List of samples
+
+TODO: add list/table
+
 

@@ -8,7 +8,7 @@
       "layer3": 15,
       "layer4": 15
     },
-    "modifiers": {
+    "multipliers": {
       "safety_factor": 3,
       "cluster_size": 5
     }
@@ -17,7 +17,7 @@
   "VertexDisks": {
     "strategy": "hit_counts",
     "hit_size": 15,
-    "modifiers": {
+    "multipliers": {
       "safety_factor": 3,
       "cluster_size": 5
     }
@@ -26,7 +26,7 @@
   "DCH_v2": {
     "strategy": "occupancy",
     "hit_size": 2,
-    "modifiers": {
+    "multipliers": {
       "n_samples": 400
     }
   },
@@ -34,7 +34,7 @@
   "ECalBarrel": {
     "strategy": "hit_counts",
     "hit_size": 2,
-    "modifiers": {
+    "multipliers": {
       "n_samples": 1
     },
     "digitized_hits": {
@@ -58,7 +58,7 @@
   "EMEC_turbine": {
     "strategy": "hit_counts",
     "hit_size": 2,
-    "modifiers": {
+    "multipliers": {
       "n_samples": 1
     },
     "digitized_hits": {
