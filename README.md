@@ -43,11 +43,11 @@ source setup.sh -n 2025-07-22
 
 This repo contains four principal folders:
 -  `plotting` for executable scripts concerning plots
--  `simulation` with some utility scripts and recipes for running simulations, and a list of relevant gen files.
--  `python` where some shared code is stored together with detector specific implementations of key functions used by the scripts.
+-  `simulation` with utility scripts and recipes for running simulations, and a list of relevant gen files.
+-  `python` where shared code is stored together with detector specific implementations of key functions used by the scripts.
 -  `detectors_dicts` storing detectors related dictionaries.
 
-The two folders with the executable scripts contain dedicated `READMEs` with more relevant info.
+The two folders with the executable scripts contain dedicated `READMEs` with more complete info:
 - [Simulation docs](./simulation/README.md)
 - [Plotting docs](./plotting/README.md)
 
