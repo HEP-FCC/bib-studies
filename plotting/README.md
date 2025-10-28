@@ -4,9 +4,10 @@ Collections of scripts for making plots from BIB simulated files.
 
 ## Draw hit maps
 
-There are 2 scripts in this directory for drawing the hit maps
-- `drawhits.py` : it plots the hit maps and some profile histograms for a given sub-detector.
-- [TO BE FIXED] `plot_all_subdetectors.py`: it automatically loops over all the sub-detectors and the hit collections, matching them. For each collection/sub-detector it calls the drawhits.py script to plot the hit map.
+There are 3 scripts in this directory for drawing the hit maps
+- `drawhits.py`: it plots the hit maps and some profile histograms for a given sub-detector.
+- `hits2bw.py`: converts the results from `drawhits` into bandwidth estimations.
+- **[TO BE FIXED]** `plot_all_subdetectors.py`: it automatically loops over all the sub-detectors and the hit collections, matching them. For each collection/sub-detector it calls the drawhits.py script to plot the hit map.
 
 ### drawhits.py
 
@@ -53,8 +54,39 @@ drawhits.py -i <path_to_digitized_sim_hits_file> -e 100 -s ECalBarrel --digi --e
 
 #### drawhits.py histograms
 
-- h_hit_xx_mm_<sub-detector>: x position of all hits that matched this sub-detector
+- h_hit_x_mm_<sub-detector>: x position of all hits that matched this sub-detector
 - ...
+
+TODO: fill the list above
+
+
+### hits2bw.py
+
+`hits2bw.py` reads the per-layer hit histograms produced by `drawhits.py`
+and converts hit counts or occupancy into an estimated data bandwidth per layer
+and total bandwidth.
+The conversion uses a chosen strategy ("hits" or "occupancy"),
+a per-hit size (or per-layer sizes) and optional multipliers 
+from an "assumptions" JSON dictionary, together with the detector channel counts 
+from the detector JSON.
+Results are written to a ROOT file and a simple 
+plot of bandwidth vs layer is produced.
+
+Key input arguments:
+- `-i` / `--inputFile` path to the input ROOT file that contains the hit/occupancy histograms (output from drawhits.py).
+- `-o` / `--outputFile` base name for the output ROOT file (sample name is prepended).
+- `-d` / `--detDictFile` detector dimensions JSON (produced by `xml2json.py`) to get hits collection and per-layer channel counts.
+- `-a` / `--assumptions` JSON with the bandwidth estimation assumptions: strategy (`hit_counts` or `occupancy`), `hit_size` (number or per-layer dict), and `multipliers` (multiplicative factors).
+- `-r` / `--rate` hit rate in MHz used to scale counts to bandwidth.
+
+Notes:
+- The assumptions JSON must define the chosen `strategy` and `hit_size`. If strategy is `occupancy`, number of cells per layer from the detector JSON are used to convert occupancy to absolute counts before applying hit size and rate.
+- Use `-h` / `--help` to print all options.
+
+Example:
+```sh
+hits2bw.py -i myhits_100evt_ECalBarrel.root -d ALLEGRO_o1_v03_DetectorDimensions.json -a ALLEGRO_o1_v03_assumptions.json -r 52.0 -o bandwidths
+```
 
 ## Draw particles info
 
