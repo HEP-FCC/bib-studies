@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-from optparse import OptionParser
+import argparse
+from collections import defaultdict
 import re
 
 import ROOT
@@ -13,24 +14,26 @@ from visualization import setup_root_style, draw_hist
 ######################################
 # option parser
 
-parser = OptionParser()
-parser.add_option('-i', '--inputFile',
+parser = argparse.ArgumentParser(description='hits2bw.py',
+        epilog='Example:\nhits2bw.py -i <path_to_hits_histograms.root> -d $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json -a $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_assumptions.json',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('-i', '--inputFile',
                   type=str, default='',
                   help='path to input file containing hits histograms.')
-parser.add_option('-o', '--outputFile',
+parser.add_argument('-o', '--outputFile',
                   type=str, default='bandwidths',
                   help='Name of output root file, the sample name will be added as prefix and the detector as suffix.')
-parser.add_option('-d', '--detDictFile',
-                  type=str, default='',
+parser.add_argument('-d', '--detDictFile',
+                  type=str, default='$BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json',
                   help='JSON dictionary with some key detector parameters.')
-parser.add_option('-a', '--assumptions',
-                  type=str, default='',
+parser.add_argument('-a', '--assumptions',
+                  type=str, default='$BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_assumptions.json',
                   help='JSON dictionary with assumptions for bandwidth estimates.')
-parser.add_option('-r', '--rate',
+parser.add_argument('-r', '--rate',
                   type=float, default=52.,
                   help='hit rate in MHz.')
 
-(options, args) = parser.parse_args()
+options = parser.parse_args()
 
 input_file_path = options.inputFile
 output_file_name = options.outputFile
@@ -72,7 +75,13 @@ multipliers = assumptions_dict["multipliers"]
 # Update layer related dictionary to have identical keys
 channels = simplify_dict(detector_dict["det_element_cells"])
 if isinstance(hit_size, dict):
-    hit_size = simplify_dict(hit_size)
+    hit_size_tmp = simplify_dict(hit_size)
+
+    # Convert to defaultdict to avoid KeyErrors
+    # for extra layers not defined in the assumptions
+    # (e.g. the 0 or the N+1 layers)
+    hit_size = defaultdict(int)
+    hit_size.update(hit_size_tmp)
 
 # Pick the right histogram depending on the defined strategy
 h_name = ""
