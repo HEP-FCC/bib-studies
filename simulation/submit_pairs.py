@@ -16,7 +16,7 @@ import stat
 
 # Default paths / namings
 input_def_path = "/eos/home-s/sfranche/FCC/samples/bib/gen-samples/aciarma_4IP_2024may29/Z/"
-output_def_folder = input_def_path+"/DDSim_output/"
+output_def_folder = input_def_path+"DDSim_output/"
 
 
 # Argument parser
@@ -26,6 +26,7 @@ parser.add_argument('-i', '--input', default=input_def_path,
 parser.add_argument('-o', '--output', default=output_def_folder,
                     help='output folder. Default is: '+output_def_folder)
 parser.add_argument('-t', '--tag',
+                    default='ddsim_output',
                     help='Tag of the dataset.')
 parser.add_argument('-n', '--n_max_jobs', default=-1, type=int,
                     help='Maximum number of jobs.')
@@ -129,16 +130,33 @@ def run(args):
     n_jobs = 0
     exec_template_name = os.path.join(tag, "run_ddsim_FILENAME.sh")
 
-    for folder in os.listdir(input_file_path):
+    for item in os.listdir(input_file_path):
         if (n_max > 0) and (n_max <= n_jobs):
             break
-        if "data" not in folder:
+
+        #TODO: the input name path could be handled a bit more gracefully
+
+        # check if the item is a folder, following naming
+        # convention used in a. ciarma's samples
+        item_path = os.path.join(input_file_path, item)
+        bx_id = None
+        input_filename = None
+        if os.path.isdir(item_path):
+            if "data" not in item:
+                continue
+            bx_id = item.replace("data", "")
+            input_filename = os.path.join(input_file_path, item, "pairs.pairs")
+            print("- "+input_filename)
+        # otherwise, check if it's a .pairs file
+        elif item.endswith(".pairs"):
+            input_filename = os.path.join(input_file_path, item)
+            bx_id = re.search(r"_[0-9]+\.",item).group(0).strip("_.")
+            print("- "+input_filename)
+        else:
+            print("Skipping item:", item)
             continue
 
         command = header
-        bx_id = folder.replace("data", "")
-        input_filename = os.path.join(input_file_path, folder, "pairs.pairs")
-        print(input_filename)
         executable_path = exec_template_name.replace("FILENAME", bx_id)
         output_filename = os.path.join(storage_path, f"{geo}_{bx_id}_r{fcc_ver}.root")
 
