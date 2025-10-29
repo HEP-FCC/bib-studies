@@ -95,14 +95,16 @@ repository.
 
 If a custom variation of the standard geometry 
 tha requires recompiling k4geo is needed,
-specify the path to the local build with the `--k4geo` flag [NOT TESTED YET].
+specify the path to the local build with the `--k4geo` flag.
 
 All the available options can be seen using the `-h` flag.
 For example the default input path is currently:
 ```
 /eos/user/s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/
 ``` 
-but can be modified specifying `--input <your/path>`.
+but can be modified specifying `--input <your/path>`,
+which should contain files with a naming format: `your/path/*_XYZ.pairs`,
+where `XYZ` is an event number.
 
 
 ## Calorimeter calibration
