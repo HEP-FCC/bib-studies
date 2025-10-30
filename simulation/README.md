@@ -35,9 +35,12 @@ Now let's switch to the CAD beampipe, and set vacuum everywhere (ALLEGRO is take
 - comment out [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml#L34-L35)
 - and un-comment [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml#L40-L41)
 
+NB: for CLD, you further need to comment out [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/CLD/compact/CLD_o2_v08/CLD_o2_v08.xml#L401-L415) to remove the analytical compensating solenoid field which is taken from a map in the above MDI import.
+
 And **enable detailed EM treatment in Geant4** by applying the following changes to the `ddsim` steering file (if you do not already use a `ddsim` steering file, you can create the default one with `ddsim --dumpSteeringFile > mySteeringFile.py`):
 - Change the physics list to `SIM.physics.list = "FTFP_BERT_EMZ"`
 - Change the range cut: `SIM.physics.rangecut = 0.05*mm`
+- Remove the energy threshold for tracker hits: `SIM.filter.tracker = "edep0"`
 - At the bottom of the file, change the Geant4 UI configure commands to: `SIM.ui.commandsConfigure = ["/cuts/setLowEdge 50 eV", "/process/em/lowestElectronEnergy 1 eV", "/process/em/auger true" , "/process/em/deexcitationIgnoreCut true"]`
 
 Finally, for some BIB (e.g. IPC), the **boost due to the crossing angle has to be applied**:
