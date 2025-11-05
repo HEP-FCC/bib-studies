@@ -265,8 +265,20 @@
     "typeFlag": 273,
     "hitsCollection": "SiWrBCollection",
     "det_element_cells": {
-      "layer0": 20000,
-      "layer1": 20000
+      "layer0_side0": 151,
+      "layer1_side0": 151
+    },
+    "det_element_size": {
+      "layer_0_side0": 385920.0,
+      "layer_1_side0": 385920.0
+    },
+    "det_element_pixel_size_u": {
+      "layer_0_side0": 1.0,
+      "layer_1_side0": 1.0
+    },
+    "det_element_pixel_size_v": {
+      "layer_0_side0": 0.05,
+      "layer_1_side0": 0.05
     },
     "max_z": 2400,
     "max_r": 2950
@@ -276,10 +288,26 @@
     "typeFlag": 265,
     "hitsCollection": "SiWrDCollection",
     "det_element_cells": {
-      "layer-2": 7500,
-      "layer-1": 7500,
-      "layer1": 7500,
-      "layer2": 7500
+      "layer-2": 1244,
+      "layer-1": 1284,
+      "layer1": 1284,
+      "layer2": 1244
+    },
+    "det_element_size": {
+      "layer-2": 2862.24,
+      "layer-1": 2862.24
+    },
+    "det_element_pixel_size_u": {
+      "layer-2": 1.0,
+      "layer-1": 1.0,
+      "layer1": 1.0,
+      "layer2": 1.0
+    },
+    "det_element_pixel_size_v": {
+      "layer-2": 0.05,
+      "layer-1": 0.05,
+      "layer1": 0.05,
+      "layer2": 0.05
     },
     "max_z": 2340,
     "max_r": 2890
@@ -292,8 +320,36 @@
       "layer_0_side0": 90,
       "layer_1_side0": 240,
       "layer_2_side0": 540,
-      "layer_3_side0": 736,
-      "layer_4_side0": 3264
+      "layer_3_side0": 184,
+      "layer_4_side0": 816
+    },
+    "det_element_size": {
+      "layer_0_side0": 204.8,
+      "layer_1_side0": 204.8,
+      "layer_2_side0": 204.8,
+      "layer_3_side0": 1473.12,
+      "layer_4_side0": 1473.12
+    },
+    "det_element_pixel_size_u": {
+      "layer_0_side0": 0.025,
+      "layer_1_side0": 0.025,
+      "layer_2_side0": 0.025,
+      "layer_3_side0": 0.150,
+      "layer_4_side0": 0.150
+    },
+    "det_element_pixel_size_v": {
+      "layer_0_side0": 0.025,
+      "layer_1_side0": 0.025,
+      "layer_2_side0": 0.025,
+      "layer_3_side0": 0.050,
+      "layer_4_side0": 0.050
+    },
+    "sensors_per_module": {
+      "layer_0_side0": 1,
+      "layer_1_side0": 1,
+      "layer_2_side0": 1,
+      "layer_3_side0": 1,
+      "layer_4_side0": 1
     },
     "max_z": 360,
     "max_r": 470
@@ -303,12 +359,27 @@
     "typeFlag": 329,
     "hitsCollection": "VertexEndcapCollection",
     "det_element_cells": {
-      "layer-1": 976,
-      "layer-2": 992,
-      "layer-3": 864,
-      "layer1": 976,
-      "layer2": 992,
-      "layer3": 864
+      "layer-1": 244,
+      "layer-2": 248,
+      "layer-3": 216,
+      "layer1": 244,
+      "layer2": 248,
+      "layer3": 216
+    },
+    "det_element_size": {
+      "layer_1_side0": 1473.12,
+      "layer_2_side0": 1473.12,
+      "layer_3_side0": 1473.12
+    },
+    "det_element_pixel_size_u": {
+      "layer_1_side0": 0.150,
+      "layer_2_side0": 0.150,
+      "layer_3_side0": 0.150
+    },
+    "det_element_pixel_size_v": {
+      "layer_1_side0": 0.050,
+      "layer_2_side0": 0.050,
+      "layer_3_side0": 0.050
     },
     "max_z": 950,
     "max_r": 420

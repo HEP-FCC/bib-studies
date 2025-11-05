@@ -6,8 +6,8 @@ import re
 
 import ROOT
 
-from helpers import load_json, simplify_dict
-from constants import b_to_GB, MHz_to_Hz
+from helpers import load_json, simplify_dict, layer_number_from_string
+from constants import b_to_GB, MHz_to_Hz, cm2_to_mm2
 from visualization import setup_root_style, draw_hist
 
 
@@ -21,7 +21,7 @@ parser.add_argument('-i', '--inputFile',
                   type=str, default='',
                   help='path to input file containing hits histograms.')
 parser.add_argument('-o', '--outputFile',
-                  type=str, default='bandwidths',
+                  type=str, default='high-level_estimates',
                   help='Name of output root file, the sample name will be added as prefix and the detector as suffix.')
 parser.add_argument('-d', '--detDictFile',
                   type=str, default='$BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json',
@@ -74,6 +74,10 @@ multipliers = assumptions_dict["multipliers"]
 
 # Update layer related dictionary to have identical keys
 channels = simplify_dict(detector_dict["det_element_cells"])
+channels = simplify_dict(detector_dict["det_element_size"])
+channels = simplify_dict(detector_dict["det_element_pixel_size_u"])
+channels = simplify_dict(detector_dict["det_element_pixel_size_v"])
+
 if isinstance(hit_size, dict):
     hit_size_tmp = simplify_dict(hit_size)
 
@@ -94,11 +98,28 @@ match strategy:
         raise AttributeError(f"Unknown strategy defined to compute the bandwidth ({strategy})")
 
 h_bw = input_file.Get(h_name).Clone()
+h_hitRate = input_file.Get(h_name).Clone()
+h_hitRate_per_cell = {}
+for ln, cells in detector_dict["det_element_cells"].items():
+    h_hitRate_per_cell[ln] = input_file.Get(f"h_avg_hits_x_layer{ln}_per_cell_{hits_collection}").Clone()
 
+det_element_cells = {}
+det_element_size = {}
+det_element_pixel_size_u = {}
+det_element_pixel_size_v = {}
+for ln, cells in detector_dict["det_element_cells"].items():
+    det_element_cells[str(ln)] = cells
+for ln, cells in detector_dict["det_element_size"].items():
+    det_element_size[str(ln)] = cells
+for ln, cells in detector_dict["det_element_pixel_size_u"].items():
+    det_element_pixel_size_u[str(ln)] = cells    
+for ln, cells in detector_dict["det_element_pixel_size_v"].items():
+    det_element_pixel_size_v[str(ln)] = cells
 
 #######################################
-# convert the counts/occupancy histogram to BW
+# convert the counts/occupancy histogram to estimate of high-level properties (bandwidth, hit rate, etc.)
 
+# Bandwidth
 for b in range(1, h_bw.GetNbinsX()+1):
     counts = h_bw.GetBinContent(b)
     error = h_bw.GetBinError(b)
@@ -121,6 +142,55 @@ for b in range(1, h_bw.GetNbinsX()+1):
     h_bw.SetBinContent(b, counts * scale_factor)
     h_bw.SetBinError(b, error * scale_factor)
 
+# Hit rate
+for b in range(1, h_bw.GetNbinsX()+1):
+    counts = h_hitRate.GetBinContent(b)
+    error = h_hitRate.GetBinError(b)
+    layer_n = h_hitRate.GetBinCenter(b)
+    print(layer_n)
+
+    if((sub_detector=="VertexDisks" and layer_n==0) or (sub_detector=="SiWrD" and layer_n==0)):
+        continue
+
+    # convert hits / occupancy to MHz / cm^2
+    scale_factor = 1
+    try:
+        scale_factor *= rate * cm2_to_mm2 / ( det_element_cells[str(int(abs(layer_n)))]*det_element_size[str(int(abs(layer_n)))] )
+    except KeyError:
+        print("Skipping this layer!")
+
+    # Consider additional modifiers
+    for m in multipliers.values():
+        scale_factor *= m
+
+    h_hitRate.SetBinContent(b, counts * scale_factor)
+    h_hitRate.SetBinError(b, error * scale_factor)
+h_hitRate.SetNameTitle("h_hitRatePerLayer", "h_hitRatePerLayer")
+
+# Hit rate per cell (i.e. module in semiconductor detectors)
+for ln, cells in detector_dict["det_element_cells"].items():
+    for b in range(1, h_hitRate_per_cell[ln].GetNbinsX()):
+        counts = h_hitRate_per_cell[ln].GetBinContent(b)
+        error = h_hitRate_per_cell[ln].GetBinError(b)
+
+        if(sub_detector=="VertexDisks" and layer_n==0):
+            continue
+            
+        # convert hits / occupancy to MHz / cm^2
+        scale_factor = 1
+        scale_factor *= rate * cm2_to_mm2 / det_element_size[str(int(abs(ln)))]
+
+        # Consider additional modifiers
+        for m in multipliers.values():
+            scale_factor *= m
+
+        h_hitRate_per_cell[ln].SetBinContent(b, counts * scale_factor)
+        h_hitRate_per_cell[ln].SetBinError(b, error * scale_factor)
+    h_hitRate_per_cell[ln].SetNameTitle(f"h_hitRate_layer{ln}_per_cell_{hits_collection}", f"h_hitRate_layer{ln}_per_cell_{hits_collection};Module;Hit rate per module [MHz/cm^{2}]" )
+
+
+
+
 #######################################
 # Output the results
 
@@ -129,10 +199,15 @@ tot_bw_msg = f"Total bandwidth = {tot_bw:.2f} GB/s"
 print(tot_bw_msg)
 
 draw_hist(h_bw, "Layer", "Bandwidth [GB/s]", f"{input_file_name}_bw_per_layer", tot_bw_msg)
+draw_hist(h_hitRate, "Layer", "Hit rate [MHz/cm^{2}]", f"{input_file_name}_hitRate_per_layer", log_y=True)
+
 
 # Write the histograms to the output file
 output_file_name = f"{input_file_name}_{output_file_name}.root"
 with ROOT.TFile(output_file_name,"RECREATE") as f:
     h_bw.Write()
+    h_hitRate.Write()
+    for ln, cells in detector_dict["det_element_cells"].items():
+        h_hitRate_per_cell[ln].Write()
 
 print("Histograms saved in:", output_file_name)

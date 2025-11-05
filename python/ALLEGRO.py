@@ -218,3 +218,11 @@ def get_layer(cell_id, decoder, detector, dtype):
 
             return layer
     return
+
+def get_module(cell_id, decoder, detector, dtype):
+    module = decoder.get(cell_id, "module")
+    return module
+
+def get_sensor(cell_id, decoder, detector, dtype):
+    sensor = decoder.get(cell_id, "sensor")
+    return sensor    

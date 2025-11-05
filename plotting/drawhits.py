@@ -129,9 +129,9 @@ ROOT.gErrorIgnoreLevel = ROOT.kWarning
 print("Importing detector specific functions for:", det_file.short)
 match det_file.short:
     case "ALLEGRO":
-        from ALLEGRO import get_layer
+        from ALLEGRO import get_layer,get_module,get_sensor
     case "IDEA":
-        from IDEA import get_layer
+        from IDEA import get_layer,get_module,get_sensor
     case "CLD":
         from CLD import get_layer
     case "ILD_FCCee":
@@ -188,6 +188,43 @@ print(">>>",dict(sorted(layer_cells.items())))
 
 n_layers = len(layer_cells.keys())
 
+# Get the size of a channel (i.e. the size of a pixel)
+print("Retrieve the channel size per layer")
+pixel_size_u = {}
+for det_element, pixel_size in detector_dict["det_element_pixel_size_u"].items():
+    ln = layer_number_from_string(det_element)
+    pixel_size_u[ln] = pixel_size
+    print(f" layer {ln}: pixel size u = {pixel_size} mm")
+
+if not pixel_size_u:
+    print("WARNING: map of pixel size in u per layer is empty.")
+
+pixel_size_v = {}
+for det_element, pixel_size in detector_dict["det_element_pixel_size_v"].items():
+    ln = layer_number_from_string(det_element)
+    pixel_size_v[ln] = pixel_size
+    print(f" layer {ln}: pixel size v = {pixel_size} mm")
+
+if not pixel_size_v:
+    print("WARNING: map of pixel size in v per layer is empty.")
+
+# sensors_per_module = {}
+# for det_element, nsensors in detector_dict["sensors_per_module"].items():
+#     ln = layer_number_from_string(det_element)
+#     sensors_per_module[ln] = nsensors
+#     print(f" layer {ln}: pixel size v = {nsensors} mm")
+
+# Calculate channels per cell (i.e. pixel per sensitive element)
+# channels_per_cell = {}
+# for ln in cell_size.keys():
+#     try:
+#         channels_per_cell[ln] = int(round(cell_size[ln] / (pixel_size_u[ln] * pixel_size_v[ln])))   # Ensure it's an ingeger number
+#     except KeyError:
+#         print(f"WARNING: missing pixel size or cell size info for layer {ln}, cannot compute channels per cell. Setting it to 1.")
+#         channels_per_cell[ln] = 1
+# print("Channels per cell per layer:", channels_per_cell)
+
+
 if (e_cut or digi) and assumptions == None:
     raise ValueError(f"Given the input settings (e_cut={e_cut}, digi={digi})," +
                      "an 'assumptions' JSON is needed as input (-a/--assumptions <assumptions.json>)")
@@ -239,7 +276,7 @@ r_binning = [int(r_range * 2 / bw_r), -r_range, r_range]  # mm binning
 phi_binning = [int(phi_range * 2 / bw_phi), -phi_range, phi_range ] # rad binning
 if debug>1: print(f"z_binning: {z_binning}, r_binning: {r_binning}, phi_binning: {phi_binning}")
 
-layer_binning = [n_layers + 1, -0.5, n_layers + 0.5]
+layer_binning = [n_layers+1, -0.5, n_layers + 0.5]
 if is_endcap(detector_type):
     max_l = int(n_layers / 2) + 0.5
     layer_binning = [n_layers + 1, -max_l, +max_l]
@@ -307,11 +344,45 @@ for l in layer_cells.keys():
     h_zphi_density_vs_layer[l] = ROOT.TH2D(f"hist_zphi_vs_layer{l}"+collection, f"hist_zphi_vs_layer{l}"+collection+"; ; ; hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z), *z_binning, *phi_binning)
     histograms += [h_z_density_vs_layer_mm[l], h_phi_density_vs_layer[l], h_zphi_density_vs_layer[l]]
 
+# Per-cell histograms (e.g. per module in semiconductor detectors)
+h_avg_hits_x_layer_per_cell = {}
+bin_start = 0
+for l in layer_cells.keys():
+    cell_binning = [layer_cells[l], -0.5 + bin_start, layer_cells[l]-0.5  + bin_start]
+    h_avg_hits_x_layer_per_cell[l] = ROOT.TH1D(f"h_avg_hits_x_layer{l}_per_cell_{collection}", f"h_avg_hits_x_layer{l}_per_cell_{collection};Module ID;Hits / event", *cell_binning)
+    histograms += [h_avg_hits_x_layer_per_cell[l]]
+    if(sub_detector=="VertexBarrel" or sub_detector=="SiWrB"):
+        bin_start += layer_cells[l]
+    # if(l==2):
+    #     bin_start = bin_start*4  # don't understand yet why this is needed here
+
 # Pile-up histograms
 histograms += [
     h_tot_pu := ROOT.TH1D(f"h_tot_pu_{collection}", f"h_tot_pu_{collection}", integration_time+1, -0.5, integration_time+0.5),
     h_avg_pu_x_layer := ROOT.TH1D(f"h_avg_pu_x_layer_{collection}", f"h_avg_pu_x_layer_{collection}", *layer_binning)
 ]
+
+# Helper histograms
+histograms += [
+    hist_det_element_size := ROOT.TH1D("hist_det_element_size_"+collection, "hist_det_element_size_"+collection+";Layer;Size of sensor [mm^{2}];", *layer_binning), # Get the size of a cell (i.e. the size of the sensitive surface for semiconductor sensors)
+    hist_det_element_pixel_size_u := ROOT.TH1D("hist_det_element_pixel_size_u_"+collection, "hist_det_element_pixel_size_u"+collection+";Layer;Pixel size in u direction [mm];", *layer_binning), # Get the size of a single channel in u direction (i.e. the pixel size for semiconductor sensors)
+    hist_det_element_pixel_size_v := ROOT.TH1D("hist_det_element_pixel_size_v_"+collection, "hist_det_element_pixel_size_v"+collection+";Layer;Pixel size in u direction [mm];", *layer_binning), # Get the size of a single channel in u direction (i.e. the pixel size for semiconductor sensors)
+    hist_layer_cells := ROOT.TH1D("hist_layer_cells_"+collection, "hist_layer_cells_"+collection+";Layer;Number of cells;", *layer_binning) 
+]
+
+for det_element, cells in detector_dict["det_element_size"].items():
+    ln = layer_number_from_string(det_element)
+    hist_det_element_size.SetBinContent(ln+1, cells) # 0th bin is underflow
+for det_element, cells in detector_dict["det_element_pixel_size_u"].items():
+    ln = layer_number_from_string(det_element)
+    hist_det_element_pixel_size_u.SetBinContent(ln+1, cells) # 0th bin is underflow
+for det_element, cells in detector_dict["det_element_pixel_size_v"].items():
+    ln = layer_number_from_string(det_element)
+    hist_det_element_pixel_size_v.SetBinContent(ln+1, cells) # 0th bin is underflow
+for layer_cell in layer_cells.items():
+    hist_layer_cells.SetBinContent(layer_cell[0]+1, layer_cell[1]) # 0th bin is underflow
+histograms += [hist_det_element_size, hist_det_element_pixel_size_u, hist_det_element_pixel_size_v, hist_layer_cells]
+
 
 h_pu_x_layer = {}
 for l in layer_cells.keys():
@@ -371,6 +442,8 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
         #TODO: Handle better cell_id info
         layer_n = get_layer(cell_id, decoder, sub_detector, detector_type)
+        module_n = get_module(cell_id, decoder, sub_detector, detector_type)
+        sensor_n = get_sensor(cell_id, decoder, sub_detector, detector_type)
 
         E_hit_thr = 0
         if isinstance(E_thr_MeV, dict):
@@ -424,6 +497,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             if not cell_fired:
                 h_avg_firing_cells_x_layer.Fill(layer_n, fill_weight)
 
+            h_avg_hits_x_layer_per_cell[layer_n].Fill(module_n, fill_weight)
             hist_zr.Fill(z_mm, r_mm, fill_weight)
             hist_xy.Fill(x_mm, y_mm, fill_weight)
             hist_zphi.Fill(z_mm, phi, fill_weight)
@@ -473,12 +547,8 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
     for l, fc in fired_cells_x_layer.items():
         tot_occupancy += fc
-        #print(f" fc:{fc}, l:{l},  nc:{layer_cells[l]} ")
-
         if layer_cells:
             layer_occupancy = fc / layer_cells[l] * 100
-            #print(f" fc:{fc}, nc:{layer_cells[l]}  , occ:{layer_occupancy}")
-
             h_avg_occ_x_layer.Fill(l, layer_occupancy * fill_weight)
             h_occ_x_layer[l].Fill(layer_occupancy, fill_weight)
 
@@ -501,6 +571,16 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
     processed_events +=1
 # <--- end of the event loop
+
+# Use all fired cells for semiconductor sensors, as quite often there are multiple hits per cellID, with each cellID describing one O(cm^2) large sensor.   
+# This will not be needed anymore once pixel/strip segmentation is added to these detectors in the DD4hep description. Then each pixel has its own cellID.
+
+
+if sub_detector == "VertexBarrel" or sub_detector == "VertexDisks" or sub_detector == "SiWrB" or sub_detector == "SiWrD":
+    h_avg_occ_x_layer_semicond = h_avg_hits_x_layer.Clone()
+    h_avg_occ_x_layer_semicond.Divide(hist_det_element_size*hist_layer_cells/hist_det_element_pixel_size_u/hist_det_element_pixel_size_v)
+    h_avg_occ_x_layer_semicond.SetNameTitle("h_avg_occ_x_layer_semicond"+collection, "h_avg_occ_x_layer_semicond"+collection)
+    histograms += [h_avg_occ_x_layer_semicond]
 
 print("Loop done!")
 print(" - Processed events:", processed_events)
@@ -533,7 +613,9 @@ if draw_hists:
     draw_hist(h_hit_t_corr, "Timing - TOF [ns]", "Hits / events",  sample_name+"_hit_t_corr_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_avg_hits_x_layer, "Layer number", "Hits / events",  sample_name+"_avg_hits_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_avg_firing_cells_x_layer, "Layer number", "Firing cells / events",  sample_name+"_avg_firing_cells_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_avg_occ_x_layer, "Layer number", "Average occupancy [%]",  sample_name+"_avg_occ_x_layer_"+str(n_events)+"evt_"+sub_detector, collection, log_y=False)
+    if sub_detector == "VertexBarrel" or sub_detector == "VertexDisks" or sub_detector == "SiWrB" or sub_detector == "SiWrD":
+        draw_hist(h_avg_occ_x_layer_semicond, "Layer number", "Average pixel occupancy",  sample_name+"_avg_occ_x_layer_"+str(n_events)+"evt_"+sub_detector, collection, log_y=False)
+
     draw_hist(h_occ, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
 
     if energy_per_layer:
