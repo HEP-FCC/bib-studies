@@ -173,13 +173,16 @@ for ln, cells in detector_dict["det_element_cells"].items():
         counts = h_hitRate_per_cell[ln].GetBinContent(b)
         error = h_hitRate_per_cell[ln].GetBinError(b)
 
-        if(sub_detector=="VertexDisks" and layer_n==0):
+        if((sub_detector=="VertexDisks" and layer_n==0) or (sub_detector=="SiWrD" and layer_n==0)):
             continue
             
         # convert hits / occupancy to MHz / cm^2
         scale_factor = 1
-        scale_factor *= rate * cm2_to_mm2 / det_element_size[str(int(abs(ln)))]
-
+        try:
+            scale_factor *= rate * cm2_to_mm2 / det_element_size[str(int(abs(ln)))]
+        except KeyError:
+            print("Skipping this layer!")
+            
         # Consider additional modifiers
         for m in multipliers.values():
             scale_factor *= m

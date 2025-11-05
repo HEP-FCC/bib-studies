@@ -295,7 +295,9 @@
     },
     "det_element_size": {
       "layer-2": 2862.24,
-      "layer-1": 2862.24
+      "layer-1": 2862.24,
+      "layer1": 2862.24,
+      "layer2": 2862.24
     },
     "det_element_pixel_size_u": {
       "layer-2": 1.0,
