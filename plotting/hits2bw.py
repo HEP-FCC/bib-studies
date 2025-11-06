@@ -99,6 +99,9 @@ match strategy:
 
 h_bw = input_file.Get(h_name).Clone()
 h_hitRate = input_file.Get(h_name).Clone()
+h_hitRateMax = input_file.Get(h_name).Clone() 
+h_hitRateMax.Reset()
+
 h_hitRate_per_cell = {}
 for ln, cells in detector_dict["det_element_cells"].items():
     h_hitRate_per_cell[ln] = input_file.Get(f"h_avg_hits_x_layer{ln}_per_cell_{hits_collection}").Clone()
@@ -168,6 +171,7 @@ for b in range(1, h_bw.GetNbinsX()+1):
 h_hitRate.SetNameTitle("h_hitRatePerLayer", "h_hitRatePerLayer")
 
 # Hit rate per cell (i.e. module in semiconductor detectors)
+layer_bin_counter = 1
 for ln, cells in detector_dict["det_element_cells"].items():
     for b in range(1, h_hitRate_per_cell[ln].GetNbinsX()):
         counts = h_hitRate_per_cell[ln].GetBinContent(b)
@@ -189,9 +193,18 @@ for ln, cells in detector_dict["det_element_cells"].items():
 
         h_hitRate_per_cell[ln].SetBinContent(b, counts * scale_factor)
         h_hitRate_per_cell[ln].SetBinError(b, error * scale_factor)
+        print(f"Layer {ln}, bin {b}, rate: {counts*scale_factor}, maximum under test: {h_hitRateMax.GetBinContent(b)}")
+
+        # Maximal hit rate per cell extraction
+        if(counts * scale_factor > h_hitRateMax.GetBinContent(layer_bin_counter)):
+            h_hitRateMax.SetBinContent(layer_bin_counter, counts * scale_factor)
+            h_hitRateMax.SetBinError(layer_bin_counter, error * scale_factor)
+            print("Higher!")
+            print(h_hitRateMax.GetBinContent(layer_bin_counter))    
+    layer_bin_counter += 1
+
     h_hitRate_per_cell[ln].SetNameTitle(f"h_hitRate_layer{ln}_per_cell_{hits_collection}", f"h_hitRate_layer{ln}_per_cell_{hits_collection};Module;Hit rate per module [MHz/cm^{2}]" )
-
-
+h_hitRateMax.SetNameTitle(f"h_hitRateMax_per_cell_{hits_collection}", f"h_hitRateMax_per_cell_{hits_collection};Layer;Maximal hit rate per module [MHz/cm^{2}]")
 
 
 #######################################
@@ -210,6 +223,7 @@ output_file_name = f"{input_file_name}_{output_file_name}.root"
 with ROOT.TFile(output_file_name,"RECREATE") as f:
     h_bw.Write()
     h_hitRate.Write()
+    h_hitRateMax.Write()
     for ln, cells in detector_dict["det_element_cells"].items():
         h_hitRate_per_cell[ln].Write()
 

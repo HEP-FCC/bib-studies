@@ -10,7 +10,7 @@
     },
     "multipliers": {
       "safety_factor": 3,
-      "cluster_size": 2.5
+      "cluster_size": 5
     }
   },
 
@@ -19,7 +19,7 @@
     "hit_size": 32,
     "multipliers": {
       "safety_factor": 3,
-      "cluster_size": 2.5
+      "cluster_size": 5
     }
   },
 
