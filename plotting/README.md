@@ -6,7 +6,7 @@ Collections of scripts for making plots from BIB simulated files.
 
 There are 3 scripts in this directory for drawing the hit maps
 - `drawhits.py`: it plots the hit maps and some profile histograms for a given sub-detector.
-- `hits2bw.py`: converts the results from `drawhits` into bandwidth estimations.
+- `hits2highLevelEstimations.py`: converts the results from `drawhits` into bandwidth, hit rate, pixel occupancy and other high-level estimations.
 - **[TO BE FIXED]** `plot_all_subdetectors.py`: it automatically loops over all the sub-detectors and the hit collections, matching them. For each collection/sub-detector it calls the drawhits.py script to plot the hit map.
 
 ### drawhits.py
@@ -60,11 +60,11 @@ drawhits.py -i <path_to_digitized_sim_hits_file> -e 100 -s ECalBarrel --digi --e
 TODO: fill the list above
 
 
-### hits2bw.py
+### hits2highLevelEstimations.py
 
-`hits2bw.py` reads the per-layer hit histograms produced by `drawhits.py`
-and converts hit counts or occupancy into an estimated data bandwidth per layer
-and total bandwidth.
+`hits2highLevelEstimations.py` reads the per-layer and per-cell hit histograms produced by `drawhits.py`
+and converts hit counts or occupancy into an estimated data bandwidth per layer, total bandwidth, 
+hit rate and occupancy per layer and per cell (cell in semiconductor layers being a sensor module).
 The conversion uses a chosen strategy ("hits" or "occupancy"),
 a per-hit size (or per-layer sizes) and optional multipliers 
 from an "assumptions" JSON dictionary, together with the detector channel counts 
@@ -89,7 +89,7 @@ Example:
 drawhits.py -e 100 -s VertexDisks --sample myhits
 
 # then use the its output root file to estimate bandwidths
-hits2bw.py -i myhits_hits_100evt_VertexDisks.root -d $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json -a $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_assumptions.json
+hits2highLevelEstimations.py -i myhits_hits_100evt_VertexDisks.root -d $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json -a $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_assumptions.json
 ```
 
 ## Draw particles info

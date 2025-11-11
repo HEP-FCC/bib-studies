@@ -14,8 +14,8 @@ from visualization import setup_root_style, draw_hist
 ######################################
 # option parser
 
-parser = argparse.ArgumentParser(description='hits2bw.py',
-        epilog='Example:\nhits2bw.py -i <path_to_hits_histograms.root> -d $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json -a $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_assumptions.json',
+parser = argparse.ArgumentParser(description='hits2highLevelEstimations.py',
+        epilog='Example:\nhits2highLevelEstimations.py -i <path_to_hits_histograms.root> -d $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json -a $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_assumptions.json',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-i', '--inputFile',
                   type=str, default='',
