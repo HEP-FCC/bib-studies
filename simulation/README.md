@@ -2,35 +2,71 @@
 
 Preparing and submitting simulations of background samples.
 
+## List of available BIB generated samples
+
+- Injection background and beam gas: see [here](https://cernbox.cern.ch/files/link/public/VzSH9kK1VCZl0dK?items-per-page=100&files-public-link-view-mode=resource-table&tiles-size=2) and the associated README which describes the various samples
+	- Contact: Giulia Nigrelli
+- Incoherent Pair Creation:
+	- Lattice v23, particles vertex manually set to (0,0,0): `/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23_vtx000/data*`
+		- Contains 3989 bunch crossings
+		- Contact: Andrea Ciarma
+
 ## Running detector simulation
+### Prepare your setup
+The configuration used to run the simulation for BIB studies is slightly different than the one used for phyiscs event processing. Mainly because of the following points:
+- We need a detailed modeling of the MDI elements --> we use the (slow and imperfect) CAD based beampipe
+- Due to technical difficulties, their is air inside the CAD beampipe --> we use a temporary workaround setting the world volume as vacuum while waiting for a better solution
+- To properly model the effect of BIB, a detailed treatment of EM processes has to be used (e.g. we enable fluorescence)
 
-Example for processing through the ALLEGRO detector simulation 
-an incoherent pair creation (IPC) file `pairs.pairs` 
-(a text file with all particles' positions) generated with GuineaPig:
-
+Here is a **full recipe to run the simulation** in the appropriate conditions for BIB studies:
+```bash
+# connect to an Alma9 machine with cvmfs mounted
+source /cvmfs/sw.hsf.org/key4hep/setup.sh
+git clone https://github.com/key4hep/k4geo
+cd k4geo
+mkdir build install
+cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=../install -D INSTALL_BEAMPIPE_STL_FILES=ON
+make install -j 8
+cd ..
+k4_local_repo
 ```
+Now let's switch to the CAD beampipe, and set vacuum everywhere (ALLEGRO is taken as an example but it works the same way for other detectors):
+- comment out [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml#L34-L35)
+- and un-comment [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml#L40-L41)
+
+NB: for CLD, you further need to comment out [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/CLD/compact/CLD_o2_v08/CLD_o2_v08.xml#L401-L415) to remove the analytical compensating solenoid field which is taken from a map in the above MDI import. You also need to add some material to the detector list of materials (see e.g. [here](https://github.com/key4hep/k4geo/pull/534/commits/2a2ea2591db1473d294af5c432f99aac74b8dea7#diff-f42d88422d9f50cb0863b6f08f2640a9e5cbcb9ac2ae01145642105d9fe9387d)).
+
+And **enable detailed EM treatment in Geant4** by applying the following changes to the `ddsim` steering file (if you do not already use a `ddsim` steering file, you can create the default one with `ddsim --dumpSteeringFile > mySteeringFile.py`):
+- Change the physics list to `SIM.physics.list = "FTFP_BERT_EMZ"`
+- Change the range cut: `SIM.physics.rangecut = 0.05*mm`
+- Remove the energy threshold for tracker hits: `SIM.filter.tracker = "edep0"`
+- At the bottom of the file, change the Geant4 UI configure commands to: `SIM.ui.commandsConfigure = ["/cuts/setLowEdge 50 eV", "/process/em/lowestElectronEnergy 1 eV", "/process/em/auger true" , "/process/em/deexcitationIgnoreCut true"]`
+
+Finally, for some BIB (e.g. IPC), the **boost due to the crossing angle has to be applied**:
+- At the beginning of the file, use: `SIM.crossingAngleBoost = 0.015`
+
+Whether or not to apply this boost depends on how the BIB was actually generated, reach out to the contact of the sample you plan to simulate in case of doubt.
+
+NB: centrally maintained steering files are available for IDEA in [`FCC-Config`](https://github.com/HEP-FCC/FCC-config), which is included in the `key4hep` software stack and accessible with the environment variable `$FCCCONFIG`. For example, the [IDEA_o1_v03](https://github.com/HEP-FCC/FCC-config/blob/main/FCCee/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py) steering file can file can be passed to the ddsim command with:
+```bash
+ddsim --steeringFile $FCCCONFIG/share/FCC-config/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py ...
+# or for the nightlies
+ddsim --steeringFile $FCCCONFIG/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py ...
+```
+For CLD, the centrally maintained steering file lives [here](https://github.com/key4hep/CLDConfig/blob/main/CLDConfig/cld_steer.py) and can be accessed through `$CLDCONFIG`.
+
+### Run the simulation
+
+Example for processing through the ALLEGRO detector simulation an incoherent pair creation (IPC) file `pairs.pairs` (a text file with all particles' positions) generated with GuineaPig:
+
+```bash
 ddsim -N -1 \
  --inputFile /eos/experiment/fcc/users/a/aciarma/pairs/4IP_2024may29/Z/data1/pairs.pairs \
- --crossingAngleBoost 0.015 \
+ --steeringFile mySteeringFile.py \
  --compactFile $K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml \
  --outputFile sim_IPC_test.root
 ```
-Note that a crossing angle boost of 0.015 needs to be applied.
-
-For other detectors, it may be required to also specify a steering file, with more elaborate
-options for ddsim. Centrally maintained steering files are stored in the [`FCC-Config`](https://github.com/HEP-FCC/FCC-config) repo,
-which is included in the `key4hep` software stack.
-For example, the [IDEA_o1_v03](https://github.com/HEP-FCC/FCC-config/blob/main/FCCee/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py)
-steering file can file can be passed to the ddsim command with:
-```
-ddsim --steeringFile $FCCCONFIG/share/FCC-config/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py ...
-```
-
-When running on signal sample, a smearing to the vertex need also to be included, with the option:
-```
---vertexSigma 0.0098 2.54e-5 0.646 0.0063
-```
-(These numbers may change in the future)
 
 ### Running the digitization
 
