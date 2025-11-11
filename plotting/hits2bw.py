@@ -6,7 +6,7 @@ import re
 
 import ROOT
 
-from helpers import load_json, simplify_dict, layer_number_from_string
+from helpers import load_json, simplify_dict, layer_number_from_string, is_endcap
 from constants import b_to_GB, MHz_to_Hz, cm2_to_mm2
 from visualization import setup_root_style, draw_hist
 
@@ -67,16 +67,24 @@ input_file = ROOT.TFile(input_file_path, "READ")
 detector_dict = load_json(detector_dict_path, sub_detector)
 assumptions_dict = load_json(assumptions_path, sub_detector)
 
+detector_type = detector_dict["typeFlag"]
+
 hits_collection = detector_dict["hitsCollection"]
 strategy = assumptions_dict["strategy"]
 hit_size = assumptions_dict["hit_size"]
 multipliers = assumptions_dict["multipliers"]
 
 # Update layer related dictionary to have identical keys
-channels = simplify_dict(detector_dict["det_element_cells"])
-channels = simplify_dict(detector_dict["det_element_size"])
-channels = simplify_dict(detector_dict["det_element_pixel_size_u"])
-channels = simplify_dict(detector_dict["det_element_pixel_size_v"])
+n_cells = simplify_dict(detector_dict["det_element_cells"])
+print("Number of cells: ",n_cells)
+cell_size = simplify_dict(detector_dict["cell_size"])
+print("Detector cell size [mm]",cell_size)
+pixel_size_u = simplify_dict(detector_dict["pixel_size_u"])
+print("Pixel size in u [mm]: ",pixel_size_u)
+pixel_size_v = simplify_dict(detector_dict["pixel_size_v"])
+print("Pixel size in v [mm]: ",pixel_size_v)
+
+
 
 if isinstance(hit_size, dict):
     hit_size_tmp = simplify_dict(hit_size)
@@ -98,26 +106,44 @@ match strategy:
         raise AttributeError(f"Unknown strategy defined to compute the bandwidth ({strategy})")
 
 h_bw = input_file.Get(h_name).Clone()
-h_hitRate = input_file.Get(h_name).Clone()
-h_hitRateMax = input_file.Get(h_name).Clone() 
-h_hitRateMax.Reset()
+h_bw.SetNameTitle(f"{input_file_name}_bw_per_layer",f"{input_file_name}_bw_per_layer")
+h_avg_hit_rate = input_file.Get(h_name).Clone()
+h_max_hit_rate = input_file.Get(h_name).Clone() 
+h_max_hit_rate.Reset()
+h_avg_occ_cell_per_layer = input_file.Get(h_name).Clone()
+h_max_cell_occ = input_file.Get(h_name).Clone() 
+h_max_cell_occ.Reset()
 
-h_hitRate_per_cell = {}
+layer_cells = {}
 for ln, cells in detector_dict["det_element_cells"].items():
-    h_hitRate_per_cell[ln] = input_file.Get(f"h_avg_hits_x_layer{ln}_per_cell_{hits_collection}").Clone()
+    layer_cells[ln] = cells
 
-det_element_cells = {}
-det_element_size = {}
-det_element_pixel_size_u = {}
-det_element_pixel_size_v = {}
-for ln, cells in detector_dict["det_element_cells"].items():
-    det_element_cells[str(ln)] = cells
-for ln, cells in detector_dict["det_element_size"].items():
-    det_element_size[str(ln)] = cells
-for ln, cells in detector_dict["det_element_pixel_size_u"].items():
-    det_element_pixel_size_u[str(ln)] = cells    
-for ln, cells in detector_dict["det_element_pixel_size_v"].items():
-    det_element_pixel_size_v[str(ln)] = cells
+n_layers = len(layer_cells.keys())
+layer_binning = [n_layers, -0.5, n_layers - 0.5]
+if is_endcap(detector_type):
+    print("Endcap detector detected, adjusting layer binning accordingly")
+    max_l = int(n_layers / 2) + 0.5
+    layer_binning = [n_layers + 1, -max_l, +max_l]
+
+
+hist_n_cells = ROOT.TH1D("hist_n_cells", "Number of Cells per Layer;Layer;Number of Cells", *layer_binning)
+hist_cell_size = ROOT.TH1D("hist_cell_size", "Cell Size per Layer;Layer;Cell Size [mm^{2}]", *layer_binning)
+hist_pixel_size_u = ROOT.TH1D("hist_pixel_size_u", "Pixel Size U per Layer;Layer;Pixel Size U [mm]", *layer_binning)
+hist_pixel_size_v = ROOT.TH1D("hist_pixel_size_v", "Pixel Size V per Layer;Layer;Pixel Size V [mm]", *layer_binning)
+
+# Fill the histograms with data
+for i, (entry, value) in enumerate(n_cells.items(), start=1):
+    hist_n_cells.SetBinContent(i+(1 if (is_endcap(detector_type) and i > len(n_cells)/2) else 0), value)
+
+for i, (entry, value) in enumerate(cell_size.items(), start=1):
+    hist_cell_size.SetBinContent(i+(1 if (is_endcap(detector_type) and i > len(n_cells)/2) else 0), value)
+
+for i, (entry, value) in enumerate(pixel_size_u.items(), start=1):
+    hist_pixel_size_u.SetBinContent(i+(1 if (is_endcap(detector_type) and i > len(n_cells)/2) else 0), value)
+
+for i, (entry, value) in enumerate(pixel_size_v.items(), start=1):
+    hist_pixel_size_v.SetBinContent(i+(1 if (is_endcap(detector_type) and i > len(n_cells)/2) else 0), value)
+
 
 #######################################
 # convert the counts/occupancy histogram to estimate of high-level properties (bandwidth, hit rate, etc.)
@@ -136,7 +162,7 @@ for b in range(1, h_bw.GetNbinsX()+1):
         scale_factor *= rate * MHz_to_Hz * hit_size[layer_n] * b_to_GB
 
     if strategy == "occupancy":
-        scale_factor *= channels[layer_n] * 0.01
+        scale_factor *= cells[layer_n] * 0.01
 
     # Consider additional modifiers
     for m in multipliers.values():
@@ -145,67 +171,58 @@ for b in range(1, h_bw.GetNbinsX()+1):
     h_bw.SetBinContent(b, counts * scale_factor)
     h_bw.SetBinError(b, error * scale_factor)
 
-# Hit rate
-for b in range(1, h_bw.GetNbinsX()+1):
-    counts = h_hitRate.GetBinContent(b)
-    error = h_hitRate.GetBinError(b)
-    layer_n = h_hitRate.GetBinCenter(b)
-    print(layer_n)
+scale_factor = 1
+for m in multipliers.values():
+    scale_factor *= m
 
-    if((sub_detector=="VertexDisks" and layer_n==0) or (sub_detector=="SiWrD" and layer_n==0)):
-        continue
+# Average hit rate per layer
+h_avg_hit_rate.Scale(rate*cm2_to_mm2*scale_factor)
+h_avg_hit_rate.Divide(hist_n_cells*hist_cell_size)
+h_avg_hit_rate.SetNameTitle(f"{input_file_name}_avg_hit_rate_per_layer", f"{input_file_name}_avg_hit_rate_per_layer")
+draw_hist(h_avg_hit_rate, "Layer", "Average hit rate [MHz/cm^{2}]", f"{input_file_name}_hit_rate_per_layer")
 
-    # convert hits / occupancy to MHz / cm^2
-    scale_factor = 1
-    try:
-        scale_factor *= rate * cm2_to_mm2 / ( det_element_cells[str(int(abs(layer_n)))]*det_element_size[str(int(abs(layer_n)))] )
-    except KeyError:
-        print("Skipping this layer!")
+# Average cell occupancy per layer
+h_avg_occ_cell_per_layer.Scale(scale_factor)
+h_avg_occ_cell_per_layer.Divide(hist_n_cells*hist_cell_size/hist_pixel_size_u/hist_pixel_size_v)
+h_avg_occ_cell_per_layer.SetNameTitle(f"{input_file_name}_avg_occ_per_layer", f"{input_file_name}_avg_occ_per_layer;Layer;Average pixel occupancy per event")
+draw_hist(h_avg_occ_cell_per_layer, "Layer", "Average pixel occupancy per event", f"{input_file_name}_avg_pixel_occupancy_per_layer")
 
-    # Consider additional modifiers
-    for m in multipliers.values():
-        scale_factor *= m
 
-    h_hitRate.SetBinContent(b, counts * scale_factor)
-    h_hitRate.SetBinError(b, error * scale_factor)
-h_hitRate.SetNameTitle("h_hitRatePerLayer", "h_hitRatePerLayer")
 
-# Hit rate per cell (i.e. module in semiconductor detectors)
-layer_bin_counter = 1
-for ln, cells in detector_dict["det_element_cells"].items():
-    for b in range(1, h_hitRate_per_cell[ln].GetNbinsX()):
-        counts = h_hitRate_per_cell[ln].GetBinContent(b)
-        error = h_hitRate_per_cell[ln].GetBinError(b)
+h_avg_hit_rate_per_cell = {}
+h_occ_per_cell = {}
 
-        if((sub_detector=="VertexDisks" and layer_n==0) or (sub_detector=="SiWrD" and layer_n==0)):
-            continue
-            
-        # convert hits / occupancy to MHz / cm^2
-        scale_factor = 1
-        try:
-            scale_factor *= rate * cm2_to_mm2 / det_element_size[str(int(abs(ln)))]
-        except KeyError:
-            print("Skipping this layer!")
-            
-        # Consider additional modifiers
-        for m in multipliers.values():
-            scale_factor *= m
+for i, (ln, cells) in enumerate(detector_dict["det_element_cells"].items()):
+    if is_endcap(detector_type):
+        i_layer_bin = int(ln + len(detector_dict["det_element_cells"])/2) + 1 # to skip layer 0 in case of disk
+    else:
+        i_layer_bin = ln + 1
 
-        h_hitRate_per_cell[ln].SetBinContent(b, counts * scale_factor)
-        h_hitRate_per_cell[ln].SetBinError(b, error * scale_factor)
-        print(f"Layer {ln}, bin {b}, rate: {counts*scale_factor}, maximum under test: {h_hitRateMax.GetBinContent(b)}")
+    # Hit rate per cell (i.e. module in semiconductor detectors)
+    h_avg_hit_rate_per_cell[ln] = input_file.Get(f"h_avg_hits_x_layer{ln}_per_cell_{hits_collection}").Clone()
+    h_avg_hit_rate_per_cell[ln].Scale(rate*cm2_to_mm2*scale_factor/hist_cell_size.GetBinContent(i_layer_bin))
+    h_avg_hit_rate_per_cell[ln].SetNameTitle(f"{input_file_name}_hitRate_layer{ln}_per_cell", f"{input_file_name}_hitRate_layer{ln}_per_cell;Module;Average hit rate per module [MHz/cm^{2}]" )
+    draw_hist(h_avg_hit_rate_per_cell[ln], "Module", "Average hit rate [MHz/cm^{2}]", f"{input_file_name}_hitRate_layer{ln}_per_cell", )
 
-        # Maximal hit rate per cell extraction
-        if(counts * scale_factor > h_hitRateMax.GetBinContent(layer_bin_counter)):
-            h_hitRateMax.SetBinContent(layer_bin_counter, counts * scale_factor)
-            h_hitRateMax.SetBinError(layer_bin_counter, error * scale_factor)
-            print("Higher!")
-            print(h_hitRateMax.GetBinContent(layer_bin_counter))    
-    layer_bin_counter += 1
+    # Extract maximal hit rate per cell
+    h_max_hit_rate.SetBinContent(i_layer_bin, h_avg_hit_rate_per_cell[ln].GetMaximum())
+    h_max_hit_rate.SetBinError(i_layer_bin, h_avg_hit_rate_per_cell[ln].GetBinError(h_avg_hit_rate_per_cell[ln].GetMaximumBin()))
 
-    h_hitRate_per_cell[ln].SetNameTitle(f"h_hitRate_layer{ln}_per_cell_{hits_collection}", f"h_hitRate_layer{ln}_per_cell_{hits_collection};Module;Hit rate per module [MHz/cm^{2}]" )
-h_hitRateMax.SetNameTitle(f"h_hitRateMax_per_cell_{hits_collection}", f"h_hitRateMax_per_cell_{hits_collection};Layer;Maximal hit rate per module [MHz/cm^{2}]")
+    # Occupancy per cell (i.e. pixel occupancy in semiconductor detector)
+    h_occ_per_cell[ln] = input_file.Get(f"h_avg_hits_x_layer{ln}_per_cell_{hits_collection}").Clone()
+    h_occ_per_cell[ln].Scale(scale_factor/(hist_cell_size.GetBinContent(i_layer_bin)/hist_pixel_size_u.GetBinContent(i_layer_bin)/hist_pixel_size_v.GetBinContent(i_layer_bin)))
+    h_occ_per_cell[ln].SetNameTitle(f"{input_file_name}_occ_per_cell_layer{ln}", f"{input_file_name}_occ_per_cell_layer{ln};Module;Pixel occupancy per event" )
+    draw_hist(h_occ_per_cell[ln], "Module", "Pixel occupancy per event", f"{input_file_name}_occ_per_cell_layer{ln}")
 
+    # Extract maximal occupancy per cell
+    h_max_cell_occ.SetBinContent(i_layer_bin, h_occ_per_cell[ln].GetMaximum())
+    h_max_cell_occ.SetBinError(i_layer_bin, h_occ_per_cell[ln].GetBinError(h_occ_per_cell[ln].GetMaximumBin()))
+
+h_max_hit_rate.SetNameTitle(f"{input_file_name}_max_hit_rate_per_cell", f"{input_file_name}_max_hit_rate_per_cell;Layer;Maximal hit rate per module [MHz/cm^{2}]")
+draw_hist(h_max_hit_rate, "Layer", "Maximal hit rate [MHz/cm^{2}]", f"{input_file_name}_max_hit_rate_per_layer")
+
+h_max_cell_occ.SetNameTitle(f"{input_file_name}_max_cell_occupancy", f"{input_file_name}_max_cell_occupancy;Layer;Maximal pixel occupancy per event")
+draw_hist(h_max_cell_occ, "Layer", "Maximal pixel occupancy per event", f"{input_file_name}_max_pixel_occupancy_per_layer")
 
 #######################################
 # Output the results
@@ -215,16 +232,21 @@ tot_bw_msg = f"Total bandwidth = {tot_bw:.2f} GB/s"
 print(tot_bw_msg)
 
 draw_hist(h_bw, "Layer", "Bandwidth [GB/s]", f"{input_file_name}_bw_per_layer", tot_bw_msg)
-draw_hist(h_hitRate, "Layer", "Hit rate [MHz/cm^{2}]", f"{input_file_name}_hitRate_per_layer", log_y=True)
 
 
 # Write the histograms to the output file
 output_file_name = f"{input_file_name}_{output_file_name}.root"
 with ROOT.TFile(output_file_name,"RECREATE") as f:
     h_bw.Write()
-    h_hitRate.Write()
-    h_hitRateMax.Write()
+    h_avg_hit_rate.Write()
+    h_max_hit_rate.Write()
+    h_avg_occ_cell_per_layer.Write()
+    h_max_cell_occ.Write()
+    hist_n_cells.Write()
+    hist_cell_size.Write()
+    hist_pixel_size_u.Write()
+    hist_pixel_size_v.Write()
     for ln, cells in detector_dict["det_element_cells"].items():
-        h_hitRate_per_cell[ln].Write()
-
+        h_avg_hit_rate_per_cell[ln].Write()
+        h_occ_per_cell[ln].Write()
 print("Histograms saved in:", output_file_name)
