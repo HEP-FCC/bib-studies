@@ -132,7 +132,6 @@ hist_pixel_size_v = ROOT.TH1D("hist_pixel_size_v", "Pixel Size V per Layer;Layer
 
 # Fill the histograms with data
 for layer, value in n_cells.items():
-    print(int(layer+1+(len(n_cells)/2 if is_endcap(detector_type) else 0)), value)
     hist_n_cells.SetBinContent(int(layer+1+(len(n_cells)/2 if is_endcap(detector_type) else 0)), value)
 
 for layer, value in sensor_size_map.items():
