@@ -180,6 +180,19 @@ for det_element, cells in detector_dict["det_element_cells"].items():
     layer_cells[ln] = cells
     n_tot_cells += cells
 
+print("Retrieve the number of sensors per module/cell (assuming this is the same everywhere within the layer")
+sensors_per_module_map = {}
+try:
+    for det_element, sensors_per_module in detector_dict["sensors_per_module_map"].items():
+        ln = layer_number_from_string(det_element)
+        sensors_per_module_map[ln] = sensors_per_module
+except KeyError:
+    print("No info on sensors per module found in the detector dictionary. Assuming 1 sensor per module.")
+    for det_element, cells in detector_dict["det_element_cells"].items():
+        ln = layer_number_from_string(det_element)
+        sensors_per_module_map[ln] = 1
+print("Sensors per module map:", sensors_per_module_map)
+
 if not layer_cells:
     print("WARNING: map of cells per layer is empty.")
     n_tot_cells = 1
@@ -313,12 +326,14 @@ for l in layer_cells.keys():
 # Per-cell histograms (e.g. per module in semiconductor detectors)
 h_avg_hits_x_layer_per_cell = {}
 bin_start = 0
+cell_binning = {}
 for l in layer_cells.keys():
-    cell_binning = [layer_cells[l], -0.5 + bin_start, layer_cells[l]-0.5  + bin_start]
-    h_avg_hits_x_layer_per_cell[l] = ROOT.TH1D(f"h_avg_hits_x_layer{l}_per_cell_{collection}", f"h_avg_hits_x_layer{l}_per_cell_{collection};Module ID;Hits / event", *cell_binning)
+    cell_binning[l] = [int(layer_cells[l]/sensors_per_module_map[l]), -0.5 + bin_start, layer_cells[l]/sensors_per_module_map[l]-0.5  + bin_start]
+
+    h_avg_hits_x_layer_per_cell[l] = ROOT.TH1D(f"h_avg_hits_x_layer{l}_per_cell_{collection}", f"h_avg_hits_x_layer{l}_per_cell_{collection};Module ID;Hits / event", *cell_binning[l])
     histograms += [h_avg_hits_x_layer_per_cell[l]]
     if(sub_detector=="VertexBarrel" or sub_detector=="SiWrB"):
-        bin_start += layer_cells[l]
+        bin_start += layer_cells[l]/sensors_per_module_map[l]
 
 # Pile-up histograms
 histograms += [
@@ -571,7 +586,7 @@ if draw_hists:
         for l in h_z_density_vs_layer_mm.keys():
             draw_hist(h_z_density_vs_layer_mm[l], "z [mm]","Hits/event",  sample_name+f"_zDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
             draw_hist(h_phi_density_vs_layer[l],  "phi","Hits/event",  sample_name+f"_phiDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
-            draw_hist(h_xy_density_vs_layer[l], "x [mm]", "y [mm]", sample_name+f"_xyDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection, draw_opt="colz")
+            draw_hist(h_xy_density_vs_layer[l], "x [mm]", "y [mm]", sample_name+f"_xyDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
 
     if integration_time > 1:
         draw_hist(h_tot_pu, "Number of pileup hits", "Entries",  sample_name+"_tot_pu_"+str(n_events)+"evt_"+sub_detector, collection)

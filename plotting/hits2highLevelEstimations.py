@@ -74,17 +74,16 @@ strategy = assumptions_dict["strategy"]
 hit_size = assumptions_dict["hit_size"]
 multipliers = assumptions_dict["multipliers"]
 
+pixel_size_u = simplify_dict(assumptions_dict["pixel_size_u"])
+pixel_size_v = simplify_dict(assumptions_dict["pixel_size_v"])
+print(f"Pixel size u: {pixel_size_u}, pixel size v: {pixel_size_v}")
+
 # Update layer related dictionary to have identical keys
 n_cells = simplify_dict(detector_dict["det_element_cells"])
 print("Number of cells: ",n_cells)
-cell_size = simplify_dict(detector_dict["cell_size"])
-print("Detector cell size [mm]",cell_size)
-pixel_size_u = simplify_dict(detector_dict["pixel_size_u"])
-print("Pixel size in u [mm]: ",pixel_size_u)
-pixel_size_v = simplify_dict(detector_dict["pixel_size_v"])
-print("Pixel size in v [mm]: ",pixel_size_v)
-
-
+sensor_size_map = simplify_dict(detector_dict["sensor_size_map"])
+sensors_per_module_map = simplify_dict(detector_dict["sensors_per_module_map"])
+print(f"Sensor size: {sensor_size_map}, sensors per module: {sensors_per_module_map}")
 
 if isinstance(hit_size, dict):
     hit_size_tmp = simplify_dict(hit_size)
@@ -126,23 +125,33 @@ if is_endcap(detector_type):
     layer_binning = [n_layers + 1, -max_l, +max_l]
 
 
-hist_n_cells = ROOT.TH1D("hist_n_cells", "Number of Cells per Layer;Layer;Number of Cells", *layer_binning)
-hist_cell_size = ROOT.TH1D("hist_cell_size", "Cell Size per Layer;Layer;Cell Size [mm^{2}]", *layer_binning)
+hist_n_cells = ROOT.TH1D("hist_n_cells", "Number of Cells per Layer;Layer;Number of Cells", *layer_binning) # This is the number of sensors in case of semiconductor detectors
+hist_sensor_size = ROOT.TH1D("hist_sensor_size", "Sensor size per Layer;Layer;Sensor size [mm^{2}]", *layer_binning)
+hist_sensors_per_module = ROOT.TH1D("hist_sensors_per_module", "Sensors per module;Layer;Sensors per module", *layer_binning)
 hist_pixel_size_u = ROOT.TH1D("hist_pixel_size_u", "Pixel Size U per Layer;Layer;Pixel Size U [mm]", *layer_binning)
 hist_pixel_size_v = ROOT.TH1D("hist_pixel_size_v", "Pixel Size V per Layer;Layer;Pixel Size V [mm]", *layer_binning)
 
 # Fill the histograms with data
-for i, (entry, value) in enumerate(n_cells.items(), start=1):
-    hist_n_cells.SetBinContent(i+(1 if (is_endcap(detector_type) and i > len(n_cells)/2) else 0), value)
+for layer, value in n_cells.items():
+    print(int(layer+1+(len(n_cells)/2 if is_endcap(detector_type) else 0)), value)
+    hist_n_cells.SetBinContent(int(layer+1+(len(n_cells)/2 if is_endcap(detector_type) else 0)), value)
 
-for i, (entry, value) in enumerate(cell_size.items(), start=1):
-    hist_cell_size.SetBinContent(i+(1 if (is_endcap(detector_type) and i > len(n_cells)/2) else 0), value)
+for layer, value in sensor_size_map.items():
+    hist_sensor_size.SetBinContent(int(layer+1+(len(n_cells)/2 if is_endcap(detector_type) else 0)), value)
 
-for i, (entry, value) in enumerate(pixel_size_u.items(), start=1):
-    hist_pixel_size_u.SetBinContent(i+(1 if (is_endcap(detector_type) and i > len(n_cells)/2) else 0), value)
+for layer, value in sensors_per_module_map.items():
+    hist_sensors_per_module.SetBinContent(int(layer+1+(len(n_cells)/2 if is_endcap(detector_type) else 0)), value)
 
-for i, (entry, value) in enumerate(pixel_size_v.items(), start=1):
-    hist_pixel_size_v.SetBinContent(i+(1 if (is_endcap(detector_type) and i > len(n_cells)/2) else 0), value)
+# Currently not used but kept for future use
+hist_module_size = hist_sensor_size.Clone()
+hist_module_size.Multiply(hist_sensors_per_module)
+hist_module_size.SetNameTitle("hist_module_size", "Module size per Layer;Layer;Module size [mm^{2}]")
+
+for layer, value in pixel_size_u.items():
+    hist_pixel_size_u.SetBinContent(int(layer+1+(len(n_cells)/2 if is_endcap(detector_type) else 0)), value)
+
+for layer, value in pixel_size_v.items():
+    hist_pixel_size_v.SetBinContent(int(layer+1+(len(n_cells)/2 if is_endcap(detector_type) else 0)), value)
 
 
 #######################################
@@ -177,13 +186,13 @@ for m in multipliers.values():
 
 # Average hit rate per layer
 h_avg_hit_rate.Scale(rate*cm2_to_mm2*scale_factor)
-h_avg_hit_rate.Divide(hist_n_cells*hist_cell_size)
+h_avg_hit_rate.Divide(hist_n_cells*hist_sensor_size)
 h_avg_hit_rate.SetNameTitle(f"{input_file_name}_avg_hit_rate_per_layer", f"{input_file_name}_avg_hit_rate_per_layer")
 draw_hist(h_avg_hit_rate, "Layer", "Average hit rate [MHz/cm^{2}]", f"{input_file_name}_hit_rate_per_layer")
 
 # Average cell occupancy per layer
 h_avg_occ_cell_per_layer.Scale(scale_factor)
-h_avg_occ_cell_per_layer.Divide(hist_n_cells*hist_cell_size/hist_pixel_size_u/hist_pixel_size_v)
+h_avg_occ_cell_per_layer.Divide(hist_n_cells*hist_sensor_size/hist_pixel_size_u/hist_pixel_size_v)
 h_avg_occ_cell_per_layer.SetNameTitle(f"{input_file_name}_avg_occ_per_layer", f"{input_file_name}_avg_occ_per_layer;Layer;Average pixel occupancy per event")
 draw_hist(h_avg_occ_cell_per_layer, "Layer", "Average pixel occupancy per event", f"{input_file_name}_avg_pixel_occupancy_per_layer")
 
@@ -200,7 +209,7 @@ for i, (ln, cells) in enumerate(detector_dict["det_element_cells"].items()):
 
     # Hit rate per cell (i.e. module in semiconductor detectors)
     h_avg_hit_rate_per_cell[ln] = input_file.Get(f"h_avg_hits_x_layer{ln}_per_cell_{hits_collection}").Clone()
-    h_avg_hit_rate_per_cell[ln].Scale(rate*cm2_to_mm2*scale_factor/hist_cell_size.GetBinContent(i_layer_bin))
+    h_avg_hit_rate_per_cell[ln].Scale(rate*cm2_to_mm2*scale_factor/hist_module_size.GetBinContent(i_layer_bin))
     h_avg_hit_rate_per_cell[ln].SetNameTitle(f"{input_file_name}_hitRate_layer{ln}_per_cell", f"{input_file_name}_hitRate_layer{ln}_per_cell;Module;Average hit rate per module [MHz/cm^{2}]" )
     draw_hist(h_avg_hit_rate_per_cell[ln], "Module", "Average hit rate [MHz/cm^{2}]", f"{input_file_name}_hitRate_layer{ln}_per_cell", )
 
@@ -210,7 +219,7 @@ for i, (ln, cells) in enumerate(detector_dict["det_element_cells"].items()):
 
     # Occupancy per cell (i.e. pixel occupancy in semiconductor detector)
     h_occ_per_cell[ln] = input_file.Get(f"h_avg_hits_x_layer{ln}_per_cell_{hits_collection}").Clone()
-    h_occ_per_cell[ln].Scale(scale_factor/(hist_cell_size.GetBinContent(i_layer_bin)/hist_pixel_size_u.GetBinContent(i_layer_bin)/hist_pixel_size_v.GetBinContent(i_layer_bin)))
+    h_occ_per_cell[ln].Scale(scale_factor/(hist_module_size.GetBinContent(i_layer_bin)/hist_pixel_size_u.GetBinContent(i_layer_bin)/hist_pixel_size_v.GetBinContent(i_layer_bin)))
     h_occ_per_cell[ln].SetNameTitle(f"{input_file_name}_occ_per_cell_layer{ln}", f"{input_file_name}_occ_per_cell_layer{ln};Module;Pixel occupancy per event" )
     draw_hist(h_occ_per_cell[ln], "Module", "Pixel occupancy per event", f"{input_file_name}_occ_per_cell_layer{ln}")
 
@@ -243,7 +252,9 @@ with ROOT.TFile(output_file_name,"RECREATE") as f:
     h_avg_occ_cell_per_layer.Write()
     h_max_cell_occ.Write()
     hist_n_cells.Write()
-    hist_cell_size.Write()
+    hist_sensor_size.Write()
+    hist_sensors_per_module.Write()
+    hist_module_size.Write()
     hist_pixel_size_u.Write()
     hist_pixel_size_v.Write()
     for ln, cells in detector_dict["det_element_cells"].items():

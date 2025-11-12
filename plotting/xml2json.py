@@ -68,8 +68,10 @@ for subdet_name, sens_det in det.sensitiveDetectors():
     hitsCollection = str(sens_det.hitsCollection)
     print("        hits = ", hitsCollection)
 
-    det_element_cells = get_cells_map(det, subdet, subdet_name)
+    det_element_cells, sensor_size_map, sensors_per_module_map = get_cells_map(det, subdet, subdet_name)
     print("        det_element_cells = ", det_element_cells)
+    print("        sensor_size_map = ", sensor_size_map)
+    print("        sensors_per_module_map = ", sensors_per_module_map)
 
     # Get max dimensions for the subdetector in x,y,z (half-length form 0)
     volume = subdet.volume()
@@ -88,6 +90,8 @@ for subdet_name, sens_det in det.sensitiveDetectors():
             'typeFlag': subdet.typeFlag(),
             'hitsCollection': hitsCollection,
             'det_element_cells': det_element_cells,
+            'sensor_size_map': sensor_size_map,
+            'sensors_per_module_map': sensors_per_module_map,
             'max_z': max_z, 
             'max_r': max_r,
         }

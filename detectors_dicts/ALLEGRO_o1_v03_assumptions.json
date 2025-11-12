@@ -8,6 +8,20 @@
       "layer3": 32,
       "layer4": 32
     },
+    "pixel_size_u": {
+      "layer0": 0.025,
+      "layer1": 0.025,
+      "layer2": 0.025,
+      "layer3": 0.050,
+      "layer4": 0.050
+    },
+    "pixel_size_v": {
+      "layer0": 0.025,
+      "layer1": 0.025,
+      "layer2": 0.025,
+      "layer3": 0.150,
+      "layer4": 0.150
+    },
     "multipliers": {
       "safety_factor": 3,
       "cluster_size": 5
@@ -17,6 +31,22 @@
   "VertexDisks": {
     "strategy": "hit_counts",
     "hit_size": 32,
+    "pixel_size_u": {
+      "layer_-3": 0.050,
+      "layer_-2": 0.050,
+      "layer_-1": 0.050,
+      "layer_1": 0.050,
+      "layer_2": 0.050,
+      "layer_3": 0.050
+    },
+    "pixel_size_v": {
+      "layer_-3": 0.150,
+      "layer_-2": 0.150,
+      "layer_-1": 0.150,
+      "layer_1": 0.150,
+      "layer_2": 0.150,
+      "layer_3": 0.150
+    },
     "multipliers": {
       "safety_factor": 3,
       "cluster_size": 5
@@ -37,6 +67,14 @@
     "multipliers": {
       "safety_factor": 3,
       "cluster_size": 5
+    },
+    "pixel_size_u": {
+      "layer0": 0.050,
+      "layer1": 0.050
+    },
+    "pixel_size_v": {
+      "layer0": 1.000,
+      "layer1": 1.000
     }
   },
 
@@ -46,6 +84,18 @@
     "multipliers": {
       "safety_factor": 3,
       "cluster_size": 5                                                                                                                                                                                                                                                                                                                                                                    
+    },
+    "pixel_size_u": {
+      "layer_-2": 0.050,
+      "layer_-1": 0.050,
+      "layer_1": 0.050,
+      "layer_2": 0.050
+    },
+    "pixel_size_v": {
+      "layer_-2": 1.000,
+      "layer_-1": 1.000,
+      "layer_1": 1.000,
+      "layer_2": 1.000
     }
   },
 
