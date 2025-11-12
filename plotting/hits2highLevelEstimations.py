@@ -74,9 +74,8 @@ strategy = assumptions_dict["strategy"]
 hit_size = assumptions_dict["hit_size"]
 multipliers = assumptions_dict["multipliers"]
 
-pixel_size_u = simplify_dict(assumptions_dict["pixel_size_u"])
-pixel_size_v = simplify_dict(assumptions_dict["pixel_size_v"])
-print(f"Pixel size u: {pixel_size_u}, pixel size v: {pixel_size_v}")
+pixel_size_uv = simplify_dict(assumptions_dict["pixel_size_uv"])
+print(f"Pixel size uv: {pixel_size_uv}")
 
 # Update layer related dictionary to have identical keys
 n_cells = simplify_dict(detector_dict["det_element_cells"])
@@ -147,12 +146,9 @@ hist_module_size = hist_sensor_size.Clone()
 hist_module_size.Multiply(hist_sensors_per_module)
 hist_module_size.SetNameTitle("hist_module_size", "Module size per Layer;Layer;Module size [mm^{2}]")
 
-for layer, value in pixel_size_u.items():
-    hist_pixel_size_u.SetBinContent(int(layer+1+(len(n_cells)/2 if is_endcap(detector_type) else 0)), value)
-
-for layer, value in pixel_size_v.items():
-    hist_pixel_size_v.SetBinContent(int(layer+1+(len(n_cells)/2 if is_endcap(detector_type) else 0)), value)
-
+for layer, value in pixel_size_uv.items():
+    hist_pixel_size_u.SetBinContent(int(layer+1+(len(n_cells)/2 if is_endcap(detector_type) else 0)), value[0])
+    hist_pixel_size_v.SetBinContent(int(layer+1+(len(n_cells)/2 if is_endcap(detector_type) else 0)), value[1])
 
 #######################################
 # convert the counts/occupancy histogram to estimate of high-level properties (bandwidth, hit rate, etc.)
