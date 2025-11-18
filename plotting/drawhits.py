@@ -180,26 +180,22 @@ for det_element, cells in detector_dict["det_element_cells"].items():
     layer_cells[ln] = cells
     n_tot_cells += cells
 
+n_layers = len(layer_cells.keys())
+print(">>>",dict(sorted(layer_cells.items())))
+
 print("Retrieve the number of sensors per module/cell (assuming this is the same everywhere within the layer")
 sensors_per_module_map = {}
-try:
-    for det_element, sensors_per_module in detector_dict["sensors_per_module_map"].items():
-        ln = layer_number_from_string(det_element)
-        sensors_per_module_map[ln] = sensors_per_module
-except KeyError:
-    print("No info on sensors per module found in the detector dictionary. Assuming 1 sensor per module.")
-    for det_element, cells in detector_dict["det_element_cells"].items():
-        ln = layer_number_from_string(det_element)
-        sensors_per_module_map[ln] = 1
-print("Sensors per module map:", sensors_per_module_map)
+if detector_dict.get("sensors_per_module_map") != {}:
+    sensors_per_module_map = simplify_dict(detector_dict["sensors_per_module_map"])
+else:
+    sensors_per_module_map = {i: 1 for i in layer_cells.keys()}  # default to 1 sensor per module
+    print(">>> 'sensors_per_module_map' not found in detector dictionary, assuming 1 sensor per module for all layers.")
+
+print(">>>", sensors_per_module_map)
 
 if not layer_cells:
     print("WARNING: map of cells per layer is empty.")
     n_tot_cells = 1
-
-print(">>>",dict(sorted(layer_cells.items())))
-
-n_layers = len(layer_cells.keys())
 
 if (e_cut or digi) and assumptions == None:
     raise ValueError(f"Given the input settings (e_cut={e_cut}, digi={digi})," +
@@ -252,7 +248,7 @@ r_binning = [int(r_range * 2 / bw_r), -r_range, r_range]  # mm binning
 phi_binning = [int(phi_range * 2 / bw_phi), -phi_range, phi_range ] # rad binning
 if debug>1: print(f"z_binning: {z_binning}, r_binning: {r_binning}, phi_binning: {phi_binning}")
 
-layer_binning = [n_layers, -0.5, n_layers - 0.5]
+layer_binning = [n_layers + 1, -0.5, n_layers + 0.5]
 if is_endcap(detector_type):    # Binning from -negative to positive layer numbers, with a dummy 0 layer in the middle
     max_l = int(n_layers / 2) + 0.5
     layer_binning = [n_layers + 1, -max_l, +max_l]
@@ -311,40 +307,42 @@ histograms += [
 ]
 
 # Hit densities per layer
-h_z_density_vs_layer_mm = {}
-h_phi_density_vs_layer = {}
-h_zphi_density_vs_layer = {}
-h_xy_density_vs_layer = {}
-for l in layer_cells.keys():
-    h_z_density_vs_layer_mm[l] = ROOT.TH1D(f"hist_z_density_vs_layer{l}_mm_{collection}", f"hist_z_density_vs_layer{l}_mm_{collection}", *z_binning)
-    h_phi_density_vs_layer[l] = ROOT.TH1D(f"hist_phi_density_vs_layer{l}_{collection}", f"hist_phi_density_vs_layer{l}_{collection}", *phi_binning)
-    h_zphi_density_vs_layer[l] = ROOT.TH2D(f"hist_zphi_vs_layer{l}_{collection}", f"hist_zphi_vs_layer{l}_"+collection+"; ; ; hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z), *z_binning, *phi_binning)
-    h_xy_density_vs_layer[l] = ROOT.TH2D(f"hist_xy_vs_layer{l}_{collection}", f"hist_xy_vs_layer{l}_{collection};  x (bin=%dmm) ;y (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_r, bw_r,bw_r, bw_r), *r_binning, *r_binning)
+if not skip_plot_per_layer:
+    h_z_density_vs_layer_mm = {}
+    h_phi_density_vs_layer = {}
+    h_zphi_density_vs_layer = {}
+    h_xy_density_vs_layer = {}
+    for l in layer_cells.keys():
+        h_z_density_vs_layer_mm[l] = ROOT.TH1D(f"hist_z_density_vs_layer{l}_mm_{collection}", f"hist_z_density_vs_layer{l}_mm_{collection}", *z_binning)
+        h_phi_density_vs_layer[l] = ROOT.TH1D(f"hist_phi_density_vs_layer{l}_{collection}", f"hist_phi_density_vs_layer{l}_{collection}", *phi_binning)
+        h_zphi_density_vs_layer[l] = ROOT.TH2D(f"hist_zphi_vs_layer{l}_{collection}", f"hist_zphi_vs_layer{l}_"+collection+"; ; ; hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z), *z_binning, *phi_binning)
+        h_xy_density_vs_layer[l] = ROOT.TH2D(f"hist_xy_vs_layer{l}_{collection}", f"hist_xy_vs_layer{l}_{collection};  x (bin=%dmm) ;y (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_r, bw_r,bw_r, bw_r), *r_binning, *r_binning)
 
-    histograms += [h_z_density_vs_layer_mm[l], h_phi_density_vs_layer[l], h_zphi_density_vs_layer[l], h_xy_density_vs_layer[l]]
+        histograms += [h_z_density_vs_layer_mm[l], h_phi_density_vs_layer[l], h_zphi_density_vs_layer[l], h_xy_density_vs_layer[l]]
 
-# Per-cell histograms (e.g. per module in semiconductor detectors)
-h_avg_hits_x_layer_per_cell = {}
-bin_start = 0
-cell_binning = {}
-for l in layer_cells.keys():
-    cell_binning[l] = [int(layer_cells[l]/sensors_per_module_map[l]), -0.5 + bin_start, layer_cells[l]/sensors_per_module_map[l]-0.5  + bin_start]
+    # Per-module histograms
+    h_avg_hits_x_layer_x_module = {}
+    bin_start = 0
+    cell_binning = {}
+    for l in layer_cells.keys():
+        cell_binning[l] = [int(layer_cells[l]/sensors_per_module_map[l]), -0.5 + bin_start, layer_cells[l]/sensors_per_module_map[l]-0.5  + bin_start]
 
-    h_avg_hits_x_layer_per_cell[l] = ROOT.TH1D(f"h_avg_hits_x_layer{l}_per_cell_{collection}", f"h_avg_hits_x_layer{l}_per_cell_{collection};Module ID;Hits / event", *cell_binning[l])
-    histograms += [h_avg_hits_x_layer_per_cell[l]]
-    if(sub_detector=="VertexBarrel" or sub_detector=="SiWrB"):
-        bin_start += layer_cells[l]/sensors_per_module_map[l]
+        h_avg_hits_x_layer_x_module[l] = ROOT.TH1D(f"h_avg_hits_x_layer{l}_x_module_{collection}", f"h_avg_hits_x_layer{l}_x_module_{collection};Module ID;Hits / event", *cell_binning[l])
+        histograms += [h_avg_hits_x_layer_x_module[l]]
+        if(sub_detector=="VertexBarrel" or sub_detector=="SiWrB"):
+            bin_start += layer_cells[l]/sensors_per_module_map[l]
 
+    h_pu_x_layer = {}
+    for l in layer_cells.keys():
+        h_pu_x_layer[l] = ROOT.TH1D(f"h_pu_x_layer{l}_{collection}", f"h_pu_x_layer{l}_{collection}", integration_time+1, -0.5, integration_time+0.5)
+        histograms += [h_pu_x_layer[l]]
+        
 # Pile-up histograms
 histograms += [
     h_tot_pu := ROOT.TH1D(f"h_tot_pu_{collection}", f"h_tot_pu_{collection}", integration_time+1, -0.5, integration_time+0.5),
     h_avg_pu_x_layer := ROOT.TH1D(f"h_avg_pu_x_layer_{collection}", f"h_avg_pu_x_layer_{collection}", *layer_binning)
 ]
 
-h_pu_x_layer = {}
-for l in layer_cells.keys():
-    h_pu_x_layer[l] = ROOT.TH1D(f"h_pu_x_layer{l}_{collection}", f"h_pu_x_layer{l}_{collection}", integration_time+1, -0.5, integration_time+0.5)
-    histograms += [h_pu_x_layer[l]]
 
 if events_per_file==-1: 
     events_per_file = nEvents_fullFileList
@@ -400,7 +398,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         #TODO: Handle better cell_id info
         layer_n = get_layer(cell_id, decoder, sub_detector, detector_type)
         module_n = get_module(cell_id, decoder, sub_detector, detector_type)
-        sensor_n = get_sensor(cell_id, decoder, sub_detector, detector_type)
+        # sensor_n = get_sensor(cell_id, decoder, sub_detector, detector_type)  # not used for now
 
         E_hit_thr = 0
         if isinstance(E_thr_MeV, dict):
@@ -454,7 +452,9 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             if not cell_fired:
                 h_avg_firing_cells_x_layer.Fill(layer_n, fill_weight)
 
-            h_avg_hits_x_layer_per_cell[layer_n].Fill(module_n, fill_weight)
+            if not skip_plot_per_layer:
+                h_avg_hits_x_layer_x_module[layer_n].Fill(module_n, fill_weight)
+
             hist_zr.Fill(z_mm, r_mm, fill_weight)
             hist_xy.Fill(x_mm, y_mm, fill_weight)
             hist_zphi.Fill(z_mm, phi, fill_weight)
@@ -464,7 +464,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
             h_hit_t_corr.Fill(t - (hit_distance / C_MM_NS), fill_weight)
 
-            if layer_cells:
+            if layer_cells and not skip_plot_per_layer:
                 h_z_density_vs_layer_mm[layer_n].Fill(z_mm, fill_weight)
                 h_phi_density_vs_layer[layer_n].Fill(phi, fill_weight)
                 h_zphi_density_vs_layer[layer_n].Fill(z_mm, phi, fill_weight)
@@ -530,10 +530,6 @@ for i,event in enumerate(podio_reader.get(tree_name)):
     processed_events +=1
 # <--- end of the event loop
 
-# Use all fired cells for semiconductor sensors, as quite often there are multiple hits per cellID, with each cellID describing one O(cm^2) large sensor.   
-# This will not be needed anymore once pixel/strip segmentation is added to these detectors in the DD4hep description. Then each pixel has its own cellID.
-
-
 print("Loop done!")
 print(" - Processed events:", processed_events)
 print(" - Processed hits:", processed_hits, 
@@ -586,7 +582,7 @@ if draw_hists:
         for l in h_z_density_vs_layer_mm.keys():
             draw_hist(h_z_density_vs_layer_mm[l], "z [mm]","Hits/event",  sample_name+f"_zDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
             draw_hist(h_phi_density_vs_layer[l],  "phi","Hits/event",  sample_name+f"_phiDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
-            draw_hist(h_xy_density_vs_layer[l], "x [mm]", "y [mm]", sample_name+f"_xyDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
+            draw_hist(h_xy_density_vs_layer[l], "x [mm]", "y [mm]", sample_name+f"_xyDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection, draw_opt="colz")
 
     if integration_time > 1:
         draw_hist(h_tot_pu, "Number of pileup hits", "Entries",  sample_name+"_tot_pu_"+str(n_events)+"evt_"+sub_detector, collection)
