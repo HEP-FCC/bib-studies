@@ -37,6 +37,7 @@ Other useful options are:
 - `-a` / `--assumptions` path to the "assumptions" JSON dictionary
 - `--digi` to use digitzed hits (collection defined in the assumptions dict)
 - `--e_cut` to apply the energy cut (threshold defined in the assumptions dict)
+- `--skip_layers` to skip creating and filling histograms per layer, useful for sub-detectors with many layers (e.g. drift chamber)
 
 Use the `-h` / `--help` flag to print all the available arguments.
 
@@ -78,6 +79,7 @@ Key input arguments:
 - `-d` / `--detDictFile` detector dimensions JSON (produced by `xml2json.py`) to get hits collection and per-layer channel counts.
 - `-a` / `--assumptions` JSON with the bandwidth estimation assumptions: strategy (`hit_counts` or `occupancy`), `hit_size` (number or per-layer dict), and `multipliers` (multiplicative factors).
 - `-r` / `--rate` hit rate in MHz used to scale counts to bandwidth.
+- `--hitRateOccPlots` Use to also plot hit rate and occupancies per module in each layer (for vertex detector or silicon wrapper for example)
 
 Notes:
 - The assumptions JSON must define the chosen `strategy` and `hit_size`. If strategy is `occupancy`, number of cells per layer from the detector JSON are used to convert occupancy to absolute counts before applying hit size and rate.
