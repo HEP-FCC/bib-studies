@@ -25,7 +25,7 @@
 
   "DCH_v2": {
     "strategy": "occupancy",
-    "hit_size": 2,
+    "hit_size": 4,
     "multipliers": {
       "n_samples": 400
     }
@@ -33,7 +33,7 @@
 
   "ECalBarrel": {
     "strategy": "hit_counts",
-    "hit_size": 2,
+    "hit_size": 160,
     "multipliers": {
       "n_samples": 1
     },
@@ -57,7 +57,7 @@
 
   "EMEC_turbine": {
     "strategy": "hit_counts",
-    "hit_size": 2,
+    "hit_size": 160,
     "multipliers": {
       "n_samples": 1
     },
