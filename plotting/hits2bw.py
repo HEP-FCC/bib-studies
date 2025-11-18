@@ -32,6 +32,9 @@ parser.add_argument('-a', '--assumptions',
 parser.add_argument('-r', '--rate',
                   type=float, default=52.,
                   help='hit rate in MHz.')
+parser.add_argument('--digi',
+                  action='store_true',
+                  help='Run on digitized hits.')
 
 options = parser.parse_args()
 
@@ -40,6 +43,7 @@ output_file_name = options.outputFile
 detector_dict_path = options.detDictFile
 assumptions_path = options.assumptions
 rate = options.rate
+digi = options.digi
 
 ######################################
 # style
@@ -67,13 +71,18 @@ input_file = ROOT.TFile(input_file_path, "READ")
 detector_dict = load_json(detector_dict_path, sub_detector)
 assumptions_dict = load_json(assumptions_path, sub_detector)
 
-hits_collection = detector_dict["hitsCollection"]
+if digi:
+    hits_collection = assumptions_dict["digitized_hits"]["collection"]
+else:
+    hits_collection = detector_dict["hitsCollection"]
+
 strategy = assumptions_dict["strategy"]
 hit_size = assumptions_dict["hit_size"]
 multipliers = assumptions_dict["multipliers"]
 
 # Update layer related dictionary to have identical keys
-channels = simplify_dict(detector_dict["det_element_cells"])
+channels = defaultdict(int)
+channels.update(simplify_dict(detector_dict["det_element_cells"]))
 if isinstance(hit_size, dict):
     hit_size_tmp = simplify_dict(hit_size)
 
@@ -94,7 +103,6 @@ match strategy:
         raise AttributeError(f"Unknown strategy defined to compute the bandwidth ({strategy})")
 
 h_bw = input_file.Get(h_name).Clone()
-
 
 #######################################
 # convert the counts/occupancy histogram to BW
