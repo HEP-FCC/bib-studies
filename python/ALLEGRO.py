@@ -135,7 +135,7 @@ def get_cells_map(detector, sub_det, name, skip_pattern = r"(supportTube)|(cryo)
                         # print("   sensor area (mm2): ", area)
                 cells_map[str(de_name)] = sensors
                 sensor_size_map[str(de_name)] = area
-                sensors_per_module_map[str(de_name)] = sensors / modules
+                sensors_per_module_map[str(de_name)] = int(sensors / modules)
 
         case "VertexDisks" | "SiWrD":
             # Rename layers shifting their value by 1
@@ -153,7 +153,7 @@ def get_cells_map(detector, sub_det, name, skip_pattern = r"(supportTube)|(cryo)
                         # print("   sensor area (mm2): ", area)
                 cells_map[str(de_name)] = sensors
                 sensor_size_map[str(de_name)] = area
-                sensors_per_module_map[str(de_name)] = sensors / modules
+                sensors_per_module_map[str(de_name)] = int(sensors / modules)
 
             old_keys = list(cells_map.keys())
             for k in old_keys:
@@ -242,7 +242,10 @@ def get_layer(cell_id, decoder, detector, dtype):
     return
 
 def get_module(cell_id, decoder, detector, dtype):
-    module = decoder.get(cell_id, "module")
+    try:
+        module = decoder.get(cell_id, "module")
+    except:
+        module = 0 # For systems that don't have modules
     return module
 
 def get_sensor(cell_id, decoder, detector, dtype):
