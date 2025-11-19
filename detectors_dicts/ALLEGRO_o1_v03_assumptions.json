@@ -18,7 +18,8 @@
     "multipliers": {
       "safety_factor": 3,
       "cluster_size": 5
-    }
+    },
+    "E_thr_MeV": 0.001800
   },
 
   "VertexDisks": {
@@ -35,7 +36,8 @@
     "multipliers": {
       "safety_factor": 3,
       "cluster_size": 5
-    }
+    },
+    "E_thr_MeV": 0.001800
   },
 
   "DCH_v2": {

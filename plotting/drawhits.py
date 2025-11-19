@@ -262,6 +262,7 @@ histograms += [
     h_hit_r_mm     := ROOT.TH1D("h_hit_r_mm_"+collection    , "h_hit_r_mm_"+collection    +"; [mm] ; hits;",10000, -r_range, r_range),
     h_hit_E_MeV    := ROOT.TH1D("h_hit_E_MeV_"+collection   , "h_hit_E_MeV_"+collection   +"; [MeV]; hits;", 500, 0, 50),
     h_hit_E_keV    := ROOT.TH1D("h_hit_E_keV_"+collection   , "h_hit_E_keV_"+collection   +"; [keV]; hits;", 500, 0, 500),
+    h_hit_E_eV     := ROOT.TH1D("h_hit_E_eV_"+collection    , "h_hit_E_eV_"+collection    +"; [eV]; hits;", 500, 0, 1000),
     h_particle_E   := ROOT.TH1D("h_particle_E_"+collection  , "h_particle_E_"+collection  +"; [E] ; hits;", 500, 0, 50),
     h_particle_pt  := ROOT.TH1D("h_particle_pt_"+collection , "h_particle_pt_"+collection +"; [E/c] ; hits;", 500, 0, 50),
     h_particle_eta := ROOT.TH1D("h_particle_eta_"+collection, "h_particle_eta_"+collection+"; [eta] ; hits;", 100, -5, 5),
@@ -448,6 +449,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             h_hit_r_mm.Fill(r_mm, fill_weight)
             h_hit_E_MeV.Fill(E_hit, fill_weight)
             h_hit_E_keV.Fill(E_hit * 1e3, fill_weight)
+            h_hit_E_eV.Fill(E_hit * 1e6, fill_weight)
             h_avg_hits_x_layer.Fill(layer_n, fill_weight)
             if not cell_fired:
                 h_avg_firing_cells_x_layer.Fill(layer_n, fill_weight)
@@ -557,6 +559,7 @@ if draw_maps:
 if draw_hists: 
     draw_hist(h_hit_E_MeV, "Deposited energy [MeV]", "Hits / events",  sample_name+"_hit_E_MeV_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_hit_E_keV, "Deposited energy [keV]", "Hits / events",  sample_name+"_hit_E_keV_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_E_eV,  "Deposited energy [eV]" , "Hits / events",  sample_name+"_hit_E_eV_"+str(n_events)+"evt_"+sub_detector,  collection)
     draw_hist(h_hit_t, "Timing [ns]", "Hits / events",  sample_name+"_hit_t_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_hit_t_corr, "Timing - TOF [ns]", "Hits / events",  sample_name+"_hit_t_corr_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_avg_hits_x_layer, "Layer number", "Hits / events",  sample_name+"_avg_hits_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
