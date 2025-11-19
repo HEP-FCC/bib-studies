@@ -117,6 +117,8 @@
       "DCH_v2_layer99DE": 768,
       "DCH_v2_layer9DE": 240
     },
+    "sensor_size_map": {},
+    "sensors_per_module_map": {},
     "max_z": 2250,
     "max_r": 2850
   },
@@ -137,6 +139,8 @@
       "layer9": 142080,
       "layer10": 142080
     },
+    "sensor_size_map": {},
+    "sensors_per_module_map": {},
     "max_z": 3100,
     "max_r": 3850
   },
@@ -152,6 +156,8 @@
       "wheel3": 462400,
       "wheel-3": 462400
     },
+    "sensor_size_map": {},
+    "sensors_per_module_map": {},
     "max_z": 3850,
     "max_r": 4110
   },
@@ -178,6 +184,8 @@
       "layer8": 310,
       "layer9": 310
     },
+    "sensor_size_map": {},
+    "sensors_per_module_map": {},
     "max_z": 2800,
     "max_r": 6370
   },
@@ -189,6 +197,8 @@
       "layer_-1": 2275,
       "layer_1": 2275
     },
+    "sensor_size_map": {},
+    "sensors_per_module_map": {},
     "max_z": 5450,
     "max_r": 6370
   },
@@ -200,6 +210,8 @@
       "Calorimeter1": 1,
       "Calorimeter2": 1
     },
+    "sensor_size_map": {},
+    "sensors_per_module_map": {},
     "max_z": 1190,
     "max_r": 160
   },
@@ -211,6 +223,8 @@
       "Calorimeter1": 1,
       "Calorimeter2": 1
     },
+    "sensor_size_map": {},
+    "sensors_per_module_map": {},
     "max_z": 1200,
     "max_r": 210
   },
@@ -222,6 +236,8 @@
       "Calorimeter1": 1,
       "Calorimeter2": 1
     },
+    "sensor_size_map": {},
+    "sensors_per_module_map": {},
     "max_z": 1190,
     "max_r": 210
   },
@@ -233,6 +249,8 @@
       "Calorimeter1": 1,
       "Calorimeter2": 1
     },
+    "sensor_size_map": {},
+    "sensors_per_module_map": {},
     "max_z": 1190,
     "max_r": 190
   },
@@ -244,6 +262,8 @@
       "layer0": 157696.0,
       "layer1": 157696.0
     },
+    "sensor_size_map": {},
+    "sensors_per_module_map": {},
     "max_z": 6000,
     "max_r": 7080
   },
@@ -257,6 +277,8 @@
       "layer1": 78848.0,
       "layer2": 78848.0
     },
+    "sensor_size_map": {},
+    "sensors_per_module_map": {},
     "max_z": 6000,
     "max_r": 6370
   },
@@ -265,8 +287,16 @@
     "typeFlag": 273,
     "hitsCollection": "SiWrBCollection",
     "det_element_cells": {
-      "layer0": 20000,
-      "layer1": 20000
+      "layer_0_side0": 151,
+      "layer_1_side0": 151
+    },
+    "sensor_size_map": {
+      "layer_0_side0": 385920.0,
+      "layer_1_side0": 385920.0
+    },
+    "sensors_per_module_map": {
+      "layer_0_side0": 1,
+      "layer_1_side0": 1
     },
     "max_z": 2400,
     "max_r": 2950
@@ -276,10 +306,22 @@
     "typeFlag": 265,
     "hitsCollection": "SiWrDCollection",
     "det_element_cells": {
-      "layer-2": 7500,
-      "layer-1": 7500,
-      "layer1": 7500,
-      "layer2": 7500
+      "layer-1": 1284,
+      "layer-2": 1244,
+      "layer1": 1284,
+      "layer2": 1244
+    },
+    "sensor_size_map": {
+      "layer-1": 9342.480000000001,
+      "layer-2": 9342.480000000001,
+      "layer1": 9342.480000000001,
+      "layer2": 9342.480000000001
+    },
+    "sensors_per_module_map": {
+      "layer-1": 1,
+      "layer-2": 1,
+      "layer1": 1,
+      "layer2": 1
     },
     "max_z": 2340,
     "max_r": 2890
@@ -295,6 +337,20 @@
       "layer_3_side0": 736,
       "layer_4_side0": 3264
     },
+    "sensor_size_map": {
+      "layer_0_side0": 204.80000000000004,
+      "layer_1_side0": 204.80000000000004,
+      "layer_2_side0": 204.80000000000004,
+      "layer_3_side0": 368.2800000000001,
+      "layer_4_side0": 368.2800000000001
+    },
+    "sensors_per_module_map": {
+      "layer_0_side0": 1,
+      "layer_1_side0": 1,
+      "layer_2_side0": 1,
+      "layer_3_side0": 4,
+      "layer_4_side0": 4
+    },
     "max_z": 360,
     "max_r": 470
   },
@@ -309,6 +365,22 @@
       "layer1": 976,
       "layer2": 992,
       "layer3": 864
+    },
+    "sensor_size_map": {
+      "layer-1": 368.2800000000001,
+      "layer-2": 368.2800000000001,
+      "layer-3": 368.2800000000001,
+      "layer1": 368.2800000000001,
+      "layer2": 368.2800000000001,
+      "layer3": 368.2800000000001
+    },
+    "sensors_per_module_map": {
+      "layer-1": 4,
+      "layer-2": 4,
+      "layer-3": 4,
+      "layer1": 4,
+      "layer2": 4,
+      "layer3": 4
     },
     "max_z": 950,
     "max_r": 420

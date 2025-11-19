@@ -21,18 +21,49 @@ def get_cells_map(detector, sub_det, name, skip_pattern = r"(supportTube)|(cryo)
     re_skip = re.compile(skip_pattern)
 
     cells_map = defaultdict(int)
+    sensor_size_map = defaultdict(float)
+    sensors_per_module_map = defaultdict(int)
+
 
     # N.B. this could be affected from naming scheme changes,
     # will need to keep track also of the geo versions.
     match name:
 
-        case "VertexDisks":
+        case "VertexBarrel" | "SiWrB":
             # Rename layers shifting their value by 1
             # to remove degeneracy of layer 0
             # N.B. this needs to be accounted when reading the layer number
 
             for de_name, de in sub_det.children():
-                cells_map[str(de_name)] = get_cells(de)
+                modules = 0
+                sensors = 0
+                for de_name2, de2 in de.children():
+                    modules += 1
+                    for de_name3, de3 in de2.children():
+                        sensors += 1
+                        area = de3.volume().solid().GetDY()*2.*10.*de3.volume().solid().GetDZ()*2.*10. # Make it to mm and get sensor area in mm2. Assuming each sensor has the same area!
+                        # print("   sensor area (mm2): ", area)
+                cells_map[str(de_name)] = sensors
+                sensor_size_map[str(de_name)] = area
+                sensors_per_module_map[str(de_name)] = int(sensors / modules)
+
+        case "VertexDisks" | "SiWrD":
+            # Rename layers shifting their value by 1
+            # to remove degeneracy of layer 0
+            # N.B. this needs to be accounted when reading the layer number
+
+            for de_name, de in sub_det.children():
+                modules = 0
+                sensors = 0
+                for de_name2, de2 in de.children():
+                    modules += 1
+                    for de_name3, de3 in de2.children():
+                        sensors += 1
+                        area = de3.volume().solid().GetDX()*2.*10.*de3.volume().solid().GetDY()*2.*10. # Make it to mm and get sensor area in mm2. Assuming each sensor has the same area!
+                        # print("   sensor area (mm2): ", area)
+                cells_map[str(de_name)] = sensors
+                sensor_size_map[str(de_name)] = area
+                sensors_per_module_map[str(de_name)] = int(sensors / modules)
 
             old_keys = list(cells_map.keys())
             for k in old_keys:
@@ -42,17 +73,8 @@ def get_cells_map(detector, sub_det, name, skip_pattern = r"(supportTube)|(cryo)
                     ln *= -1
                 new_key = f"layer{ln}"
                 cells_map[new_key] = cells_map.pop(k)
-
-        case "SiWrD":
-            # loop from -2 to 2, skipping 0, to set the layers indices for the endcaps
-            for i in range(-2,3):
-                if i==0: continue
-                cells_map[f"layer{i}"] = 7500  #hardcoding channels per layer for now
-
-        case "SiWrB":
-            # loop from 0 to 1 to set the layers indices for the barrel
-            for i in range(2):
-                cells_map[f"layer{i}"] = 20_000  #hardcoding channels per layer for now, https://arxiv.org/abs/2502.21223v4
+                sensor_size_map[new_key] = sensor_size_map.pop(k)
+                sensors_per_module_map[new_key] = sensors_per_module_map.pop(k)
 
         case _:
             # Loop over detector elements
@@ -64,7 +86,7 @@ def get_cells_map(detector, sub_det, name, skip_pattern = r"(supportTube)|(cryo)
                         continue
                 cells_map[str(de_name)] = get_cells(de)
 
-    return cells_map
+    return cells_map, sensor_size_map, sensors_per_module_map
 
 
 def get_layer(cell_id, decoder, detector, dtype):
@@ -101,3 +123,14 @@ def get_layer(cell_id, decoder, detector, dtype):
 
             return layer
     return
+
+def get_module(cell_id, decoder, detector, dtype):
+    try:
+        module = decoder.get(cell_id, "module")
+    except:
+        module = 0 # For systems that don't have modules
+    return module
+
+def get_sensor(cell_id, decoder, detector, dtype):
+    sensor = decoder.get(cell_id, "sensor")
+    return sensor    

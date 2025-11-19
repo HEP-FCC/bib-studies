@@ -2,11 +2,18 @@
   "VertexBarrel": {
     "strategy": "hit_counts",
     "hit_size": {
-      "layer0": 18,
-      "layer1": 18,
-      "layer2": 18,
-      "layer3": 15,
-      "layer4": 15
+      "layer0": 32,
+      "layer1": 32,
+      "layer2": 32,
+      "layer3": 32,
+      "layer4": 32
+    },
+    "pixel_size_uv": {
+      "layer0": [0.025,0.025],
+      "layer1": [0.025,0.025],
+      "layer2": [0.025,0.025],
+      "layer3": [0.050,0.150],
+      "layer4": [0.050,0.150]
     },
     "multipliers": {
       "safety_factor": 3,
@@ -16,7 +23,15 @@
 
   "VertexDisks": {
     "strategy": "hit_counts",
-    "hit_size": 15,
+    "hit_size": 32,
+    "pixel_size_uv": {
+      "layer_-3": [0.050,0.150],
+      "layer_-2": [0.050,0.150],
+      "layer_-1": [0.050,0.150],
+      "layer_1": [0.050,0.150],
+      "layer_2": [0.050,0.150],
+      "layer_3": [0.050,0.150]
+    },
     "multipliers": {
       "safety_factor": 3,
       "cluster_size": 5
@@ -28,6 +43,34 @@
     "hit_size": 2,
     "multipliers": {
       "n_samples": 400
+    }
+  },
+
+  "SiWrB": {
+    "strategy": "hit_counts",
+    "hit_size": 64,
+    "multipliers": {
+      "safety_factor": 3,
+      "cluster_size": 5
+    },
+    "pixel_size_uv": {
+      "layer0": [0.050, 1.000],
+      "layer1": [0.050, 1.000]
+    }
+  },
+
+  "SiWrD": {
+    "strategy": "hit_counts",
+    "hit_size": 64,
+    "multipliers": {
+      "safety_factor": 3,
+      "cluster_size": 5                                                                                                                                                                                                                                                                                                                                                                    
+    },
+    "pixel_size_uv": {
+      "layer_-2": [0.050,1.000],
+      "layer_-1": [0.050,1.000],
+      "layer_1": [0.050,1.000],
+      "layer_2": [0.050,1.000]
     }
   },
 
