@@ -11,6 +11,12 @@ Preparing and submitting simulations of background samples.
 		- Contains 3989 bunch crossings
 		- Contact: Andrea Ciarma
 
+	- From Jan Eysermans (air in beampipe (but perhaps irrelevant due to:), GuineaPig fix to remove particles within the beampipe)
+  ```
+  /eos/experiment/fcc/users/j/jaeyserm/guineapig/guineapig_samples_CERN_oct25/FCCee_Z_4IP_29may24_FCCee_Z256_2T_grids8
+  /eos/experiment/fcc/users/j/jaeyserm/guineapig/guineapig_samples_CERN_oct25/FCCee_Z_4IP_FSR_FCCee_Z256_2T_grids8
+  ```
+  
 ## Running detector simulation
 ### Prepare your setup
 The configuration used to run the simulation for BIB studies is slightly different than the one used for phyiscs event processing. Mainly because of the following points:
