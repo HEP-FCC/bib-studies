@@ -35,7 +35,12 @@ parser.add_argument('-r', '--rate',
 parser.add_argument('--hitRateOccPlots',
                   action="store_true",
                   help='Create hit rate and pixel occupancy plots (needs pixel size assumption and sensor sizes).')
-                  
+parser.add_argument('--sampleType', 
+                    type=str, 
+                    choices=['IPC', 'SR'],
+                    help='Type of sample simulated, will influence assumed cluster size. Options so far: "IPC" (incoherent pair creation), "SR" (synchrotron radiation). Default: "IPC".',
+                    default='IPC')
+
 options = parser.parse_args()
 
 input_file_path = options.inputFile
@@ -44,6 +49,7 @@ detector_dict_path = options.detDictFile
 assumptions_path = options.assumptions
 rate = options.rate
 do_hitRateOcc_plots = options.hitRateOccPlots
+sample_type = options.sampleType
 
 ######################################
 # style
@@ -77,6 +83,10 @@ hits_collection = detector_dict["hitsCollection"]
 strategy = assumptions_dict["strategy"]
 hit_size = assumptions_dict["hit_size"]
 multipliers = assumptions_dict["multipliers"]
+
+# Filter out dict entries for other sample types (e.g. filter out cluster_size_SR if sample_type 'IPC' is chosen, but keep 'safety_factor' for all samples as it neither contains 'IPC' nor 'SR')
+multipliers = {key: value for key, value in multipliers.items() if (sample_type in key) or all(s not in key for s in parser._option_string_actions['--sampleType'].choices)}
+print("Using multipliers:", multipliers)
 
 # Update layer related dictionary to have identical keys
 layer_cells = simplify_dict(detector_dict["det_element_cells"])

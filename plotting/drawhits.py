@@ -86,6 +86,9 @@ def parse_args():
     parser.add_argument('--e_cut',
                     action='store_true',
                     help='apply energy cut (requires to pass also the assumptions dict with energy threshold).')
+    parser.add_argument('--plot_origin',
+                    action='store_true',
+                    help='plot the origin of the particles of the collection.')
 
     return (parser.parse_args())
 
@@ -112,6 +115,7 @@ integration_time = options.integration_time
 energy_per_layer = options.energy_per_layer
 digi = options.digi
 e_cut = options.e_cut
+plot_origin = options.plot_origin
 
 ######################################
 # style
@@ -300,6 +304,26 @@ histograms += [
     hist_zphi := ROOT.TH2D("hist_zphi_"+collection, "hist_zphi_"+collection+"; phi (bin=%1.2frad) ; z (bin=%dmm); hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z,bw_phi,bw_z), *z_binning, *phi_binning),
 ]
 
+if plot_origin:
+    # Special binning for origin plots (zoom in to MDI region)
+    x_binning_origin = [100, -150, 150]
+    bw_x_origin = 2*150/100
+    y_binning_origin = [100, -150, 150]
+    bw_y_origin = 2*150/100
+    z_binning_origin = [100, -2300, 2300]
+    bw_z_origin = 4600/100
+    r_binning_origin = [150, 0, 150]
+    bw_r_origin = 150/150
+
+    histograms += [
+        hist_origin_zr := ROOT.TH2D("hist_origin_zr_"+collection, "hist_origin_zr_"+collection+";  z (bin=%dmm) ;r (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_origin, bw_r_origin,bw_z_origin, bw_r_origin), *z_binning_origin, *r_binning_origin),
+        hist_origin_zx := ROOT.TH2D("hist_origin_zx_"+collection, "hist_origin_zx_"+collection+";  z (bin=%dmm) ;x (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_origin, bw_x_origin,bw_z_origin, bw_x_origin), *z_binning_origin, *x_binning_origin),
+        hist_origin_xy := ROOT.TH2D("hist_origin_xy_"+collection, "hist_origin_xy_"+collection+";  x (bin=%dmm) ;y (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_x_origin, bw_y_origin,bw_x_origin, bw_y_origin), *x_binning_origin, *y_binning_origin),
+        hist_origin_zphi := ROOT.TH2D("hist_origin_zphi_"+collection, "hist_origin_zphi_"+collection+"; phi (bin=%1.2frad) ; z (bin=%dmm); hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z_origin,bw_phi,bw_z_origin), *z_binning_origin, *phi_binning)
+    ]
+
+
+    
 # Timing histograms
 histograms += [
     h_hit_t := ROOT.TH1D("hist_hit_t_"+collection, "hist_hit_t_"+collection, 200, 0, 20),
@@ -461,6 +485,16 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             hist_xy.Fill(x_mm, y_mm, fill_weight)
             hist_zphi.Fill(z_mm, phi, fill_weight)
 
+            if plot_origin:
+                origin_vertex = hit.getParticle().getVertex()
+                origin_vertex_r = math.sqrt(math.pow(origin_vertex.x,2) + math.pow(origin_vertex.y,2))
+                # print(hit.getParticle().getGeneratorStatus())
+                # if hit.getParticle().getGeneratorStatus() == 0:
+                hist_origin_zr.Fill(origin_vertex.z, origin_vertex_r, fill_weight)
+                hist_origin_zx.Fill(origin_vertex.z, origin_vertex.x, fill_weight)
+                hist_origin_xy.Fill(origin_vertex.x, origin_vertex.y, fill_weight)
+                hist_origin_zphi.Fill(origin_vertex.z, math.atan2(origin_vertex.y, origin_vertex.x), fill_weight)
+
             h_hit_t.Fill(t, fill_weight)
             h_hit_t_x_layer.Fill(t, layer_n, fill_weight)
 
@@ -555,6 +589,12 @@ if draw_maps:
     if not skip_plot_per_layer:
         for l, h in h_zphi_density_vs_layer.items():
             draw_map(h, "z [mm]", "#phi [rad]", sample_name+f"_map_zphi_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
+
+if plot_origin:
+    draw_map(hist_origin_zr, "z [mm]", "r [mm]", sample_name+"_map_origin_zr_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_origin_zx, "z [mm]", "x [mm]", sample_name+"_map_origin_zx_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_origin_xy, "x [mm]", "y [mm]", sample_name+"_map_origin_xy_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_origin_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_origin_zphi_"+str(n_events)+"evt_"+sub_detector, collection)
 
 if draw_hists: 
     draw_hist(h_hit_E_MeV, "Deposited energy [MeV]", "Hits / events",  sample_name+"_hit_E_MeV_"+str(n_events)+"evt_"+sub_detector, collection)

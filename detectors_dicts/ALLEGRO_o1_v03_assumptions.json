@@ -17,7 +17,8 @@
     },
     "multipliers": {
       "safety_factor": 3,
-      "cluster_size": 5
+      "cluster_size_IPC": 5,
+      "cluster_size_SR": 2
     },
     "E_thr_MeV": 0.001800
   },
@@ -35,7 +36,8 @@
     },
     "multipliers": {
       "safety_factor": 3,
-      "cluster_size": 5
+      "cluster_size_IPC": 5,
+      "cluster_size_SR": 2
     },
     "E_thr_MeV": 0.001800
   },
@@ -53,7 +55,8 @@
     "hit_size": 64,
     "multipliers": {
       "safety_factor": 3,
-      "cluster_size": 5
+      "cluster_size_IPC": 5,
+      "cluster_size_SR": 2
     },
     "pixel_size_uv": {
       "layer0": [0.050, 1.000],
@@ -66,7 +69,8 @@
     "hit_size": 64,
     "multipliers": {
       "safety_factor": 3,
-      "cluster_size": 5                                                                                                                                                                                                                                                                                                                                                                    
+      "cluster_size_IPC": 5,
+      "cluster_size_SR": 2
     },
     "pixel_size_uv": {
       "layer_-2": [0.050,1.000],
