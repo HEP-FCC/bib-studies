@@ -32,6 +32,8 @@ parser.add_argument('-n', '--n_max_jobs', default=-1, type=int,
                     help='Maximum number of jobs.')
 parser.add_argument('-c', '--compactFile', default="$K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml", type=str,
                     help='Detector geometry.')
+parser.add_argument('-s', '--steering_file', default=None, type=str,
+                    help='Path to steering file (if not given, attempt to find default from $FCCConfig.')
 parser.add_argument('-k', '--k4geo', default=None, type=str,
                     help='Path to custom k4geo.')
 parser.add_argument('--crossingAngleBoost', default=0.015, type=str,
@@ -82,7 +84,7 @@ k4_local_repo
 cd -
 """
 
-# Path to steering files
+# Path to steering files (skipped if -s option set)
 steering_dict = {
     "IDEA_o1_v03":  "$FCCCONFIG/share/FCC-config/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py"
 }
@@ -120,10 +122,13 @@ def run(args):
 
     # Check if a steering file is required
     steering_opt = ""
-    if geo in steering_dict:
-        steering_path = steering_dict[geo]
-        print("Including steering file: ", steering_path)
-        steering_opt = f"--steeringFile {steering_path}"
+    if args.steering_file:
+        steering_opt = "--steeringFile "+args.steering_file
+    else:
+        if geo in steering_dict:
+            steering_path = steering_dict[geo]
+            print("Including steering file: ", steering_path)
+            steering_opt = f"--steeringFile {steering_path}"
 
     # Setup the bash executables scripts
     print("Preparing submission for:")
