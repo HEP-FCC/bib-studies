@@ -4,18 +4,20 @@ Preparing and submitting simulations of background samples.
 
 ## List of available BIB generated samples
 
-- Injection background and beam gas: see [here](https://cernbox.cern.ch/files/link/public/VzSH9kK1VCZl0dK?items-per-page=100&files-public-link-view-mode=resource-table&tiles-size=2) and the associated README which describes the various samples
-	- Contact: Giulia Nigrelli
-- Incoherent Pair Creation:
-	- Lattice v23, particles vertex manually set to (0,0,0): `/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23_vtx000/data*`
-		- Contains 3989 bunch crossings
-		- Contact: Andrea Ciarma
+All the supported samples are stored in the Machine-Detector Interface (MDI) EOS space:
+```
+/eos/project/f/fcc-ee-mdi/BIB/
+```
 
-	- From Jan Eysermans (air in beampipe (but perhaps irrelevant due to:), GuineaPig fix to remove particles within the beampipe)
-  ```
-  /eos/experiment/fcc/users/j/jaeyserm/guineapig/guineapig_samples_CERN_oct25/FCCee_Z_4IP_29may24_FCCee_Z256_2T_grids8
-  /eos/experiment/fcc/users/j/jaeyserm/guineapig/guineapig_samples_CERN_oct25/FCCee_Z_4IP_FSR_FCCee_Z256_2T_grids8
-  ```
+For information on the organisation of that directory, please refer to the README.md:
+```
+/eos/project/f/fcc-ee-mdi/BIB/README.md
+```
+also accessible through [this CERN Box link](https://cernbox.cern.ch/files/spaces/eos/project/f/fcc-ee-mdi/BIB/README.md).
+That file contains the list of reference samples to be used for the various beam background sources
+and the respective contact persons.
+
+
   
 ## Running detector simulation
 ### Prepare your setup
