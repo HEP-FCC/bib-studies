@@ -264,10 +264,16 @@ histograms += [
     h_hit_r_mm     := ROOT.TH1D("h_hit_r_mm_"+collection    , "h_hit_r_mm_"+collection    +"; [mm] ; hits;",10000, -r_range, r_range),
     h_hit_E_MeV    := ROOT.TH1D("h_hit_E_MeV_"+collection   , "h_hit_E_MeV_"+collection   +"; [MeV]; hits;", 500, 0, 50),
     h_hit_E_keV    := ROOT.TH1D("h_hit_E_keV_"+collection   , "h_hit_E_keV_"+collection   +"; [keV]; hits;", 500, 0, 500),
-    h_particle_E   := ROOT.TH1D("h_particle_E_"+collection  , "h_particle_E_"+collection  +"; [E] ; hits;", 500, 0, 50),
-    h_particle_pt  := ROOT.TH1D("h_particle_pt_"+collection , "h_particle_pt_"+collection +"; [E/c] ; hits;", 500, 0, 50),
-    h_particle_eta := ROOT.TH1D("h_particle_eta_"+collection, "h_particle_eta_"+collection+"; [eta] ; hits;", 100, -5, 5),
+    h_hit_particle_E   := ROOT.TH1D("h_hit_particle_E_"+collection  , "h_hit_particle_E_"+collection  +"; [E] ; hits;", 500, 0, 50),
+    h_hit_particle_pt  := ROOT.TH1D("h_hit_particle_pt_"+collection , "h_hit_particle_pt_"+collection +"; [E/c] ; hits;", 500, 0, 50),
+    h_hit_particle_eta := ROOT.TH1D("h_hit_particle_eta_"+collection, "h_hit_particle_eta_"+collection+"; [eta] ; hits;", 100, -5, 5),
 ]
+
+# ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
+histograms += [ h_hit_particle_ID := ROOT.TH1D("h_hit_particle_ID_"+collection, "h_hit_particle_ID_"+collection, 1, 0, 1) ]
+h_hit_particle_ID.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
+histograms += [ h_hit_particle_ID_E_MeV := ROOT.TH2D("h_hit_particle_ID_E_MeV_"+collection, "h_hit_particle_ID_E_MeV_"+collection, 1, 0, 1, 500, 0, 50) ]
+h_hit_particle_ID_E_MeV.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
 
 h_hit_E_MeV_x_layer = {}
 if energy_per_layer:
@@ -275,11 +281,19 @@ if energy_per_layer:
         h_hit_E_MeV_x_layer[l] = ROOT.TH1D(f"h_hit_E_MeV_layer{l}_{collection}", f"h_hit_E_MeV_layer{l}_{collection}; hit energy [MeV]", 500, 0, 50)
         histograms += [h_hit_E_MeV_x_layer[l]]
 
-# ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
-histograms += [ h_particle_ID := ROOT.TH1D("h_particle_ID_"+collection, "h_particle_ID_"+collection, 1, 0, 1) ]
-h_particle_ID.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
-histograms += [ h_particle_ID_E_MeV := ROOT.TH2D("h_particle_ID_E_MeV_"+collection, "h_particle_ID_E_MeV_"+collection, 1, 0, 1, 500, 0, 50) ]
-h_particle_ID_E_MeV.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
+# Hit maps definitions
+histograms += [
+    hit_zr := ROOT.TH2D("hit_zr_"+collection, "hit_zr_"+collection+";  z (bin=%dmm) ;r (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z, bw_r,bw_z, bw_r), *z_binning, *r_binning),
+    hit_xy := ROOT.TH2D("hit_xy_"+collection, "hit_xy_"+collection+";  x (bin=%dmm) ;y (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_r, bw_r,bw_r, bw_r), *r_binning, *r_binning),
+    hit_zphi := ROOT.TH2D("hit_zphi_"+collection, "hit_zphi_"+collection+"; phi (bin=%1.2frad) ; z (bin=%dmm); hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z,bw_phi,bw_z), *z_binning, *phi_binning),
+]
+
+# Timing histograms
+histograms += [
+    h_hit_t := ROOT.TH1D("hist_hit_t_"+collection, "hist_hit_t_"+collection, 200, 0, 20),
+    h_hit_t_x_layer := ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collection+"; ; ; hits / events", 200, 0, 20, *layer_binning),
+    h_hit_t_corr := ROOT.TH1D("hist_hit_t_corr_"+collection, "hist_hit_t_corr_"+collection, 200, -10, 10),
+]
 
 histograms += [
     h_avg_hits_x_layer := ROOT.TH1D("h_avg_hits_x_layer_"+collection, "h_avg_hits_x_layer_"+collection+";layer index;avg hits/evt", *layer_binning),
@@ -296,19 +310,6 @@ for l in layer_cells.keys():
     histograms += [h_occ_x_layer[l]]
 histograms += [ h_occ := ROOT.TH1D(f"h_occ_tot_{collection}", f"h_occ_tot_{collection} ; total fired cells / total layer cells [%]", len(log_bins)-1, log_bins) ]
 
-# Hit maps definitions
-histograms += [
-    hist_zr := ROOT.TH2D("hist_zr_"+collection, "hist_zr_"+collection+";  z (bin=%dmm) ;r (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z, bw_r,bw_z, bw_r), *z_binning, *r_binning),
-    hist_xy := ROOT.TH2D("hist_xy_"+collection, "hist_xy_"+collection+";  x (bin=%dmm) ;y (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_r, bw_r,bw_r, bw_r), *r_binning, *r_binning),
-    hist_zphi := ROOT.TH2D("hist_zphi_"+collection, "hist_zphi_"+collection+"; phi (bin=%1.2frad) ; z (bin=%dmm); hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z,bw_phi,bw_z), *z_binning, *phi_binning),
-]
-
-# Timing histograms
-histograms += [
-    h_hit_t := ROOT.TH1D("hist_hit_t_"+collection, "hist_hit_t_"+collection, 200, 0, 20),
-    h_hit_t_x_layer := ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collection+"; ; ; hits / events", 200, 0, 20, *layer_binning),
-    h_hit_t_corr := ROOT.TH1D("hist_hit_t_corr_"+collection, "hist_hit_t_corr_"+collection, 200, -10, 10),
-]
 
 # Hit densities per layer
 if not skip_plot_per_layer:
@@ -459,9 +460,9 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             if not skip_plot_per_layer:
                 h_avg_hits_x_layer_x_module[layer_n].Fill(module_n, fill_weight)
 
-            hist_zr.Fill(z_mm, r_mm, fill_weight)
-            hist_xy.Fill(x_mm, y_mm, fill_weight)
-            hist_zphi.Fill(z_mm, phi, fill_weight)
+            hit_zr.Fill(z_mm, r_mm, fill_weight)
+            hit_xy.Fill(x_mm, y_mm, fill_weight)
+            hit_zphi.Fill(z_mm, phi, fill_weight)
 
             h_hit_t.Fill(t, fill_weight)
             h_hit_t_x_layer.Fill(t, layer_n, fill_weight)
@@ -483,12 +484,12 @@ for i,event in enumerate(podio_reader.get(tree_name)):
                 particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
 
                 # Fill MC particle histograms
-                h_particle_E.Fill(particle_p4.E(), fill_weight)
-                h_particle_pt.Fill(particle_p4.pt(), fill_weight)
-                h_particle_eta.Fill(particle_p4.eta(), fill_weight)
+                h_hit_particle_E.Fill(particle_p4.E(), fill_weight)
+                h_hit_particle_pt.Fill(particle_p4.pt(), fill_weight)
+                h_hit_particle_eta.Fill(particle_p4.eta(), fill_weight)
                 pdg=particle.getPDG()
-                h_particle_ID.Fill(Particle.from_pdgid(pdg).name+"["+str(pdg)+"]", fill_weight)
-                h_particle_ID_E_MeV.Fill(Particle.from_pdgid(pdg).name, particle_p4.E(), fill_weight)
+                h_hit_particle_ID.Fill(Particle.from_pdgid(pdg).name+"["+str(pdg)+"]", fill_weight)
+                h_hit_particle_ID_E_MeV.Fill(Particle.from_pdgid(pdg).name, particle_p4.E(), fill_weight)
 
             # Monitor in channels that are integrating signal
             if integration_time > 1:
@@ -551,9 +552,9 @@ if integration_time > 1:
 
 # Draw the histograms
 if draw_maps:
-    draw_map(hist_zr, "z [mm]", "r [mm]", sample_name+"_map_zr_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_map(hist_xy, "x [mm]", "y [mm]", sample_name+"_map_xy_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_map(hist_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_zphi_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hit_zr, "z [mm]", "r [mm]", sample_name+"_map_zr_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hit_xy, "x [mm]", "y [mm]", sample_name+"_map_xy_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hit_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_zphi_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_map(h_hit_t_x_layer, "timing [ns]", "layer number", sample_name+"_map_timing_"+str(n_events)+"evt_"+sub_detector, collection)
 
     if not skip_plot_per_layer:
@@ -577,12 +578,12 @@ if draw_hists:
         for l, h in h_occ_x_layer.items():
             draw_hist(h, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_x_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
 
-    draw_hist(h_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_particle_E_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_particle_pt_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_particle_eta, "MC particle #eta", "Particle / events",  sample_name+"_particle_eta_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_particle_E_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_particle_pt_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_particle_eta, "MC particle #eta", "Particle / events",  sample_name+"_particle_eta_"+str(n_events)+"evt_"+sub_detector, collection)
 
-    h_particle_ID.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
-    draw_hist(h_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
+    h_hit_particle_ID.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
+    draw_hist(h_hit_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
 
     if not skip_plot_per_layer:
         for l in h_z_density_vs_layer_mm.keys():
