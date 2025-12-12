@@ -5,19 +5,15 @@ Preparing and submitting simulations of background samples.
 ## List of available BIB generated samples
 
 All the supported samples are stored in the Machine-Detector Interface (MDI) EOS space:
-```
+```sh
 /eos/project/f/fcc-ee-mdi/BIB/
+#see readme in the folder for more info
 ```
 
-For information on the organisation of that directory, please refer to the README.md:
-```
-/eos/project/f/fcc-ee-mdi/BIB/README.md
-```
 also accessible through [this CERN Box link](https://cernbox.cern.ch/files/spaces/eos/project/f/fcc-ee-mdi/BIB/README.md).
+
 That file contains the list of reference samples to be used for the various beam background sources
 and the respective contact persons.
-
-
   
 ## Running detector simulation
 ### Prepare your setup
