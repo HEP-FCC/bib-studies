@@ -10,6 +10,8 @@ import argparse
 from podio import root_io
 import ROOT
 
+from particle import Particle
+
 from constants import C_MM_NS
 from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict, is_calo, is_endcap, DetFilePath
 from visualization import setup_root_style, draw_hist, draw_map
@@ -276,6 +278,8 @@ if energy_per_layer:
 # ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
 histograms += [ h_particle_ID := ROOT.TH1D("h_particle_ID_"+collection, "h_particle_ID_"+collection, 1, 0, 1) ]
 h_particle_ID.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
+histograms += [ h_particle_ID_E_MeV := ROOT.TH2D("h_particle_ID_E_MeV_"+collection, "h_particle_ID_E_MeV_"+collection, 1, 0, 1, 500, 0, 50) ]
+h_particle_ID_E_MeV.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
 
 histograms += [
     h_avg_hits_x_layer := ROOT.TH1D("h_avg_hits_x_layer_"+collection, "h_avg_hits_x_layer_"+collection+";layer index;avg hits/evt", *layer_binning),
@@ -482,7 +486,9 @@ for i,event in enumerate(podio_reader.get(tree_name)):
                 h_particle_E.Fill(particle_p4.E(), fill_weight)
                 h_particle_pt.Fill(particle_p4.pt(), fill_weight)
                 h_particle_eta.Fill(particle_p4.eta(), fill_weight)
-                h_particle_ID.Fill(str(particle.getPDG()), fill_weight)
+                pdg=particle.getPDG()
+                h_particle_ID.Fill(Particle.from_pdgid(pdg).name+"["+str(pdg)+"]", fill_weight)
+                h_particle_ID_E_MeV.Fill(Particle.from_pdgid(pdg).name, particle_p4.E(), fill_weight)
 
             # Monitor in channels that are integrating signal
             if integration_time > 1:
