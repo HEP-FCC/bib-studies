@@ -115,8 +115,9 @@ but only a `.dat` version of it. In that case, the `--do_dat` flag might be need
 
 ### submit_pairs.py
 
-Set up the condor (or local) submission of simulation jobs of 
-IPC background files.
+How to set up the condor (or local) submission of simulation jobs of 
+IPC background files:
+
 At the moment, `.pairs` files contain a single event
 and `ddsim` can process only one of them at the time.
 The  `submit_pairs.py` script generates at list of bash scripts
@@ -126,7 +127,7 @@ After the preparation is done, the command to launch the jobs
 
 Example usage command:
 ```sh
-#important note: this fccsetup version should be the same with the later one used to submit_pairs, otherwise MIGHT get ROOT or other mismatch errors
+#important note: this fccsetup version should be the same with the earlier one used to compile k4geo, otherwise MIGHT get ROOT or other mismatch errors
 submit_pairs.py --tag IDEA_my_test --compactFile $K4GEO/FCCee/IDEA/compact/IDEA_o1_v03/IDEA_o1_v03.xml -n 10
 ```
 which will prepare the submission for 10 events (jobs),
@@ -135,10 +136,22 @@ All the available geometries are stored in the
 [`k4geo`](https://github.com/key4hep/k4geo/tree/main)
 repository.
 
-
 If a custom variation of the standard geometry 
 tha requires recompiling k4geo is needed,
 specify the path to the local build with the `--k4geo` flag.
+
+Example running on Jan's recent files 
+```sh
+#
+submit_pairs.py \
+-i /eos/experiment/fcc/users/j/jaeyserm/guineapig/guineapig_samples_CERN_oct25/FCCee_Z_4IP_FSR_FCCee_Z256_2T_grids8 \
+-t ALLEGRO_FSR_FCCee_Z256_2T_grids8 \
+-n 10 \
+-c $K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml \
+-o /eos/home-s/sfranche/FCC/samples/bib/ipc/jaeyserm_Z_4IP_FSR_FCCee_Z256_2T_grids8 \
+-s /eos/home-a/aikoulou/fcc_workdir/bib-studies/plotting/mySteeringFile.py \
+--k4geo /eos/user/a/aikoulou/fcc_workdir/k4geo/
+```
 
 All the available options can be seen using the `-h` flag.
 For example the default input path is currently:
