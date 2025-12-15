@@ -10,14 +10,12 @@ Preparing and submitting simulations of background samples.
 /eos/project/f/fcc-ee-mdi/BIB/
 #see readme in the folder for more info
 ```
+also accessible through [this CERN Box link](https://cernbox.cern.ch/files/spaces/eos/project/f/fcc-ee-mdi/BIB). See readme in the folder for sample definitions and contact persons.
 
-also accessible through [this CERN Box link](https://cernbox.cern.ch/files/spaces/eos/project/f/fcc-ee-mdi/BIB).
-
-That file contains the list of reference samples to be used for the various beam background sources
-and the respective contact persons.
-  
 ## Running detector simulation
+
 ### Prepare your setup
+
 The configuration used to run the simulation for BIB studies is slightly different than the one used for phyiscs event processing. Mainly because of the following points:
 - We need a detailed modeling of the MDI elements --> we use the (slow and imperfect) CAD based beampipe
 - Due to technical difficulties, their is air inside the CAD beampipe --> we use a temporary workaround setting the world volume as vacuum while waiting for a better solution
@@ -37,30 +35,32 @@ make install -j 8
 cd ..
 k4_local_repo
 ```
+
 Now let's switch to the CAD beampipe, and set vacuum everywhere (ALLEGRO is taken as an example but it works the same way for other detectors):
 - comment out [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml#L34-L35)
 - and un-comment [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml#L40-L41)
+- IFF running CLD:
+  - also need to comment out [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/CLD/compact/CLD_o2_v08/CLD_o2_v08.xml#L401-L415) to remove the analytical compensating solenoid field which is taken from a map in the above MDI import.
+  - You also need to add some material to the detector list of materials (see e.g. [here](https://github.com/key4hep/k4geo/pull/534/commits/2a2ea2591db1473d294af5c432f99aac74b8dea7#diff-f42d88422d9f50cb0863b6f08f2640a9e5cbcb9ac2ae01145642105d9fe9387d)).
+- **enable detailed EM treatment in Geant4** by applying the following changes to the `ddsim` steering file
+  - (if you do not already use a `ddsim` steering file, you can create the default one with `ddsim --dumpSteeringFile > mySteeringFile.py`):
+  - Change the physics list to `SIM.physics.list = "FTFP_BERT_EMZ"`
+  - Change the range cut: `SIM.physics.rangecut = 0.05*mm`
+  - Remove the energy threshold for tracker hits: `SIM.filter.tracker = "edep0"`
+  - At the bottom of the file, change the Geant4 UI configure commands to: `SIM.ui.commandsConfigure = ["/cuts/setLowEdge 50 eV", "/process/em/lowestElectronEnergy 1 eV", "/process/em/auger true" , "/process/em/deexcitationIgnoreCut true"]`
+- For some BIB (e.g. IPC), the **boost due to the crossing angle has to be applied**:
+  - At the beginning of the file, use: `SIM.crossingAngleBoost = 0.015`
+  - (boost depends on BIB generation => contact responsible/creator if in doubt)
 
-NB: for CLD, you further need to comment out [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/CLD/compact/CLD_o2_v08/CLD_o2_v08.xml#L401-L415) to remove the analytical compensating solenoid field which is taken from a map in the above MDI import. You also need to add some material to the detector list of materials (see e.g. [here](https://github.com/key4hep/k4geo/pull/534/commits/2a2ea2591db1473d294af5c432f99aac74b8dea7#diff-f42d88422d9f50cb0863b6f08f2640a9e5cbcb9ac2ae01145642105d9fe9387d)).
-
-And **enable detailed EM treatment in Geant4** by applying the following changes to the `ddsim` steering file (if you do not already use a `ddsim` steering file, you can create the default one with `ddsim --dumpSteeringFile > mySteeringFile.py`):
-- Change the physics list to `SIM.physics.list = "FTFP_BERT_EMZ"`
-- Change the range cut: `SIM.physics.rangecut = 0.05*mm`
-- Remove the energy threshold for tracker hits: `SIM.filter.tracker = "edep0"`
-- At the bottom of the file, change the Geant4 UI configure commands to: `SIM.ui.commandsConfigure = ["/cuts/setLowEdge 50 eV", "/process/em/lowestElectronEnergy 1 eV", "/process/em/auger true" , "/process/em/deexcitationIgnoreCut true"]`
-
-Finally, for some BIB (e.g. IPC), the **boost due to the crossing angle has to be applied**:
-- At the beginning of the file, use: `SIM.crossingAngleBoost = 0.015`
-
-Whether or not to apply this boost depends on how the BIB was actually generated, reach out to the contact of the sample you plan to simulate in case of doubt.
-
-NB: centrally maintained steering files are available for IDEA in [`FCC-Config`](https://github.com/HEP-FCC/FCC-config), which is included in the `key4hep` software stack and accessible with the environment variable `$FCCCONFIG`. For example, the [IDEA_o1_v03](https://github.com/HEP-FCC/FCC-config/blob/main/FCCee/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py) steering file can file can be passed to the ddsim command with:
+Regarding steering files:
+- centrally maintained in [`FCC-Config`](https://github.com/HEP-FCC/FCC-config), which is included in the `key4hep` software stack and accessible with the environment variable `$FCCCONFIG`
+- Example: [IDEA_o1_v03](https://github.com/HEP-FCC/FCC-config/blob/main/FCCee/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py) can be used with:
 ```bash
 ddsim --steeringFile $FCCCONFIG/share/FCC-config/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py ...
 # or for the nightlies
 ddsim --steeringFile $FCCCONFIG/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py ...
 ```
-For CLD, the centrally maintained steering file lives [here](https://github.com/key4hep/CLDConfig/blob/main/CLDConfig/cld_steer.py) and can be accessed through `$CLDCONFIG`.
+- Note: For CLD, the centrally maintained steering file lives [here](https://github.com/key4hep/CLDConfig/blob/main/CLDConfig/cld_steer.py) and can be accessed through `$CLDCONFIG`.
 
 ### Run the simulation
 
