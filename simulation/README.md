@@ -152,8 +152,5 @@ where `XYZ` is an event number.
 
 TODO: add docu
 
-## List of samples
-
-TODO: add list/table
 
 
