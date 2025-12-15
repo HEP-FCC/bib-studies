@@ -142,7 +142,7 @@ specify the path to the local build with the `--k4geo` flag.
 
 Example running on Jan's recent files 
 ```sh
-#
+# lxplus!!
 submit_pairs.py \
 -i /eos/experiment/fcc/users/j/jaeyserm/guineapig/guineapig_samples_CERN_oct25/FCCee_Z_4IP_FSR_FCCee_Z256_2T_grids8 \
 -t ALLEGRO_FSR_FCCee_Z256_2T_grids8 \
