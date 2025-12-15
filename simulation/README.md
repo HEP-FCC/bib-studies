@@ -149,6 +149,11 @@ but can be modified specifying `--input <your/path>`,
 which should contain files with a naming format: `your/path/*_XYZ.pairs`,
 where `XYZ` is an event number.
 
+----
+```sh
+condor_q #shows idle/running jobs
+```
+
 
 ## Calorimeter calibration
 
