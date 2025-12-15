@@ -10,7 +10,7 @@ All the supported samples are stored in the Machine-Detector Interface (MDI) EOS
 #see readme in the folder for more info
 ```
 
-also accessible through [this CERN Box link](https://cernbox.cern.ch/files/spaces/eos/project/f/fcc-ee-mdi/BIB/README.md).
+also accessible through [this CERN Box link](https://cernbox.cern.ch/files/spaces/eos/project/f/fcc-ee-mdi/BIB).
 
 That file contains the list of reference samples to be used for the various beam background sources
 and the respective contact persons.
