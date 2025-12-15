@@ -27,6 +27,7 @@ Here is a **full recipe to run the simulation** in the appropriate conditions fo
 ```bash
 # connect to an Alma9 machine with cvmfs mounted
 source /cvmfs/sw.hsf.org/key4hep/setup.sh
+#important note: this fccsetup version should be the same with the later one used to submit_pairs, otherwise MIGHT get ROOT or other mismatch errors
 git clone https://github.com/key4hep/k4geo
 cd k4geo
 mkdir build install
@@ -124,7 +125,8 @@ After the preparation is done, the command to launch the jobs
 (condor or locally) is printed in the terminal.
 
 Example usage command:
-```
+```sh
+#important note: this fccsetup version should be the same with the later one used to submit_pairs, otherwise MIGHT get ROOT or other mismatch errors
 submit_pairs.py --tag IDEA_my_test --compactFile $K4GEO/FCCee/IDEA/compact/IDEA_o1_v03/IDEA_o1_v03.xml -n 10
 ```
 which will prepare the submission for 10 events (jobs),
