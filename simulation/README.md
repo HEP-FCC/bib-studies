@@ -4,7 +4,8 @@ Preparing and submitting simulations of background samples.
 
 ## List of available BIB generated samples
 
-All the supported samples are stored in the Machine-Detector Interface (MDI) EOS space:
+- Join egroup `fcc-ee-MDI`
+- Find supported samples in the Machine-Detector Interface (MDI) EOS space:
 ```sh
 /eos/project/f/fcc-ee-mdi/BIB/
 #see readme in the folder for more info
