@@ -149,6 +149,17 @@ match det_file.short:
 # list n_files in the path directory ending in .root to consider for plotting
 # use sorted list to make sure to always take the same files
 if(debug>0): print("Parsing input path:", input_path)
+#make a suffic for eventual filename from input_path
+#if input is a .root file, then use the filename without extension,
+#if input is a directory, then use the directory name
+suffix_from_input = ""
+if(input_path.endswith(".root")):
+    suffix_from_input = input_path.split("/")[-1].replace(".root","")
+else:
+    suffix_from_input = input_path.strip("/").split("/")[-1]
+#last protection: replace any space or special char in suffix_from_input with underscore
+suffix_from_input = "".join([c if c.isalnum() else "_" for c in suffix_from_input])
+
 list_files = path_to_list(input_path)
 list_input_files = sorted_n_files(list_files, n_files)
 
@@ -598,7 +609,7 @@ if draw_hists:
 
 print("Writing histograms...")
 # Write the histograms to the output file
-output_file_name = f"{sample_name}_{output_file_name}_{n_events}evt_{det_file.short}_{sub_detector}.root"
+output_file_name = f"{sample_name}_{output_file_name}_{n_events}evt_{det_file.short}_{sub_detector}_{suffix_from_input}.root"
 with ROOT.TFile(output_file_name,"RECREATE") as f:
     for h in histograms:
         if(debug>1): print("Writing histo:", h.GetName())
