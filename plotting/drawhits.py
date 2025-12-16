@@ -609,7 +609,7 @@ if draw_hists:
 
 print("Writing histograms...")
 # Write the histograms to the output file
-output_file_name = f"{sample_name}_{output_file_name}_{n_events}evt_{det_file.short}_{sub_detector}_{suffix_from_input}.root"
+output_file_name = f"{sample_name}_{output_file_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.root"
 with ROOT.TFile(output_file_name,"RECREATE") as f:
     for h in histograms:
         if(debug>1): print("Writing histo:", h.GetName())
