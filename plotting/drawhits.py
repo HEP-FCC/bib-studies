@@ -148,6 +148,7 @@ match det_file.short:
 
 # list n_files in the path directory ending in .root to consider for plotting
 # use sorted list to make sure to always take the same files
+if(debug>0): print("Parsing input path:", input_path)
 list_files = path_to_list(input_path)
 list_input_files = sorted_n_files(list_files, n_files)
 
