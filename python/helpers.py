@@ -152,3 +152,10 @@ class DetFilePath:
         self.name    = re.search(".*_o[0-9]_v[0-9]{2}", self.f_name).group(0)  # Get detector name and version
         self.short   = re.sub("_o[0-9]_v[0-9]{2}", "", self.name)              # Get name only
         self.version = re.search("o[0-9]_v[0-9]{2}", self.name).group(0)       # Get version only
+
+
+##simple function to print "header" with CYAN color
+def print_header(msg):
+    CYAN = '\033[96m'
+    END = '\033[0m'
+    print(CYAN + 40*'#' + f'\n# {msg}\n' + 40*'#' + END)
