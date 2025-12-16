@@ -63,7 +63,10 @@ ROOT.gErrorIgnoreLevel = ROOT.kWarning
 # parse the input path and/or files
 
 input_file_name = input_file_path.split("/")[-1].strip(".root")
-sub_detector = re.sub(".*[0-9]+(evt_)","",input_file_name) #.group(0)
+#example filename
+#ipc_hits_100evt_VertexDisks_ALLEGRO_FSR_FCCee_Z256_2T_grids8.root
+#keeping the string after **evt_, until next underscore
+sub_detector = re.search(r"[0-9]+evt_([^_]+)", input_file_name).group(1)
 
 print(f"Reading file '{input_file_name}' (sub detector: {sub_detector})")
 
