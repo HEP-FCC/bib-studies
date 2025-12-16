@@ -9,3 +9,5 @@ ide/*
 *png
 *json
 *root
+#symlinks
+ALLEGRO*
