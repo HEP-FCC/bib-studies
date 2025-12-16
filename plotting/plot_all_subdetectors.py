@@ -178,7 +178,7 @@ for subdet_id,dummy_values in assumptions.items():
             "--numberOfFiles="+str(nfiles),
             "--numberOfEvents="+str(nevts_per_file),
             "--sample="+sample_name+"_"+detector,
-            "-m",
+            #"-m",
             #"--map_binning="+dict_sub[subdet_id]["binning"],
         ])
         
