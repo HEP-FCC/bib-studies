@@ -177,7 +177,7 @@ for subdet_id,dummy_values in assumptions.items():
             #"--collection="+dict_sub[subdet_id]["collection"],
             "--numberOfFiles="+str(nfiles),
             "--numberOfEvents="+str(nevts_per_file),
-            "--sample="+sample_name+"_"+detector,
+            "--sample="+sample_name,
             #"-m",
             #"--map_binning="+dict_sub[subdet_id]["binning"],
         ])
