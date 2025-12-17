@@ -31,9 +31,9 @@ def parse_args():
     parser.add_argument('-i', '--infilePath',
                     type=str, default='/eos/home-s/sfranche/FCC/samples/bib/ipc/aciarma_4IP_2024may29_Z/CADbp_ALLEGRO_o1_v03_r2025-05-29_3998.root',
                     help='path to input file or input directory')
-    parser.add_argument('-o', '--outputFile',
-                    type=str, default='hits',
-                    help='Name of output root file, the sample name will be added as prefix and the detector as suffix')
+    #parser.add_argument('-o', '--outputFileTag',
+    #                type=str, default='hits',
+    #                help='prefix of output root file, the sample name will be added as prefix and the detector as suffix')
     parser.add_argument('-n', '--numberOfFiles',
                     type=int, default=1,
                     help='number of files to consider (1 event per file), put -1 to take all files')
@@ -45,7 +45,7 @@ def parse_args():
                     help='name of the tree in the root file')
     parser.add_argument('--sample',
                     type=str, default='ipc',
-                    help='sample name to save plots')
+                    help='Brief sample name for plot titles and output files (e.g. ipc, injbkg, )')
     parser.add_argument('-d', '--detDictFile',
                     type=str, default='$BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json',
                     help='JSON dictionary with some key detector parameters')
@@ -97,7 +97,6 @@ debug = options.debugLevel
 n_files = options.numberOfFiles
 events_per_file = options.numberOfEvents
 input_path = options.infilePath
-output_file_name = options.outputFile
 tree_name = options.tree
 sample_name = options.sample
 det_file =  DetFilePath(options.detDictFile)
@@ -609,7 +608,7 @@ if draw_hists:
 
 print("Writing histograms...")
 # Write the histograms to the output file
-output_file_name = f"{sample_name}_{output_file_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.root"
+output_file_name = f"{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.root"
 with ROOT.TFile(output_file_name,"RECREATE") as f:
     for h in histograms:
         if(debug>1): print("Writing histo:", h.GetName())
