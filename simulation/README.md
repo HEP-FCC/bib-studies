@@ -163,8 +163,11 @@ which should contain files with a naming format: `your/path/*_XYZ.pairs`,
 where `XYZ` is an event number.
 
 ----
+[What is condor??]([url](https://htcondor.readthedocs.io/en/25.0/users-manual/managing-a-job.html))
 ```sh
 condor_q #shows idle/running jobs
+condor_q -nobatch # shows jobs, not in batch groups
+condor_rm 10113537.1 # stops that job..
 ```
 
 
