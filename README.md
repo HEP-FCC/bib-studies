@@ -51,5 +51,10 @@ The two folders with the executable scripts contain dedicated `READMEs` with mor
 - [Simulation docs](./simulation/README.md)
 - [Plotting docs](./plotting/README.md)
 
+## Recommended workflow
 
+- get bib files (eg produced by Jan, Giulia, A. Ciarma..), which are in hepevt/pairs format
+- using the submit_pairs script, submit condor jobs to simulate the bib particles through your detector of choice (eg ALLEGRO), which gives root files
+- use the drawhits/plot_all_subdetectors scripts to generate occupancy and other plots
+- optional: use the hits2highLevelEstimations.py script to extract more numbers from the occupancy plots
 
