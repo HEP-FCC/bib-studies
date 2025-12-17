@@ -54,6 +54,7 @@ The two folders with the executable scripts contain dedicated `READMEs` with mor
 ## Recommended workflow
 
 - get bib files (eg produced by Jan, Giulia, A. Ciarma..), which are in hepevt/pairs format
+    - set vertices to 0, if running on samples before 2026 [see here](https://github.com/HEP-FCC/bib-studies/tree/main/simulation#set_vertex_000py)
 - using the submit_pairs script, submit condor jobs to simulate the bib particles through your detector of choice (eg ALLEGRO), which gives root files
 - use the drawhits/plot_all_subdetectors scripts to generate occupancy and other plots
 - optional: use the hits2highLevelEstimations.py script to extract more numbers from the occupancy plots
