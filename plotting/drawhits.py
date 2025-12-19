@@ -300,7 +300,6 @@ histograms += [
     h_hit_z_mm               := ROOT.TH1D("h_hit_z_mm_"+collection               , "h_hit_z_mm_"+collection               +"; [mm] ; hits;", 10000, -z_range, z_range),
     h_hit_r_mm               := ROOT.TH1D("h_hit_r_mm_"+collection               , "h_hit_r_mm_"+collection               +"; [mm] ; hits;",10000, -r_range, r_range),
     h_hit_eta                := ROOT.TH1D("h_hit_eta_"+collection                , "h_hit_eta_"+collection                +"; [eta]; hits;", eta_bins*2, -eta_range, eta_range),
-    h_hit_rateDensity_VS_eta := ROOT.TH1D("h_hit_rateDensity_VS_eta_"+collection , "h_hit_rateDensity_VS_eta_"+collection +"; [eta]; [MHz/cm^2];", eta_bins, 0, eta_range),
     h_hit_E_MeV    := ROOT.TH1D("h_hit_E_MeV_"+collection   , "h_hit_E_MeV_"+collection   +"; [MeV]; hits;", 500, 0, 50),
     h_hit_E_keV    := ROOT.TH1D("h_hit_E_keV_"+collection   , "h_hit_E_keV_"+collection   +"; [keV]; hits;", 500, 0, 500),
     h_hit_particle_E   := ROOT.TH1D("h_hit_particle_E_"+collection  , "h_hit_particle_E_"+collection  +"; [E] ; hits;", 500, 0, 50),
@@ -349,6 +348,11 @@ for l in layer_cells.keys():
     histograms += [h_occ_x_layer[l]]
 histograms += [ h_occ := ROOT.TH1D(f"h_occ_tot_{collection}", f"h_occ_tot_{collection} ; total fired cells / total layer cells [%]", len(log_bins)-1, log_bins) ]
 
+h_hit_rateDensity_VS_eta = {}
+for l in layer_cells.keys():
+    h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(f"h_hit_rateDensity_layer{l}_VS_eta_"+collection , f"h_hit_rateDensity_layer{l}_VS_eta_"+collection +"; [eta]; [MHz/cm^2];", eta_bins, 0, eta_range)
+    #h_hit_area_cm2_VS_eta[l] = ROOT.TH1D(f"h_hit_area_cm2_layer{l}_VS_eta_"+collection , f"h_hit_area_cm2_layer{l}_VS_eta_"+collection +"; [eta]; [cm^2];", eta_bins, 0, eta_range)
+    histograms += [h_hit_rateDensity_VS_eta[l]]
 
 # Hit densities per layer
 if not skip_plot_per_layer:
