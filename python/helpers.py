@@ -121,8 +121,7 @@ def get_cells(detector, n_cells = 0):
     """
     sub_detectors = detector.children()
     if sub_detectors.size() == 0:
-        # print("Counting", detector.GetName())
-        # print("Counting", detector.id())
+        #print("Counting name:", detector.GetName(),"id:", detector.id())
         n_cells += 1
     else:
         for d in sub_detectors:

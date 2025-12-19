@@ -74,6 +74,14 @@
     }
   },
 
+  "HCalBarrel": {
+    "strategy": "hit_counts",
+    "hit_size": 2,
+    "multipliers": {
+      "n_samples": 1
+    }
+  },
+  
   "ECalBarrel": {
     "strategy": "hit_counts",
     "hit_size": 2,
