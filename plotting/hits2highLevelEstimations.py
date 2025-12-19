@@ -36,6 +36,9 @@ parser.add_argument('-r', '--rate',
 parser.add_argument('--hitRateOccPlots',
                   action="store_true",
                   help='Create hit rate and pixel occupancy plots (needs pixel size assumption and sensor sizes).')
+parser.add_argument('--hitRateOccStats',
+                  action="store_true",
+                  help='Print histo stats.')
                   
 options = parser.parse_args()
 
@@ -45,6 +48,7 @@ detector_dict_path = options.detDictFile
 assumptions_path = options.assumptions
 rate = options.rate
 do_hitRateOcc_plots = options.hitRateOccPlots
+do_hitRateOcc_stats = options.hitRateOccStats
 
 ######################################
 # style
@@ -68,6 +72,9 @@ input_file_name = input_file_path.split("/")[-1].strip(".root")
 #ipc_hits_100evt_VertexDisks_ALLEGRO_FSR_FCCee_Z256_2T_grids8.root
 #keeping the string after **evt_, until next underscore
 sub_detector = re.search(r"[0-9]+evt_([^_]+)", input_file_name).group(1)
+#hack for now
+if sub_detector=="DCH": sub_detector="DCH_v2"
+if sub_detector=="EMEC": sub_detector="EMEC_turbine"
 
 print(f"Reading file '{input_file_name}' (sub detector: {sub_detector})")
 
@@ -188,6 +195,23 @@ scale_factor = 1
 for m in multipliers.values():
     scale_factor *= m
 
+if do_hitRateOcc_stats:
+    print(f"Layer Mean-occ  StdDev    95th%%ile")
+    for i, (ln, cells) in enumerate(detector_dict["det_element_cells"].items()):
+        if is_endcap(detector_type):
+            i_layer_bin = int(ln + len(detector_dict["det_element_cells"])/2) + 1 # to skip layer 0 in case of disk
+        else:
+            i_layer_bin = ln + 1
+
+        # per layer occupancy printouts
+        h_occ_layer = input_file.Get(f"h_occ_x_layer{ln}_{hits_collection}").Clone()
+        #print layer and histogram's mean value, std, and 95th percentile
+        q = array.array('d', [0.0])
+        p = array.array('d', [0.95])
+        h_occ_layer.GetQuantiles(1,  q, p)
+        #print legend first
+        print(f"{str(ln):>3s}   {h_occ_layer.GetMean():3.3f}%    {h_occ_layer.GetStdDev():3.3f}%  {q[0]:3.3f}%")
+
 if do_hitRateOcc_plots:
     # Average hit rate per layer
     h_avg_hit_rate.Scale(rate*cm2_to_mm2*scale_factor)
@@ -211,17 +235,6 @@ if do_hitRateOcc_plots:
             i_layer_bin = int(ln + len(detector_dict["det_element_cells"])/2) + 1 # to skip layer 0 in case of disk
         else:
             i_layer_bin = ln + 1
-
-        # per layer occupancy printouts
-        h_occ_layer = input_file.Get(f"h_occ_x_layer{ln}_{hits_collection}").Clone()
-        #print layer and histogram's mean value, std, and 95th percentile
-        q = array.array('d', [0.0])
-        p = array.array('d', [0.95])
-        h_occ_layer.GetQuantiles(1,  q, p)
-        #print legend first
-        print(f"{str(ln):>3s}   {h_occ_layer.GetMean():.3f}%    {h_occ_layer.GetStdDev():.6f}  {q[0]:.3f}%")
-
-
 
         # Hit rate per module
         h_avg_hit_rate_per_cell[ln] = input_file.Get(f"h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
