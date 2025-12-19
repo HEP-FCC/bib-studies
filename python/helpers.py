@@ -155,7 +155,16 @@ class DetFilePath:
 
 
 ##simple function to print "header" with CYAN color
-def print_header(msg):
+def print_header(msg,oneline=False):
     CYAN = '\033[96m'
     END = '\033[0m'
-    print(CYAN + 40*'#' + f'\n# {msg}\n' + 40*'#' + END)
+    if oneline:
+        #fixed length for one line header, depending on msg length
+        total_length = 80
+        msg_length = len(msg) + 2  # Adding 2 for spaces around the message
+        hashes_length = (total_length - msg_length) // 2
+        if hashes_length < 0:
+            hashes_length = 0
+        print(CYAN + '#' * hashes_length + f' {msg} ' + '#' * (total_length - msg_length - hashes_length) + END)        
+    else:
+        print(CYAN + 40*'#' + f'\n# {msg}\n' + 40*'#' + END)
