@@ -8,7 +8,7 @@ import re
 
 from helpers import get_cells, is_endcap
 
-def get_cells_map(detector, sub_det, name, skip_pattern = r"(supportTube)|(cryo)"):
+def get_cells_map(detector, sub_det, name, skip_pattern = r"(supportTube)|(cryo)|(.*SteelSupport.*)|(.*Plate.*)"):
     """
     Get the mapping of cells per layer in all sub-detectors.
      Args:
@@ -169,8 +169,8 @@ def get_cells_map(detector, sub_det, name, skip_pattern = r"(supportTube)|(cryo)
         case _:
             # Loop over detector elements
             for de_name, de in sub_det.children():
-                # layer_id = de.id()
-                # print(f"         layer_name (id): {de_name} ({layer_id})")
+                layer_id = de.id()
+                print(f"         layer_name (id): {de_name} ({layer_id})")
                 if re_skip.match(str(de_name)):
                         print("Skipping sub detector:", de_name)
                         continue
