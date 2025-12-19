@@ -501,7 +501,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             h_hit_r_mm.Fill(r_mm, fill_weight)
             h_hit_eta.Fill(eta, fill_weight)
             #foreach event, fill the eta bin, scaled by the bin area in cm2 => <hits>/evt/cm2, but 40MHz evt rate => multiply to getMHz/cm2
-            h_hit_rateDensity_VS_eta.Fill(abs(eta), 40.0*1./area_cm2)  # hits/cm2 => X40MHz for MHz/cm2
+            h_hit_rateDensity_VS_eta[layer_n].Fill(abs(eta), 52.0*1./area_cm2 * fill_weight * 3 * 5)  # hits/cm2 => X52MHz for MHz/cm2
             h_hit_E_MeV.Fill(E_hit, fill_weight)
             h_hit_E_keV.Fill(E_hit * 1e3, fill_weight)
             h_avg_hits_x_layer.Fill(layer_n, fill_weight)
