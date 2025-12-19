@@ -140,6 +140,29 @@ match det_file.short:
     case _:
         raise NotImplementedError(f"get_layer not implemented for detector {det_file.short}")
 
+#todo: fix
+def draw_eta_line(eta_value):
+    """Draw a line of constant pseudorapidity eta on the current canvas."""
+    eta = eta_value
+    theta = 2.0 * math.atan(math.exp(-eta))
+    tan_theta = math.tan(theta)
+
+    zmax = 3000.0  # mm (adapt to your plot range)
+    n = 1000
+
+    graph = ROOT.TGraph(n)
+    #for i in range(n):
+    z = 0#i * zmax / (n - 1)
+    r = abs(z) * tan_theta
+    graph.SetPoint(0, z, r)
+    z=300
+    r = abs(z) * tan_theta
+    graph.SetPoint(1, z, r)
+
+    graph.SetLineColor(ROOT.kRed)
+    #graph.SetLineStyle(ROOT.kDashed)
+    graph.SetLineWidth(2)
+    graph.Draw("*Lsame")
 
 #######################################
 # parse the input path and/or files
@@ -242,6 +265,9 @@ x_range = int(detector_dict["max_r"]*1.2)
 y_range = int(detector_dict["max_r"]*1.2)
 z_range = int(detector_dict["max_z"]*1.2)
 r_range = int(detector_dict["max_r"]*1.2)
+eta_range = 5
+eta_bins = 100
+eta_bin_size = (2*eta_range)/eta_bins
 if debug>1: print(f"z_range: {z_range}, r_range: {r_range}")
 phi_range = 3.5
 
@@ -269,10 +295,12 @@ if is_endcap(detector_type):    # Binning from -negative to positive layer numbe
 
 # Profile histograms
 histograms += [
-    h_hit_x_mm     := ROOT.TH1D("h_hit_x_mm_"+collection    , "h_hit_x_mm_"+collection    +"; [mm] ; hits;", 10000, -x_range, x_range),
-    h_hit_y_mm     := ROOT.TH1D("h_hit_y_mm_"+collection    , "h_hit_y_mm_"+collection    +"; [mm] ; hits;", 10000, -y_range, y_range),
-    h_hit_z_mm     := ROOT.TH1D("h_hit_z_mm_"+collection    , "h_hit_z_mm_"+collection    +"; [mm] ; hits;", 10000, -z_range, z_range),
-    h_hit_r_mm     := ROOT.TH1D("h_hit_r_mm_"+collection    , "h_hit_r_mm_"+collection    +"; [mm] ; hits;",10000, -r_range, r_range),
+    h_hit_x_mm               := ROOT.TH1D("h_hit_x_mm_"+collection               , "h_hit_x_mm_"+collection               +"; [mm] ; hits;", 10000, -x_range, x_range),
+    h_hit_y_mm               := ROOT.TH1D("h_hit_y_mm_"+collection               , "h_hit_y_mm_"+collection               +"; [mm] ; hits;", 10000, -y_range, y_range),
+    h_hit_z_mm               := ROOT.TH1D("h_hit_z_mm_"+collection               , "h_hit_z_mm_"+collection               +"; [mm] ; hits;", 10000, -z_range, z_range),
+    h_hit_r_mm               := ROOT.TH1D("h_hit_r_mm_"+collection               , "h_hit_r_mm_"+collection               +"; [mm] ; hits;",10000, -r_range, r_range),
+    h_hit_eta                := ROOT.TH1D("h_hit_eta_"+collection                , "h_hit_eta_"+collection                +"; [eta]; hits;", eta_bins*2, -eta_range, eta_range),
+    h_hit_rateDensity_VS_eta := ROOT.TH1D("h_hit_rateDensity_VS_eta_"+collection , "h_hit_rateDensity_VS_eta_"+collection +"; [eta]; [MHz/cm^2];", eta_bins, 0, eta_range),
     h_hit_E_MeV    := ROOT.TH1D("h_hit_E_MeV_"+collection   , "h_hit_E_MeV_"+collection   +"; [MeV]; hits;", 500, 0, 50),
     h_hit_E_keV    := ROOT.TH1D("h_hit_E_keV_"+collection   , "h_hit_E_keV_"+collection   +"; [keV]; hits;", 500, 0, 500),
     h_hit_particle_E   := ROOT.TH1D("h_hit_particle_E_"+collection  , "h_hit_particle_E_"+collection  +"; [E] ; hits;", 500, 0, 50),
@@ -440,6 +468,11 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             z_mm = hit.getPosition().z
             r_mm = math.sqrt(math.pow(x_mm, 2) + math.pow(y_mm, 2))
             phi = math.acos(x_mm/r_mm) * math.copysign(1, y_mm)
+            theta = math.atan2(r_mm, z_mm)
+            eta  = -math.log(math.tan(theta / 2.0))
+            #eta bin area in cm2
+            area_cm2 = 2 * math.pi * (r_mm/10)**2 * math.cosh(eta) * eta_bin_size
+
 
             if is_calo_hit:
                 t = -999  # Timing not available for MutableSimCalorimeterHit
@@ -462,6 +495,9 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             h_hit_y_mm.Fill(y_mm, fill_weight)
             h_hit_z_mm.Fill(z_mm, fill_weight)
             h_hit_r_mm.Fill(r_mm, fill_weight)
+            h_hit_eta.Fill(eta, fill_weight)
+            #foreach event, fill the eta bin, scaled by the bin area in cm2 => <hits>/evt/cm2, but 40MHz evt rate => multiply to getMHz/cm2
+            h_hit_rateDensity_VS_eta.Fill(abs(eta), 40.0*1./area_cm2)  # hits/cm2 => X40MHz for MHz/cm2
             h_hit_E_MeV.Fill(E_hit, fill_weight)
             h_hit_E_keV.Fill(E_hit * 1e3, fill_weight)
             h_avg_hits_x_layer.Fill(layer_n, fill_weight)
@@ -561,7 +597,27 @@ if integration_time > 1:
         h_avg_pu_x_layer.Fill(l, h.GetMean())
         #h_avg_pu_x_layer.SetBinError(l, h.GetMeanError()) #TODO: set the right error
 
-# Draw the histograms
+# # Draw TEST histos
+# cm1 = ROOT.TCanvas("cm1_", "cm1_", 800, 600)
+# h_hit_rateDensity_VS_eta.Draw("COLZ")
+# #draw_eta_line(1)
+# cm1.SetLogy()
+# cm1.Print("test.pdf")
+cm2 = ROOT.TCanvas("cm2_", "cm2_", 800, 600)
+hit_zr.Draw("COLZ")
+#draw_eta_line(1)
+graph = ROOT.TGraph(4)
+graph.SetPoint(0, -z_range, -z_range* 0.851)
+graph.SetPoint(1,  z_range,  z_range* 0.851)
+graph.SetPoint(2,  z_range, -z_range* 0.851)
+graph.SetPoint(3, -z_range,  z_range* 0.851)
+
+graph.SetLineColor(ROOT.kBlue)
+graph.SetLineStyle(ROOT.kDashed)
+graph.SetLineWidth(2)
+graph.Draw("Lsame")
+cm2.Print(f"testEta_{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.pdf")
+
 if draw_maps:
     draw_map(hit_zr, "z [mm]", "r [mm]", sample_name+"_map_zr_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_map(hit_xy, "x [mm]", "y [mm]", sample_name+"_map_xy_"+str(n_events)+"evt_"+sub_detector, collection)
