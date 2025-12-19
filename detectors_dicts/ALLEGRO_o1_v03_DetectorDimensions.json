@@ -166,10 +166,6 @@
     "typeFlag": 4114,
     "hitsCollection": "HCalBarrelReadout",
     "det_element_cells": {
-      "HCalEndPlateNeg": 1,
-      "HCalEndPlatePos": 1,
-      "HCalFacePlate": 1,
-      "HCalSteelSupport": 1,
       "layer0": 310,
       "layer1": 310,
       "layer10": 310,
