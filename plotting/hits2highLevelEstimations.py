@@ -209,6 +209,7 @@ if do_hitRateOcc_plots:
 
     h_avg_hit_rate_per_cell = {}
     h_occ_per_cell = {}
+    h_bandwidth_per_cell = {}
 
     for i, (ln, cells) in enumerate(detector_dict["det_element_cells"].items()):
         if is_endcap(detector_type):
@@ -220,7 +221,7 @@ if do_hitRateOcc_plots:
         h_avg_hit_rate_per_cell[ln] = input_file.Get(f"h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
         h_avg_hit_rate_per_cell[ln].Scale(rate*cm2_to_mm2*scale_factor/hist_module_size.GetBinContent(i_layer_bin))
         h_avg_hit_rate_per_cell[ln].SetNameTitle(f"{input_file_name}_hitRate_layer{ln}_per_cell", f"{input_file_name}_hitRate_layer{ln}_per_cell;Module;Average hit rate per module [MHz/cm^{2}]" )
-        draw_hist(h_avg_hit_rate_per_cell[ln], "Module", "Average hit rate [MHz/cm^{2}]", f"{input_file_name}_hitRate_layer{ln}_per_cell", )
+        draw_hist(h_avg_hit_rate_per_cell[ln], "Module", "Average hit rate [MHz/cm^{2}]", f"{input_file_name}_hitRate_layer{ln}_per_cell")
 
         # Extract maximal hit rate per module
         h_max_hit_rate.SetBinContent(i_layer_bin, h_avg_hit_rate_per_cell[ln].GetMaximum())
@@ -231,6 +232,16 @@ if do_hitRateOcc_plots:
         h_occ_per_cell[ln].Scale(scale_factor/(hist_module_size.GetBinContent(i_layer_bin)/hist_pixel_area.GetBinContent(i_layer_bin)))
         h_occ_per_cell[ln].SetNameTitle(f"{input_file_name}_occ_x_module_layer{ln}", f"{input_file_name}_occ_x_module_layer{ln};Module;Pixel occupancy per event" )
         draw_hist(h_occ_per_cell[ln], "Module", "Pixel occupancy per event", f"{input_file_name}_occ_x_module_layer{ln}")
+
+        # Bandwidth per module
+        h_bandwidth_per_cell[ln] = input_file.Get(f"h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
+        try:
+            print(hit_size[ln])
+            h_bandwidth_per_cell[ln].Scale(rate*MHz_to_Hz*scale_factor*hit_size[ln]*b_to_GB)
+        except TypeError:
+            h_bandwidth_per_cell[ln].Scale(rate*MHz_to_Hz*scale_factor*hit_size*b_to_GB)
+        h_bandwidth_per_cell[ln].SetNameTitle(f"{input_file_name}_bandwidth_x_module_layer{ln}", f"{input_file_name}_bandwidth_x_module_layer{ln};Module;Bandwidth [GB/s]" )
+        draw_hist(h_bandwidth_per_cell[ln], "Module", "Bandwidth [GB/s]", f"{input_file_name}_bandwidth_x_module_layer{ln}")
 
         # Extract maximal occupancy per module
         h_max_cell_occ.SetBinContent(i_layer_bin, h_occ_per_cell[ln].GetMaximum())
@@ -269,4 +280,5 @@ with ROOT.TFile(output_file_name,"RECREATE") as f:
         for ln, cells in detector_dict["det_element_cells"].items():
             h_avg_hit_rate_per_cell[ln].Write()
             h_occ_per_cell[ln].Write()
+            h_bandwidth_per_cell[ln].Write()
 print("Histograms saved in:", output_file_name)
