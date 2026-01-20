@@ -749,11 +749,6 @@ if draw_hists:
     draw_hist(h_avg_hits_x_layer, "Layer number", "Hits / events",  sample_name+"_avg_hits_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_avg_firing_cells_x_layer, "Layer number", "Firing cells / events",  sample_name+"_avg_firing_cells_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_occ, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
-
-    if not skip_plot_per_layer:
-        for l, h in h_occ_x_layer.items():
-            draw_hist(h, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_x_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
-
     draw_hist(h_hit_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_hit_particle_E_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_hit_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_hit_particle_pt_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_hit_particle_eta, "MC particle #eta", "Particle / events",  sample_name+"_hit_particle_eta_"+str(n_events)+"evt_"+sub_detector, collection)
@@ -764,24 +759,45 @@ if draw_hists:
     draw_hist(h_hit_particle_ID_map, "MC particle PDG ID", "Layer number",  sample_name+"_hit_particle_ID_map_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_hit_particle_ID_E_MeV, "MC particle type", "Deposited energy of particle [MeV]",  sample_name+"_hit_particle_ID_E_MeV_"+str(n_events)+"evt_"+sub_detector, collection)
 
+    if integration_time > 1:
+        draw_hist(h_tot_pu, "Number of pileup hits", "Entries",  sample_name+"_tot_pu_"+str(n_events)+"evt_"+sub_detector, collection)
+        draw_hist(h_avg_pu_x_layer, "Layer", "Average pileup hits",  sample_name+"_avg_pu_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+
     if not skip_plot_per_layer:
+        for l, h in h_occ_x_layer.items():
+            draw_hist(h, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_x_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
+
         for l in h_z_density_vs_layer_mm.keys():
             draw_hist(h_z_density_vs_layer_mm[l], "z [mm]","Hits/event",  sample_name+f"_zDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
             draw_hist(h_phi_density_vs_layer[l],  "phi","Hits/event",  sample_name+f"_phiDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
             draw_hist(h_xy_density_vs_layer[l], "x [mm]", "y [mm]", sample_name+f"_xyDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection, draw_opt="colz")
 
-    if integration_time > 1:
-        draw_hist(h_tot_pu, "Number of pileup hits", "Entries",  sample_name+"_tot_pu_"+str(n_events)+"evt_"+sub_detector, collection)
-        draw_hist(h_avg_pu_x_layer, "Layer", "Average pileup hits",  sample_name+"_avg_pu_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
-
-print("Writing histograms...")
-# Write the histograms to the output file
+# Open ROOT file and create directory structure for organized output
 output_file_name = f"{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.root"
-with ROOT.TFile(output_file_name,"RECREATE") as f:
-    for h in histograms:
-        if(debug>1): print("Writing histo:", h.GetName())
-        h.Write()
+output_file = ROOT.TFile(output_file_name, "RECREATE")
+dir_maps = output_file.mkdir("maps")
+dir_origin = output_file.mkdir("mc_origin")
+dir_per_layer = output_file.mkdir("per_layer")
 
+
+# Categorize and write histograms to appropriate directories
+for h in histograms:
+    if(debug>1): print("Writing histo:", h.GetName())
+    
+    hname = h.GetName()
+    
+    # Categorize and write to appropriate directory
+    if plot_origin and "origin" in hname:
+        dir_origin.cd()
+    elif "map" in hname or "hit_xy" in hname or "hit_zr" in hname or "hit_zphi" in hname:
+        dir_maps.cd()
+    elif ("_layer" in hname) or ("_x_layer" in hname):
+        dir_per_layer.cd()
+    else:
+        output_file.cd()  # root directory for general histograms
+    h.Write()
+
+output_file.Close()
 print("Histograms saved in:", output_file_name)
 
 
