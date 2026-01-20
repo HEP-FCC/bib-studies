@@ -322,8 +322,8 @@ histograms += [
     h_hit_particle_ID_E_MeV := ROOT.TH2D("h_hit_particle_ID_E_MeV_"+collection, "h_hit_particle_ID_E_MeV_"+collection, 1, 0, 1, 500, 0, 50)
 ]
 
-h_hit_particle_ID.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
-h_hit_particle_ID_map.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
+h_hit_particle_ID.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
+h_hit_particle_ID_map.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
 h_hit_particle_ID_E_MeV.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
 
 h_hit_E_MeV_x_layer = {}
@@ -392,7 +392,7 @@ if plot_origin:
         h_pT_MeV_origin_layer_map := ROOT.TH2D(f"h_pT_MeV_origin_layer_map_{collection}", f"h_pT_MeV_origin_layer_map_{collection}; Transverse momentum of original particle [MeV/c] ; layer index ; hits / events", 500, 0, 50, *layer_binning),
         h_pT_keV_origin_layer_map := ROOT.TH2D(f"h_pT_keV_origin_layer_map_{collection}", f"h_pT_keV_origin_layer_map_{collection}; Transverse momentum of original particle [keV/c] ; layer index ; hits / events", 500, 0, 1000, *layer_binning)
     ]
-    hist_origin_ID_map.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
+    hist_origin_ID_map.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
 
     if not skip_plot_per_layer:
         h_zr_origin_zr_layer = {}
@@ -589,7 +589,8 @@ for i,event in enumerate(podio_reader.get(tree_name)):
                 hist_origin_xy.Fill(origin_vertex.x, origin_vertex.y, fill_weight)
                 hist_origin_zphi.Fill(origin_vertex.z, math.atan2(origin_vertex.y, origin_vertex.x), fill_weight)
 
-                hist_origin_ID_map.Fill(str(mc.getPDG()), layer_n, fill_weight)
+                pdg=mc.getPDG()
+                hist_origin_ID_map.Fill(Particle.from_pdgid(pdg).name, layer_n, fill_weight)
                 E_primary = mc.getEnergy()
                 h_E_MeV_origin_layer_map.Fill(E_primary * 1e3, layer_n, fill_weight)
                 h_E_keV_origin_layer_map.Fill(E_primary * 1e6, layer_n, fill_weight)
@@ -619,13 +620,12 @@ for i,event in enumerate(podio_reader.get(tree_name)):
                 particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
 
                 # Fill MC particle histograms
-                h_hit_particle_ID.Fill(str(particle.getPDG()), fill_weight)
-                h_hit_particle_ID_map.Fill(str(particle.getPDG()), layer_n, fill_weight)
+                pdg=particle.getPDG()
+                h_hit_particle_ID.Fill(Particle.from_pdgid(pdg).name, fill_weight)
+                h_hit_particle_ID_map.Fill(Particle.from_pdgid(pdg).name, layer_n, fill_weight)
                 h_hit_particle_E.Fill(particle_p4.E(), fill_weight)
                 h_hit_particle_pt.Fill(particle_p4.pt(), fill_weight)
                 h_hit_particle_eta.Fill(particle_p4.eta(), fill_weight)
-                pdg=particle.getPDG()
-                h_hit_particle_ID.Fill(Particle.from_pdgid(pdg).name+"["+str(pdg)+"]", fill_weight)
                 h_hit_particle_ID_E_MeV.Fill(Particle.from_pdgid(pdg).name, particle_p4.E(), fill_weight)
 
             # Monitor in channels that are integrating signal
@@ -725,6 +725,7 @@ if plot_origin:
     draw_map(hist_origin_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_origin_zphi_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_map(hist_origin_zx_masks, "z [mm]", "x [mm]", sample_name+"_map_origin_zx_masks_"+str(n_events)+"evt_"+sub_detector, collection)
 
+    hist_origin_ID_map.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
     draw_map(hist_origin_ID_map, "ID of original particle", "layer number", sample_name+"_map_origin_ID_"+str(n_events)+"evt_"+sub_detector, collection)
 
     draw_map(h_E_MeV_origin_layer_map, "Energy of original particle [MeV]", "layer number", sample_name+"_map_E_MeV_origin_layer_"+str(n_events)+"evt_"+sub_detector, collection)
@@ -755,6 +756,7 @@ if draw_hists:
 
     h_hit_particle_ID.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
     h_hit_particle_ID_map.GetXaxis().LabelsOption("v>")
+    h_hit_particle_ID_E_MeV.GetXaxis().LabelsOption("v>")
     draw_hist(h_hit_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_hit_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_hit_particle_ID_map, "MC particle PDG ID", "Layer number",  sample_name+"_hit_particle_ID_map_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_hit_particle_ID_E_MeV, "MC particle type", "Deposited energy of particle [MeV]",  sample_name+"_hit_particle_ID_E_MeV_"+str(n_events)+"evt_"+sub_detector, collection)
