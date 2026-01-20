@@ -306,22 +306,9 @@ histograms += [
     h_hit_E_MeV_map := ROOT.TH2D("h_hit_E_MeV_map_"+collection, "h_hit_E_MeV_map_"+collection+"; ; ; hits / events", 500, 0, 50, *layer_binning),
     h_hit_E_keV_map := ROOT.TH2D("h_hit_E_keV_map_"+collection, "h_hit_E_keV_map_"+collection+"; ; ; hits / events", 500, 0, 500, *layer_binning),
     h_hit_E_eV_map := ROOT.TH2D("h_hit_E_eV_map_"+collection, "h_hit_E_eV_map_"+collection+"; ; ; hits / events", 500, 0, 1000, *layer_binning),
-    h_particle_E   := ROOT.TH1D("h_particle_E_"+collection  , "h_particle_E_"+collection  +"; [E] ; hits;", 500, 0, 50),
-    h_particle_pt  := ROOT.TH1D("h_particle_pt_"+collection , "h_particle_pt_"+collection +"; [E/c] ; hits;", 500, 0, 50),
-    h_particle_eta := ROOT.TH1D("h_particle_eta_"+collection, "h_particle_eta_"+collection+"; [eta] ; hits;", 100, -5, 5),
-]
-
-
-# ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
-histograms += [
-    h_particle_ID := ROOT.TH1D("h_particle_ID_"+collection, "h_particle_ID_"+collection, 1, 0, 1),
-    h_particle_ID_map := ROOT.TH2D("h_particle_ID_map_"+collection, "h_particle_ID_map_"+collection, 1, 0, 1, *layer_binning),
-]
-h_particle_ID.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
-h_particle_ID_map.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
     h_hit_particle_E   := ROOT.TH1D("h_hit_particle_E_"+collection  , "h_hit_particle_E_"+collection  +"; [E] ; hits;", 500, 0, 50),
     h_hit_particle_pt  := ROOT.TH1D("h_hit_particle_pt_"+collection , "h_hit_particle_pt_"+collection +"; [E/c] ; hits;", 500, 0, 50),
-    h_hit_particle_eta := ROOT.TH1D("h_hit_particle_eta_"+collection, "h_hit_particle_eta_"+collection+"; [eta] ; hits;", 100, -5, 5),
+    h_hit_particle_eta := ROOT.TH1D("h_hit_particle_eta_"+collection, "h_hit_particle_eta_"+collection+"; [eta] ; hits;", 100, -5, 5)
 ]
 
 # ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
@@ -637,11 +624,8 @@ for i,event in enumerate(podio_reader.get(tree_name)):
                 particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
 
                 # Fill MC particle histograms
-                h_particle_E.Fill(particle_p4.E(), fill_weight)
-                h_particle_pt.Fill(particle_p4.pt(), fill_weight)
-                h_particle_eta.Fill(particle_p4.eta(), fill_weight)
-                h_particle_ID.Fill(str(particle.getPDG()), fill_weight)
-                h_particle_ID_map.Fill(str(particle.getPDG()), layer_n, fill_weight)
+                h_hit_particle_ID.Fill(str(particle.getPDG()), fill_weight)
+                h_hit_particle_ID_map.Fill(str(particle.getPDG()), layer_n, fill_weight)
                 h_hit_particle_E.Fill(particle_p4.E(), fill_weight)
                 h_hit_particle_pt.Fill(particle_p4.pt(), fill_weight)
                 h_hit_particle_eta.Fill(particle_p4.eta(), fill_weight)
@@ -775,16 +759,14 @@ if draw_hists:
         for l, h in h_occ_x_layer.items():
             draw_hist(h, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_x_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
 
-    draw_hist(h_hit_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_particle_E_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_hit_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_particle_pt_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_hit_particle_eta, "MC particle #eta", "Particle / events",  sample_name+"_particle_eta_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_hit_particle_E_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_hit_particle_pt_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_particle_eta, "MC particle #eta", "Particle / events",  sample_name+"_hit_particle_eta_"+str(n_events)+"evt_"+sub_detector, collection)
 
-    h_particle_ID.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
-    h_particle_ID_map.GetXaxis().LabelsOption("v>")
-    draw_hist(h_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_particle_ID_map, "MC particle PDG ID", "Layer number",  sample_name+"_particle_ID_map_"+str(n_events)+"evt_"+sub_detector, collection)
     h_hit_particle_ID.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
-    draw_hist(h_hit_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
+    h_hit_particle_ID_map.GetXaxis().LabelsOption("v>")
+    draw_hist(h_hit_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_hit_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_particle_ID_map, "MC particle PDG ID", "Layer number",  sample_name+"_hit_particle_ID_map_"+str(n_events)+"evt_"+sub_detector, collection)
 
     if not skip_plot_per_layer:
         for l in h_z_density_vs_layer_mm.keys():
