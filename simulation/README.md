@@ -4,15 +4,18 @@ Preparing and submitting simulations of background samples.
 
 ## List of available BIB generated samples
 
-- Injection background and beam gas: see [here](https://cernbox.cern.ch/files/link/public/VzSH9kK1VCZl0dK?items-per-page=100&files-public-link-view-mode=resource-table&tiles-size=2) and the associated README which describes the various samples
-	- Contact: Giulia Nigrelli
-- Incoherent Pair Creation:
-	- Lattice v23, particles vertex manually set to (0,0,0): `/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23_vtx000/data*`
-		- Contains 3989 bunch crossings
-		- Contact: Andrea Ciarma
+- Join egroup `fcc-ee-MDI`
+- Find supported samples in the Machine-Detector Interface (MDI) EOS space:
+```sh
+/eos/project/f/fcc-ee-mdi/BIB/
+#see readme in the folder for more info
+```
+also accessible through [this CERN Box link](https://cernbox.cern.ch/files/spaces/eos/project/f/fcc-ee-mdi/BIB). See readme in the folder for sample definitions and contact persons.
 
 ## Running detector simulation
+
 ### Prepare your setup
+
 The configuration used to run the simulation for BIB studies is slightly different than the one used for phyiscs event processing. Mainly because of the following points:
 - We need a detailed modeling of the MDI elements --> we use the (slow and imperfect) CAD based beampipe
 - Due to technical difficulties, their is air inside the CAD beampipe --> we use a temporary workaround setting the world volume as vacuum while waiting for a better solution
@@ -22,6 +25,7 @@ Here is a **full recipe to run the simulation** in the appropriate conditions fo
 ```bash
 # connect to an Alma9 machine with cvmfs mounted
 source /cvmfs/sw.hsf.org/key4hep/setup.sh
+#important note: this fccsetup version should be the same with the later one used to submit_pairs, otherwise MIGHT get ROOT or other mismatch errors
 git clone https://github.com/key4hep/k4geo
 cd k4geo
 mkdir build install
@@ -31,30 +35,32 @@ make install -j 8
 cd ..
 k4_local_repo
 ```
+
 Now let's switch to the CAD beampipe, and set vacuum everywhere (ALLEGRO is taken as an example but it works the same way for other detectors):
 - comment out [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml#L34-L35)
 - and un-comment [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml#L40-L41)
+- IFF running CLD:
+  - also need to comment out [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/CLD/compact/CLD_o2_v08/CLD_o2_v08.xml#L401-L415) to remove the analytical compensating solenoid field which is taken from a map in the above MDI import.
+  - You also need to add some material to the detector list of materials (see e.g. [here](https://github.com/key4hep/k4geo/pull/534/commits/2a2ea2591db1473d294af5c432f99aac74b8dea7#diff-f42d88422d9f50cb0863b6f08f2640a9e5cbcb9ac2ae01145642105d9fe9387d)).
+- **enable detailed EM treatment in Geant4** by applying the following changes to the `ddsim` steering file
+  - (if you do not already use a `ddsim` steering file, you can create the default one with `ddsim --dumpSteeringFile > mySteeringFile.py`):
+  - Change the physics list to `SIM.physics.list = "FTFP_BERT_EMZ"`
+  - Change the range cut: `SIM.physics.rangecut = 0.05*mm`
+  - Remove the energy threshold for tracker hits: `SIM.filter.tracker = "edep0"`
+  - At the bottom of the file, change the Geant4 UI configure commands to: `SIM.ui.commandsConfigure = ["/cuts/setLowEdge 50 eV", "/process/em/lowestElectronEnergy 1 eV", "/process/em/auger true" , "/process/em/deexcitationIgnoreCut true"]`
+- For some BIB (e.g. IPC), the **boost due to the crossing angle has to be applied**:
+  - At the beginning of the file, use: `SIM.crossingAngleBoost = 0.015`
+  - (boost depends on BIB generation => contact responsible/creator if in doubt)
 
-NB: for CLD, you further need to comment out [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/CLD/compact/CLD_o2_v08/CLD_o2_v08.xml#L401-L415) to remove the analytical compensating solenoid field which is taken from a map in the above MDI import. You also need to add some material to the detector list of materials (see e.g. [here](https://github.com/key4hep/k4geo/pull/534/commits/2a2ea2591db1473d294af5c432f99aac74b8dea7#diff-f42d88422d9f50cb0863b6f08f2640a9e5cbcb9ac2ae01145642105d9fe9387d)).
-
-And **enable detailed EM treatment in Geant4** by applying the following changes to the `ddsim` steering file (if you do not already use a `ddsim` steering file, you can create the default one with `ddsim --dumpSteeringFile > mySteeringFile.py`):
-- Change the physics list to `SIM.physics.list = "FTFP_BERT_EMZ"`
-- Change the range cut: `SIM.physics.rangecut = 0.05*mm`
-- Remove the energy threshold for tracker hits: `SIM.filter.tracker = "edep0"`
-- At the bottom of the file, change the Geant4 UI configure commands to: `SIM.ui.commandsConfigure = ["/cuts/setLowEdge 50 eV", "/process/em/lowestElectronEnergy 1 eV", "/process/em/auger true" , "/process/em/deexcitationIgnoreCut true"]`
-
-Finally, for some BIB (e.g. IPC), the **boost due to the crossing angle has to be applied**:
-- At the beginning of the file, use: `SIM.crossingAngleBoost = 0.015`
-
-Whether or not to apply this boost depends on how the BIB was actually generated, reach out to the contact of the sample you plan to simulate in case of doubt.
-
-NB: centrally maintained steering files are available for IDEA in [`FCC-Config`](https://github.com/HEP-FCC/FCC-config), which is included in the `key4hep` software stack and accessible with the environment variable `$FCCCONFIG`. For example, the [IDEA_o1_v03](https://github.com/HEP-FCC/FCC-config/blob/main/FCCee/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py) steering file can file can be passed to the ddsim command with:
+Regarding steering files:
+- centrally maintained in [`FCC-Config`](https://github.com/HEP-FCC/FCC-config), which is included in the `key4hep` software stack and accessible with the environment variable `$FCCCONFIG`
+- Example: [IDEA_o1_v03](https://github.com/HEP-FCC/FCC-config/blob/main/FCCee/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py) can be used with:
 ```bash
 ddsim --steeringFile $FCCCONFIG/share/FCC-config/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py ...
 # or for the nightlies
 ddsim --steeringFile $FCCCONFIG/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py ...
 ```
-For CLD, the centrally maintained steering file lives [here](https://github.com/key4hep/CLDConfig/blob/main/CLDConfig/cld_steer.py) and can be accessed through `$CLDCONFIG`.
+- Note: For CLD, the centrally maintained steering file lives [here](https://github.com/key4hep/CLDConfig/blob/main/CLDConfig/cld_steer.py) and can be accessed through `$CLDCONFIG`.
 
 ### Run the simulation
 
@@ -109,8 +115,9 @@ but only a `.dat` version of it. In that case, the `--do_dat` flag might be need
 
 ### submit_pairs.py
 
-Set up the condor (or local) submission of simulation jobs of 
-IPC background files.
+How to set up the condor (or local) submission of simulation jobs of 
+IPC background files:
+
 At the moment, `.pairs` files contain a single event
 and `ddsim` can process only one of them at the time.
 The  `submit_pairs.py` script generates at list of bash scripts
@@ -119,7 +126,8 @@ After the preparation is done, the command to launch the jobs
 (condor or locally) is printed in the terminal.
 
 Example usage command:
-```
+```sh
+#important note: this fccsetup version should be the same with the earlier one used to compile k4geo, otherwise MIGHT get ROOT or other mismatch errors
 submit_pairs.py --tag IDEA_my_test --compactFile $K4GEO/FCCee/IDEA/compact/IDEA_o1_v03/IDEA_o1_v03.xml -n 10
 ```
 which will prepare the submission for 10 events (jobs),
@@ -128,10 +136,22 @@ All the available geometries are stored in the
 [`k4geo`](https://github.com/key4hep/k4geo/tree/main)
 repository.
 
-
 If a custom variation of the standard geometry 
 tha requires recompiling k4geo is needed,
 specify the path to the local build with the `--k4geo` flag.
+
+Example running on Jan's recent files 
+```sh
+# lxplus!!
+submit_pairs.py \
+-i /eos/experiment/fcc/users/j/jaeyserm/guineapig/guineapig_samples_CERN_oct25/FCCee_Z_4IP_FSR_FCCee_Z256_2T_grids8 \
+-t ALLEGRO_FSR_FCCee_Z256_2T_grids8 \
+-n 10 \
+-c $K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml \
+-o /eos/home-s/sfranche/FCC/samples/bib/ipc/jaeyserm_Z_4IP_FSR_FCCee_Z256_2T_grids8 \
+-s /eos/home-a/aikoulou/fcc_workdir/bib-studies/plotting/mySteeringFile.py \
+--k4geo /eos/user/a/aikoulou/fcc_workdir/k4geo/
+```
 
 All the available options can be seen using the `-h` flag.
 For example the default input path is currently:
@@ -142,13 +162,18 @@ but can be modified specifying `--input <your/path>`,
 which should contain files with a naming format: `your/path/*_XYZ.pairs`,
 where `XYZ` is an event number.
 
+----
+[What is condor??]([url](https://htcondor.readthedocs.io/en/25.0/users-manual/managing-a-job.html))
+```sh
+condor_q #shows idle/running jobs
+condor_q -nobatch # shows jobs, not in batch groups
+condor_rm 10113537.1 # stops that job..
+```
+
 
 ## Calorimeter calibration
 
 TODO: add docu
 
-## List of samples
-
-TODO: add list/table
 
 

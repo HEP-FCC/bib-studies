@@ -121,8 +121,7 @@ def get_cells(detector, n_cells = 0):
     """
     sub_detectors = detector.children()
     if sub_detectors.size() == 0:
-        # print("Counting", detector.GetName())
-        # print("Counting", detector.id())
+        #print("Counting name:", detector.GetName(),"id:", detector.id())
         n_cells += 1
     else:
         for d in sub_detectors:
@@ -152,3 +151,19 @@ class DetFilePath:
         self.name    = re.search(".*_o[0-9]_v[0-9]{2}", self.f_name).group(0)  # Get detector name and version
         self.short   = re.sub("_o[0-9]_v[0-9]{2}", "", self.name)              # Get name only
         self.version = re.search("o[0-9]_v[0-9]{2}", self.name).group(0)       # Get version only
+
+
+##simple function to print "header" with CYAN color
+def print_header(msg,oneline=False):
+    CYAN = '\033[96m'
+    END = '\033[0m'
+    if oneline:
+        #fixed length for one line header, depending on msg length
+        total_length = 80
+        msg_length = len(msg) + 2  # Adding 2 for spaces around the message
+        hashes_length = (total_length - msg_length) // 2
+        if hashes_length < 0:
+            hashes_length = 0
+        print(CYAN + '#' * hashes_length + f' {msg} ' + '#' * (total_length - msg_length - hashes_length) + END)        
+    else:
+        print(CYAN + 40*'#' + f'\n# {msg}\n' + 40*'#' + END)

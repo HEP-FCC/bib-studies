@@ -10,6 +10,8 @@ import argparse
 from podio import root_io
 import ROOT
 
+from particle import Particle
+
 from constants import C_MM_NS
 from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict, is_calo, is_endcap, DetFilePath
 from visualization import setup_root_style, draw_hist, draw_map
@@ -29,9 +31,9 @@ def parse_args():
     parser.add_argument('-i', '--infilePath',
                     type=str, default='/eos/home-s/sfranche/FCC/samples/bib/ipc/aciarma_4IP_2024may29_Z/CADbp_ALLEGRO_o1_v03_r2025-05-29_3998.root',
                     help='path to input file or input directory')
-    parser.add_argument('-o', '--outputFile',
-                    type=str, default='hits',
-                    help='Name of output root file, the sample name will be added as prefix and the detector as suffix')
+    #parser.add_argument('-o', '--outputFileTag',
+    #                type=str, default='hits',
+    #                help='prefix of output root file, the sample name will be added as prefix and the detector as suffix')
     parser.add_argument('-n', '--numberOfFiles',
                     type=int, default=1,
                     help='number of files to consider (1 event per file), put -1 to take all files')
@@ -43,7 +45,7 @@ def parse_args():
                     help='name of the tree in the root file')
     parser.add_argument('--sample',
                     type=str, default='ipc',
-                    help='sample name to save plots')
+                    help='Brief sample name for plot titles and output files (e.g. ipc, injbkg, )')
     parser.add_argument('-d', '--detDictFile',
                     type=str, default='$BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json',
                     help='JSON dictionary with some key detector parameters')
@@ -95,7 +97,6 @@ debug = options.debugLevel
 n_files = options.numberOfFiles
 events_per_file = options.numberOfEvents
 input_path = options.infilePath
-output_file_name = options.outputFile
 tree_name = options.tree
 sample_name = options.sample
 det_file =  DetFilePath(options.detDictFile)
@@ -139,6 +140,29 @@ match det_file.short:
     case _:
         raise NotImplementedError(f"get_layer not implemented for detector {det_file.short}")
 
+#todo: fix
+def draw_eta_line(eta_value):
+    """Draw a line of constant pseudorapidity eta on the current canvas."""
+    eta = eta_value
+    theta = 2.0 * math.atan(math.exp(-eta))
+    tan_theta = math.tan(theta)
+
+    zmax = 3000.0  # mm (adapt to your plot range)
+    n = 1000
+
+    graph = ROOT.TGraph(n)
+    #for i in range(n):
+    z = 0#i * zmax / (n - 1)
+    r = abs(z) * tan_theta
+    graph.SetPoint(0, z, r)
+    z=300
+    r = abs(z) * tan_theta
+    graph.SetPoint(1, z, r)
+
+    graph.SetLineColor(ROOT.kRed)
+    #graph.SetLineStyle(ROOT.kDashed)
+    graph.SetLineWidth(2)
+    graph.Draw("*Lsame")
 
 #######################################
 # parse the input path and/or files
@@ -146,6 +170,18 @@ match det_file.short:
 
 # list n_files in the path directory ending in .root to consider for plotting
 # use sorted list to make sure to always take the same files
+if(debug>0): print("Parsing input path:", input_path)
+#make a suffic for eventual filename from input_path
+#if input is a .root file, then use the filename without extension,
+#if input is a directory, then use the directory name
+suffix_from_input = ""
+if(input_path.endswith(".root")):
+    suffix_from_input = input_path.split("/")[-1].replace(".root","")
+else:
+    suffix_from_input = input_path.strip("/").split("/")[-1]
+#last protection: replace any space or special char in suffix_from_input with underscore
+suffix_from_input = "".join([c if c.isalnum() else "_" for c in suffix_from_input])
+
 list_files = path_to_list(input_path)
 list_input_files = sorted_n_files(list_files, n_files)
 
@@ -229,6 +265,9 @@ x_range = int(detector_dict["max_r"]*1.2)
 y_range = int(detector_dict["max_r"]*1.2)
 z_range = int(detector_dict["max_z"]*1.2)
 r_range = int(detector_dict["max_r"]*1.2)
+eta_range = 5
+eta_bins = 100
+eta_bin_size = (2*eta_range)/eta_bins
 if debug>1: print(f"z_range: {z_range}, r_range: {r_range}")
 phi_range = 3.5
 
@@ -256,10 +295,11 @@ if is_endcap(detector_type):    # Binning from -negative to positive layer numbe
 
 # Profile histograms
 histograms += [
-    h_hit_x_mm     := ROOT.TH1D("h_hit_x_mm_"+collection    , "h_hit_x_mm_"+collection    +"; [mm] ; hits;", 10000, -x_range, x_range),
-    h_hit_y_mm     := ROOT.TH1D("h_hit_y_mm_"+collection    , "h_hit_y_mm_"+collection    +"; [mm] ; hits;", 10000, -y_range, y_range),
-    h_hit_z_mm     := ROOT.TH1D("h_hit_z_mm_"+collection    , "h_hit_z_mm_"+collection    +"; [mm] ; hits;", 10000, -z_range, z_range),
-    h_hit_r_mm     := ROOT.TH1D("h_hit_r_mm_"+collection    , "h_hit_r_mm_"+collection    +"; [mm] ; hits;",10000, -r_range, r_range),
+    h_hit_x_mm               := ROOT.TH1D("h_hit_x_mm_"+collection               , "h_hit_x_mm_"+collection               +"; [mm] ; hits;", 10000, -x_range, x_range),
+    h_hit_y_mm               := ROOT.TH1D("h_hit_y_mm_"+collection               , "h_hit_y_mm_"+collection               +"; [mm] ; hits;", 10000, -y_range, y_range),
+    h_hit_z_mm               := ROOT.TH1D("h_hit_z_mm_"+collection               , "h_hit_z_mm_"+collection               +"; [mm] ; hits;", 10000, -z_range, z_range),
+    h_hit_r_mm               := ROOT.TH1D("h_hit_r_mm_"+collection               , "h_hit_r_mm_"+collection               +"; [mm] ; hits;",10000, -r_range, r_range),
+    h_hit_eta                := ROOT.TH1D("h_hit_eta_"+collection                , "h_hit_eta_"+collection                +"; [eta]; hits;", eta_bins*2, -eta_range, eta_range),
     h_hit_E_MeV    := ROOT.TH1D("h_hit_E_MeV_"+collection   , "h_hit_E_MeV_"+collection   +"; [MeV]; hits;", 500, 0, 50),
     h_hit_E_keV    := ROOT.TH1D("h_hit_E_keV_"+collection   , "h_hit_E_keV_"+collection   +"; [keV]; hits;", 500, 0, 500),
     h_hit_E_eV     := ROOT.TH1D("h_hit_E_eV_"+collection    , "h_hit_E_eV_"+collection    +"; [eV]; hits;", 500, 0, 1000),
@@ -279,6 +319,36 @@ histograms += [
 ]
 h_particle_ID.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
 h_particle_ID_map.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
+    h_hit_particle_E   := ROOT.TH1D("h_hit_particle_E_"+collection  , "h_hit_particle_E_"+collection  +"; [E] ; hits;", 500, 0, 50),
+    h_hit_particle_pt  := ROOT.TH1D("h_hit_particle_pt_"+collection , "h_hit_particle_pt_"+collection +"; [E/c] ; hits;", 500, 0, 50),
+    h_hit_particle_eta := ROOT.TH1D("h_hit_particle_eta_"+collection, "h_hit_particle_eta_"+collection+"; [eta] ; hits;", 100, -5, 5),
+]
+
+# ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
+histograms += [ h_hit_particle_ID := ROOT.TH1D("h_hit_particle_ID_"+collection, "h_hit_particle_ID_"+collection, 1, 0, 1) ]
+h_hit_particle_ID.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
+histograms += [ h_hit_particle_ID_E_MeV := ROOT.TH2D("h_hit_particle_ID_E_MeV_"+collection, "h_hit_particle_ID_E_MeV_"+collection, 1, 0, 1, 500, 0, 50) ]
+h_hit_particle_ID_E_MeV.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
+
+h_hit_E_MeV_x_layer = {}
+if energy_per_layer:
+    for l in layer_cells.keys():
+        h_hit_E_MeV_x_layer[l] = ROOT.TH1D(f"h_hit_E_MeV_layer{l}_{collection}", f"h_hit_E_MeV_layer{l}_{collection}; hit energy [MeV]", 500, 0, 50)
+        histograms += [h_hit_E_MeV_x_layer[l]]
+
+# Hit maps definitions
+histograms += [
+    hit_zr := ROOT.TH2D("hit_zr_"+collection, "hit_zr_"+collection+";  z (bin=%dmm) ;r (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z, bw_r,bw_z, bw_r), *z_binning, *r_binning),
+    hit_xy := ROOT.TH2D("hit_xy_"+collection, "hit_xy_"+collection+";  x (bin=%dmm) ;y (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_r, bw_r,bw_r, bw_r), *r_binning, *r_binning),
+    hit_zphi := ROOT.TH2D("hit_zphi_"+collection, "hit_zphi_"+collection+"; phi (bin=%1.2frad) ; z (bin=%dmm); hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z,bw_phi,bw_z), *z_binning, *phi_binning),
+]
+
+# Timing histograms
+histograms += [
+    h_hit_t := ROOT.TH1D("hist_hit_t_"+collection, "hist_hit_t_"+collection, 200, 0, 20),
+    h_hit_t_x_layer := ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collection+"; ; ; hits / events", 200, 0, 20, *layer_binning),
+    h_hit_t_corr := ROOT.TH1D("hist_hit_t_corr_"+collection, "hist_hit_t_corr_"+collection, 200, -10, 10),
+]
 
 histograms += [
     h_avg_hits_x_layer := ROOT.TH1D("h_avg_hits_x_layer_"+collection, "h_avg_hits_x_layer_"+collection+";layer index;avg hits/evt", *layer_binning),
@@ -349,6 +419,11 @@ histograms += [
     h_hit_t_x_layer := ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collection+"; ; ; hits / events", 200, 0, 20, *layer_binning),
     h_hit_t_corr := ROOT.TH1D("hist_hit_t_corr_"+collection, "hist_hit_t_corr_"+collection, 200, -10, 10),
 ]
+h_hit_rateDensity_VS_eta = {}
+for l in layer_cells.keys():
+    h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(f"h_hit_rateDensity_layer{l}_VS_eta_"+collection , f"h_hit_rateDensity_layer{l}_VS_eta_"+collection +"; [eta]; [MHz/cm^2];", eta_bins, 0, eta_range)
+    #h_hit_area_cm2_VS_eta[l] = ROOT.TH1D(f"h_hit_area_cm2_layer{l}_VS_eta_"+collection , f"h_hit_area_cm2_layer{l}_VS_eta_"+collection +"; [eta]; [cm^2];", eta_bins, 0, eta_range)
+    histograms += [h_hit_rateDensity_VS_eta[l]]
 
 # Hit densities per layer
 if not skip_plot_per_layer:
@@ -468,6 +543,11 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             z_mm = hit.getPosition().z
             r_mm = math.sqrt(math.pow(x_mm, 2) + math.pow(y_mm, 2))
             phi = math.acos(x_mm/r_mm) * math.copysign(1, y_mm)
+            theta = math.atan2(r_mm, z_mm)
+            eta  = -math.log(math.tan(theta / 2.0))
+            #eta bin area in cm2
+            area_cm2 = 2 * math.pi * (r_mm/10)**2 * math.cosh(eta) * eta_bin_size
+
 
             if is_calo_hit:
                 t = -999  # Timing not available for MutableSimCalorimeterHit
@@ -490,6 +570,9 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             h_hit_y_mm.Fill(y_mm, fill_weight)
             h_hit_z_mm.Fill(z_mm, fill_weight)
             h_hit_r_mm.Fill(r_mm, fill_weight)
+            h_hit_eta.Fill(eta, fill_weight)
+            #foreach event, fill the eta bin, scaled by the bin area in cm2 => <hits>/evt/cm2, but 40MHz evt rate => multiply to getMHz/cm2
+            h_hit_rateDensity_VS_eta[layer_n].Fill(abs(eta), 52.0*1./area_cm2 * fill_weight * 3 * 5)  # hits/cm2 => X52MHz for MHz/cm2
             h_hit_E_MeV.Fill(E_hit, fill_weight)
             h_hit_E_keV.Fill(E_hit * 1e3, fill_weight)
             h_hit_E_eV.Fill(E_hit * 1e6, fill_weight)
@@ -503,9 +586,9 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             if not skip_plot_per_layer:
                 h_avg_hits_x_layer_x_module[layer_n].Fill(module_n, fill_weight)
 
-            hist_zr.Fill(z_mm, r_mm, fill_weight)
-            hist_xy.Fill(x_mm, y_mm, fill_weight)
-            hist_zphi.Fill(z_mm, phi, fill_weight)
+            hit_zr.Fill(z_mm, r_mm, fill_weight)
+            hit_xy.Fill(x_mm, y_mm, fill_weight)
+            hit_zphi.Fill(z_mm, phi, fill_weight)
 
             if plot_origin:
                 origin_vertex = hit.getParticle().getVertex()
@@ -559,6 +642,12 @@ for i,event in enumerate(podio_reader.get(tree_name)):
                 h_particle_eta.Fill(particle_p4.eta(), fill_weight)
                 h_particle_ID.Fill(str(particle.getPDG()), fill_weight)
                 h_particle_ID_map.Fill(str(particle.getPDG()), layer_n, fill_weight)
+                h_hit_particle_E.Fill(particle_p4.E(), fill_weight)
+                h_hit_particle_pt.Fill(particle_p4.pt(), fill_weight)
+                h_hit_particle_eta.Fill(particle_p4.eta(), fill_weight)
+                pdg=particle.getPDG()
+                h_hit_particle_ID.Fill(Particle.from_pdgid(pdg).name+"["+str(pdg)+"]", fill_weight)
+                h_hit_particle_ID_E_MeV.Fill(Particle.from_pdgid(pdg).name, particle_p4.E(), fill_weight)
 
             # Monitor in channels that are integrating signal
             if integration_time > 1:
@@ -619,11 +708,31 @@ if integration_time > 1:
         h_avg_pu_x_layer.Fill(l, h.GetMean())
         #h_avg_pu_x_layer.SetBinError(l, h.GetMeanError()) #TODO: set the right error
 
-# Draw the histograms
+# # Draw TEST histos
+# cm1 = ROOT.TCanvas("cm1_", "cm1_", 800, 600)
+# h_hit_rateDensity_VS_eta.Draw("COLZ")
+# #draw_eta_line(1)
+# cm1.SetLogy()
+# cm1.Print("test.pdf")
+cm2 = ROOT.TCanvas("cm2_", "cm2_", 800, 600)
+hit_zr.Draw("COLZ")
+#draw_eta_line(1)
+graph = ROOT.TGraph(4)
+graph.SetPoint(0, -z_range, -z_range* 0.851)
+graph.SetPoint(1,  z_range,  z_range* 0.851)
+graph.SetPoint(2,  z_range, -z_range* 0.851)
+graph.SetPoint(3, -z_range,  z_range* 0.851)
+
+graph.SetLineColor(ROOT.kBlue)
+graph.SetLineStyle(ROOT.kDashed)
+graph.SetLineWidth(2)
+graph.Draw("Lsame")
+cm2.Print(f"testEta_{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.pdf")
+
 if draw_maps:
-    draw_map(hist_zr, "z [mm]", "r [mm]", sample_name+"_map_zr_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_map(hist_xy, "x [mm]", "y [mm]", sample_name+"_map_xy_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_map(hist_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_zphi_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hit_zr, "z [mm]", "r [mm]", sample_name+"_map_zr_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hit_xy, "x [mm]", "y [mm]", sample_name+"_map_xy_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hit_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_zphi_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_map(h_hit_t_x_layer, "timing [ns]", "layer number", sample_name+"_map_timing_"+str(n_events)+"evt_"+sub_detector, collection)
 
     if not skip_plot_per_layer:
@@ -666,14 +775,16 @@ if draw_hists:
         for l, h in h_occ_x_layer.items():
             draw_hist(h, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_x_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
 
-    draw_hist(h_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_particle_E_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_particle_pt_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_particle_eta, "MC particle #eta", "Particle / events",  sample_name+"_particle_eta_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_particle_E_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_particle_pt_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_particle_eta, "MC particle #eta", "Particle / events",  sample_name+"_particle_eta_"+str(n_events)+"evt_"+sub_detector, collection)
 
     h_particle_ID.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
     h_particle_ID_map.GetXaxis().LabelsOption("v>")
     draw_hist(h_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_particle_ID_map, "MC particle PDG ID", "Layer number",  sample_name+"_particle_ID_map_"+str(n_events)+"evt_"+sub_detector, collection)
+    h_hit_particle_ID.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
+    draw_hist(h_hit_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
 
     if not skip_plot_per_layer:
         for l in h_z_density_vs_layer_mm.keys():
@@ -687,7 +798,7 @@ if draw_hists:
 
 print("Writing histograms...")
 # Write the histograms to the output file
-output_file_name = f"{sample_name}_{output_file_name}_{n_events}evt_{sub_detector}.root"
+output_file_name = f"{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.root"
 with ROOT.TFile(output_file_name,"RECREATE") as f:
     for h in histograms:
         if(debug>1): print("Writing histo:", h.GetName())

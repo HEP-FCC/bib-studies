@@ -8,7 +8,7 @@ import re
 import dd4hep as dd4hepModule
 from ROOT import dd4hep
 
-from helpers import DetFilePath
+from helpers import DetFilePath,print_header
 
 
 ######################################
@@ -50,19 +50,19 @@ match geo_file.short:
 # https://dd4hep.web.cern.ch/dd4hep/reference/DD4hep_2Detector_8h_source.html
 
 # Load geometry
-det = dd4hep.Detector.getInstance()
+det: dd4hep.Detector = dd4hep.Detector.getInstance()
 det.fromXML(geo_file.path)
 
 # Get subdetectors
 dict_sub = {}
 
 for subdet_name, sens_det in det.sensitiveDetectors():
-    print("==== name = ", subdet_name) 
+    print_header(" Subdetector: "+str(subdet_name),oneline=True)
 
     # Get the DetElement object
     subdet = det.detector(subdet_name)
-    print("        ID = ", subdet.id())
-    print("        type = ", subdet.type())
+    print("        ID       = ", subdet.id())
+    print("        type     = ", subdet.type())
     print("        typeFlag = ", subdet.typeFlag())
 
     hitsCollection = str(sens_det.hitsCollection)
