@@ -574,7 +574,6 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             hit_zphi.Fill(z_mm, phi, fill_weight)
 
             if plot_origin:
-                origin_vertex = hit.getParticle().getVertex()
 
                 # Go up in the MC truth chain to find the primary particle
                 mc = hit.getParticle()
