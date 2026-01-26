@@ -88,6 +88,9 @@ def parse_args():
     parser.add_argument('--e_cut',
                     action='store_true',
                     help='apply energy cut (requires to pass also the assumptions dict with energy threshold).')
+    parser.add_argument('--plot_origin',
+                    action='store_true',
+                    help='plot the origin of the particles of the collection.')
 
     return (parser.parse_args())
 
@@ -113,6 +116,7 @@ integration_time = options.integration_time
 energy_per_layer = options.energy_per_layer
 digi = options.digi
 e_cut = options.e_cut
+plot_origin = options.plot_origin
 
 ######################################
 # style
@@ -302,15 +306,24 @@ histograms += [
     h_hit_eta                := ROOT.TH1D("h_hit_eta_"+collection                , "h_hit_eta_"+collection                +"; [eta]; hits;", eta_bins*2, -eta_range, eta_range),
     h_hit_E_MeV    := ROOT.TH1D("h_hit_E_MeV_"+collection   , "h_hit_E_MeV_"+collection   +"; [MeV]; hits;", 500, 0, 50),
     h_hit_E_keV    := ROOT.TH1D("h_hit_E_keV_"+collection   , "h_hit_E_keV_"+collection   +"; [keV]; hits;", 500, 0, 500),
+    h_hit_E_eV     := ROOT.TH1D("h_hit_E_eV_"+collection    , "h_hit_E_eV_"+collection    +"; [eV]; hits;", 500, 0, 1000),
+    h_hit_E_MeV_map := ROOT.TH2D("h_hit_E_MeV_map_"+collection, "h_hit_E_MeV_map_"+collection+"; ; ; hits / events", 500, 0, 50, *layer_binning),
+    h_hit_E_keV_map := ROOT.TH2D("h_hit_E_keV_map_"+collection, "h_hit_E_keV_map_"+collection+"; ; ; hits / events", 500, 0, 500, *layer_binning),
+    h_hit_E_eV_map := ROOT.TH2D("h_hit_E_eV_map_"+collection, "h_hit_E_eV_map_"+collection+"; ; ; hits / events", 500, 0, 1000, *layer_binning),
     h_hit_particle_E   := ROOT.TH1D("h_hit_particle_E_"+collection  , "h_hit_particle_E_"+collection  +"; [E] ; hits;", 500, 0, 50),
     h_hit_particle_pt  := ROOT.TH1D("h_hit_particle_pt_"+collection , "h_hit_particle_pt_"+collection +"; [E/c] ; hits;", 500, 0, 50),
-    h_hit_particle_eta := ROOT.TH1D("h_hit_particle_eta_"+collection, "h_hit_particle_eta_"+collection+"; [eta] ; hits;", 100, -5, 5),
+    h_hit_particle_eta := ROOT.TH1D("h_hit_particle_eta_"+collection, "h_hit_particle_eta_"+collection+"; [eta] ; hits;", 100, -5, 5)
 ]
 
 # ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
-histograms += [ h_hit_particle_ID := ROOT.TH1D("h_hit_particle_ID_"+collection, "h_hit_particle_ID_"+collection, 1, 0, 1) ]
-h_hit_particle_ID.SetCanExtend(ROOT.TH1.kAllAxes)   # Allow both axes to extend past the initial range
-histograms += [ h_hit_particle_ID_E_MeV := ROOT.TH2D("h_hit_particle_ID_E_MeV_"+collection, "h_hit_particle_ID_E_MeV_"+collection, 1, 0, 1, 500, 0, 50) ]
+histograms += [ 
+    h_hit_particle_ID := ROOT.TH1D("h_hit_particle_ID_"+collection, "h_hit_particle_ID_"+collection, 1, 0, 1),
+    h_hit_particle_ID_map := ROOT.TH2D("h_hit_particle_ID_map_"+collection, "h_hit_particle_ID_map_"+collection+"; ; ; hits / events", 1, 0, 1, *layer_binning),
+    h_hit_particle_ID_E_MeV := ROOT.TH2D("h_hit_particle_ID_E_MeV_"+collection, "h_hit_particle_ID_E_MeV_"+collection, 1, 0, 1, 500, 0, 50)
+]
+
+h_hit_particle_ID.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
+h_hit_particle_ID_map.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
 h_hit_particle_ID_E_MeV.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
 
 h_hit_E_MeV_x_layer = {}
@@ -329,7 +342,7 @@ histograms += [
 # Timing histograms
 histograms += [
     h_hit_t := ROOT.TH1D("hist_hit_t_"+collection, "hist_hit_t_"+collection, 200, 0, 20),
-    h_hit_t_x_layer := ROOT.TH2D("hist_hit_t_map_"+collection, "hist_hit_t_"+collection+"; ; ; hits / events", 200, 0, 20, *layer_binning),
+    h_hit_t_corr_x_layer := ROOT.TH2D("hist_hit_t_corr_map_"+collection, "hist_hit_t_"+collection+"; ; ; hits / events", 200, 0, 20, *layer_binning),
     h_hit_t_corr := ROOT.TH1D("hist_hit_t_corr_"+collection, "hist_hit_t_corr_"+collection, 200, -10, 10),
 ]
 
@@ -348,6 +361,47 @@ for l in layer_cells.keys():
     histograms += [h_occ_x_layer[l]]
 histograms += [ h_occ := ROOT.TH1D(f"h_occ_tot_{collection}", f"h_occ_tot_{collection} ; total fired cells / total layer cells [%]", len(log_bins)-1, log_bins) ]
 
+if plot_origin:
+    # Special binning for origin plots (zoom in to MDI region)
+    x_binning_origin = [100, -150, 150]
+    bw_x_origin = 2*150/100
+    y_binning_origin = [100, -150, 150]
+    bw_y_origin = 2*150/100
+    z_binning_origin = [100, -2300, 2300]
+    bw_z_origin = 4600/100
+    r_binning_origin = [150, 0, 150]
+    bw_r_origin = 150/150
+
+    z_binning_mask = [100, -2220, -2180]
+    bw_z_mask = 40/100
+    x_binning_mask = [100, -50, -25]
+    bw_x_mask = 25/100
+
+    histograms += [
+        hist_origin_zr := ROOT.TH2D("hist_origin_zr_"+collection, "hist_origin_zr_"+collection+";  z (bin=%dmm) ;r (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_origin, bw_r_origin,bw_z_origin, bw_r_origin), *z_binning_origin, *r_binning_origin),
+        hist_origin_zx := ROOT.TH2D("hist_origin_zx_"+collection, "hist_origin_zx_"+collection+";  z (bin=%dmm) ;x (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_origin, bw_x_origin,bw_z_origin, bw_x_origin), *z_binning_origin, *x_binning_origin),
+        hist_origin_xy := ROOT.TH2D("hist_origin_xy_"+collection, "hist_origin_xy_"+collection+";  x (bin=%dmm) ;y (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_x_origin, bw_y_origin,bw_x_origin, bw_y_origin), *x_binning_origin, *y_binning_origin),
+        hist_origin_zphi := ROOT.TH2D("hist_origin_zphi_"+collection, "hist_origin_zphi_"+collection+"; phi (bin=%1.2frad) ; z (bin=%dmm); hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z_origin,bw_phi,bw_z_origin), *z_binning_origin, *phi_binning),
+        hist_origin_zx_masks := ROOT.TH2D("hist_origin_zx_masks_"+collection, "hist_origin_zx_masks_"+collection+";  z (bin=%dmm) ;x (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_mask, bw_x_mask,bw_z_mask, bw_x_mask), *z_binning_mask, *x_binning_mask),
+
+        hist_origin_ID_map := ROOT.TH2D("hist_origin_ID_map_"+collection, "hist_origin_ID_map_"+collection+"; ; ; hits / events", 1, 0, 1, *layer_binning),
+
+        h_E_MeV_origin_layer_map := ROOT.TH2D(f"h_E_MeV_origin_layer_map_{collection}", f"h_E_MeV_origin_layer_map_{collection}; Energy of original particle [MeV] ; layer index ; hits / events", 500, 0, 50, *layer_binning),
+        h_E_keV_origin_layer_map := ROOT.TH2D(f"h_E_keV_origin_layer_map_{collection}", f"h_E_keV_origin_layer_map_{collection}; Energy of original particle [keV] ; layer index ; hits / events", 500, 0, 1000, *layer_binning),
+        h_E_eV_origin_layer_map := ROOT.TH2D(f"h_E_eV_origin_layer_map_{collection}", f"h_E_eV_origin_layer_map_{collection}; Energy of original particle [eV] ; layer index ; hits / events", 500, 0, 1000, *layer_binning),
+        h_pT_MeV_origin_layer_map := ROOT.TH2D(f"h_pT_MeV_origin_layer_map_{collection}", f"h_pT_MeV_origin_layer_map_{collection}; Transverse momentum of original particle [MeV/c] ; layer index ; hits / events", 500, 0, 50, *layer_binning),
+        h_pT_keV_origin_layer_map := ROOT.TH2D(f"h_pT_keV_origin_layer_map_{collection}", f"h_pT_keV_origin_layer_map_{collection}; Transverse momentum of original particle [keV/c] ; layer index ; hits / events", 500, 0, 1000, *layer_binning)
+    ]
+    hist_origin_ID_map.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
+
+    if not skip_plot_per_layer:
+        h_zr_origin_zr_layer = {}
+
+        for l in layer_cells.keys():
+            h_zr_origin_zr_layer[l] = ROOT.TH2D(f"hist_origin_zr_layer{l}_{collection}", f"hist_origin_zr_layer{l}_{collection};  z (bin=%dmm) ;r (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_origin, bw_r_origin,bw_z_origin, bw_r_origin), *z_binning_origin, *r_binning_origin)
+            histograms += [h_zr_origin_zr_layer[l]]
+
+# Hit rate density VS eta
 h_hit_rateDensity_VS_eta = {}
 for l in layer_cells.keys():
     h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(f"h_hit_rateDensity_layer{l}_VS_eta_"+collection , f"h_hit_rateDensity_layer{l}_VS_eta_"+collection +"; [eta]; [MHz/cm^2];", eta_bins, 0, eta_range)
@@ -504,6 +558,10 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             h_hit_rateDensity_VS_eta[layer_n].Fill(abs(eta), 52.0*1./area_cm2 * fill_weight * 3 * 5)  # hits/cm2 => X52MHz for MHz/cm2
             h_hit_E_MeV.Fill(E_hit, fill_weight)
             h_hit_E_keV.Fill(E_hit * 1e3, fill_weight)
+            h_hit_E_eV.Fill(E_hit * 1e6, fill_weight)
+            h_hit_E_MeV_map.Fill(E_hit, layer_n, fill_weight)
+            h_hit_E_keV_map.Fill(E_hit * 1e3, layer_n, fill_weight)
+            h_hit_E_eV_map.Fill(E_hit * 1e6, layer_n, fill_weight)
             h_avg_hits_x_layer.Fill(layer_n, fill_weight)
             if not cell_fired:
                 h_avg_firing_cells_x_layer.Fill(layer_n, fill_weight)
@@ -515,10 +573,39 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             hit_xy.Fill(x_mm, y_mm, fill_weight)
             hit_zphi.Fill(z_mm, phi, fill_weight)
 
-            h_hit_t.Fill(t, fill_weight)
-            h_hit_t_x_layer.Fill(t, layer_n, fill_weight)
+            if plot_origin:
 
+                # Go up in the MC truth chain to find the primary particle
+                mc = hit.getParticle()
+                while mc.getParents().size() > 0:
+                    mc = mc.getParents(0)
+
+                origin_vertex = mc.getVertex()
+                origin_vertex_r = math.sqrt(math.pow(origin_vertex.x,2) + math.pow(origin_vertex.y,2))
+                hist_origin_zr.Fill(origin_vertex.z, origin_vertex_r, fill_weight)
+                hist_origin_zx.Fill(origin_vertex.z, origin_vertex.x, fill_weight)
+                hist_origin_zx_masks.Fill(origin_vertex.z, origin_vertex.x, fill_weight)
+                hist_origin_xy.Fill(origin_vertex.x, origin_vertex.y, fill_weight)
+                hist_origin_zphi.Fill(origin_vertex.z, math.atan2(origin_vertex.y, origin_vertex.x), fill_weight)
+
+                pdg=mc.getPDG()
+                hist_origin_ID_map.Fill(Particle.from_pdgid(pdg).name, layer_n, fill_weight)
+                E_primary = mc.getEnergy()
+                h_E_MeV_origin_layer_map.Fill(E_primary * 1e3, layer_n, fill_weight)
+                h_E_keV_origin_layer_map.Fill(E_primary * 1e6, layer_n, fill_weight)
+                h_E_eV_origin_layer_map.Fill(E_primary * 1e9, layer_n, fill_weight)
+
+                particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(mc.getMomentum().x, mc.getMomentum().y, mc.getMomentum().z, mc.getMass())
+                h_pT_MeV_origin_layer_map.Fill(particle_p4.pt() * 1e3, layer_n, fill_weight)
+                h_pT_keV_origin_layer_map.Fill(particle_p4.pt() * 1e6, layer_n, fill_weight)
+
+                if not skip_plot_per_layer:
+                    h_zr_origin_zr_layer[layer_n].Fill(origin_vertex.z, origin_vertex_r, fill_weight)
+
+
+            h_hit_t.Fill(t, fill_weight)
             h_hit_t_corr.Fill(t - (hit_distance / C_MM_NS), fill_weight)
+            h_hit_t_corr_x_layer.Fill(t - (hit_distance / C_MM_NS), layer_n, fill_weight)
 
             if layer_cells and not skip_plot_per_layer:
                 h_z_density_vs_layer_mm[layer_n].Fill(z_mm, fill_weight)
@@ -526,20 +613,18 @@ for i,event in enumerate(podio_reader.get(tree_name)):
                 h_zphi_density_vs_layer[layer_n].Fill(z_mm, phi, fill_weight)
                 h_xy_density_vs_layer[layer_n].Fill(x_mm, y_mm, fill_weight)
 
-                if energy_per_layer:
-                    h_hit_E_MeV_x_layer[layer_n].Fill(E_hit, fill_weight)
-
             if not is_calo_hit:
                 particle = hit.getParticle()
 
                 particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
 
                 # Fill MC particle histograms
+                pdg=particle.getPDG()
+                h_hit_particle_ID.Fill(Particle.from_pdgid(pdg).name, fill_weight)
+                h_hit_particle_ID_map.Fill(Particle.from_pdgid(pdg).name, layer_n, fill_weight)
                 h_hit_particle_E.Fill(particle_p4.E(), fill_weight)
                 h_hit_particle_pt.Fill(particle_p4.pt(), fill_weight)
                 h_hit_particle_eta.Fill(particle_p4.eta(), fill_weight)
-                pdg=particle.getPDG()
-                h_hit_particle_ID.Fill(Particle.from_pdgid(pdg).name+"["+str(pdg)+"]", fill_weight)
                 h_hit_particle_ID_E_MeV.Fill(Particle.from_pdgid(pdg).name, particle_p4.E(), fill_weight)
 
             # Monitor in channels that are integrating signal
@@ -626,54 +711,94 @@ if draw_maps:
     draw_map(hit_zr, "z [mm]", "r [mm]", sample_name+"_map_zr_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_map(hit_xy, "x [mm]", "y [mm]", sample_name+"_map_xy_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_map(hit_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_zphi_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_map(h_hit_t_x_layer, "timing [ns]", "layer number", sample_name+"_map_timing_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(h_hit_t_corr_x_layer, "Timing - TOF [ns]", "layer number", sample_name+"_map_timing_"+str(n_events)+"evt_"+sub_detector, collection)
 
     if not skip_plot_per_layer:
         for l, h in h_zphi_density_vs_layer.items():
             draw_map(h, "z [mm]", "#phi [rad]", sample_name+f"_map_zphi_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
 
+if plot_origin:
+    draw_map(hist_origin_zr, "z [mm]", "r [mm]", sample_name+"_map_origin_zr_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_origin_zx, "z [mm]", "x [mm]", sample_name+"_map_origin_zx_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_origin_xy, "x [mm]", "y [mm]", sample_name+"_map_origin_xy_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_origin_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_origin_zphi_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_origin_zx_masks, "z [mm]", "x [mm]", sample_name+"_map_origin_zx_masks_"+str(n_events)+"evt_"+sub_detector, collection)
+
+    hist_origin_ID_map.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
+    draw_map(hist_origin_ID_map, "ID of original particle", "layer number", sample_name+"_map_origin_ID_"+str(n_events)+"evt_"+sub_detector, collection)
+
+    draw_map(h_E_MeV_origin_layer_map, "Energy of original particle [MeV]", "layer number", sample_name+"_map_E_MeV_origin_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(h_E_keV_origin_layer_map, "Energy of original particle [keV]", "layer number", sample_name+"_map_E_keV_origin_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(h_E_eV_origin_layer_map, "Energy of original particle [eV]", "layer number", sample_name+"_map_E_eV_origin_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(h_pT_MeV_origin_layer_map, "Transverse momentum of original particle [MeV/c]", "layer number", sample_name+"_map_pT_MeV_origin_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(h_pT_keV_origin_layer_map, "Transverse momentum of original particle [keV/c]", "layer number", sample_name+"_map_pT_keV_origin_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+
+    if not skip_plot_per_layer:
+        for l, h in h_zr_origin_zr_layer.items():
+            draw_map(h, "z [mm]", "r [mm]", sample_name+f"_map_origin_zr_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
+            
 if draw_hists: 
     draw_hist(h_hit_E_MeV, "Deposited energy [MeV]", "Hits / events",  sample_name+"_hit_E_MeV_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_hit_E_keV, "Deposited energy [keV]", "Hits / events",  sample_name+"_hit_E_keV_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_E_eV,  "Deposited energy [eV]" , "Hits / events",  sample_name+"_hit_E_eV_"+str(n_events)+"evt_"+sub_detector,  collection)
+    draw_hist(h_hit_E_MeV_map, "Deposited energy [MeV]", "Layer number",  sample_name+"_hit_E_MeV_map_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_E_keV_map, "Deposited energy [keV]", "Layer number",  sample_name+"_hit_E_keV_map_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_E_eV_map,  "Deposited energy [eV]" , "Layer number",  sample_name+"_hit_E_eV_map_"+str(n_events)+"evt_"+sub_detector,  collection)
     draw_hist(h_hit_t, "Timing [ns]", "Hits / events",  sample_name+"_hit_t_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_hit_t_corr, "Timing - TOF [ns]", "Hits / events",  sample_name+"_hit_t_corr_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_avg_hits_x_layer, "Layer number", "Hits / events",  sample_name+"_avg_hits_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_avg_firing_cells_x_layer, "Layer number", "Firing cells / events",  sample_name+"_avg_firing_cells_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_occ, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
-
-    if energy_per_layer:
-        for l, h in h_hit_E_MeV_x_layer.items():
-            draw_hist(h, "Deposited energy [MeV]", "Hits per event",  sample_name+f"_hit_E_MeV_x_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
-
-    if not skip_plot_per_layer:
-        for l, h in h_occ_x_layer.items():
-            draw_hist(h, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_x_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
-
-    draw_hist(h_hit_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_particle_E_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_hit_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_particle_pt_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_hit_particle_eta, "MC particle #eta", "Particle / events",  sample_name+"_particle_eta_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_hit_particle_E_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_hit_particle_pt_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_particle_eta, "MC particle #eta", "Particle / events",  sample_name+"_hit_particle_eta_"+str(n_events)+"evt_"+sub_detector, collection)
 
     h_hit_particle_ID.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
-    draw_hist(h_hit_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
-
-    if not skip_plot_per_layer:
-        for l in h_z_density_vs_layer_mm.keys():
-            draw_hist(h_z_density_vs_layer_mm[l], "z [mm]","Hits/event",  sample_name+f"_zDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
-            draw_hist(h_phi_density_vs_layer[l],  "phi","Hits/event",  sample_name+f"_phiDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
-            draw_hist(h_xy_density_vs_layer[l], "x [mm]", "y [mm]", sample_name+f"_xyDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection, draw_opt="colz")
+    h_hit_particle_ID_map.GetXaxis().LabelsOption("v>")
+    h_hit_particle_ID_E_MeV.GetXaxis().LabelsOption("v>")
+    draw_hist(h_hit_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_hit_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_particle_ID_map, "MC particle PDG ID", "Layer number",  sample_name+"_hit_particle_ID_map_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_particle_ID_E_MeV, "MC particle type", "Deposited energy of particle [MeV]",  sample_name+"_hit_particle_ID_E_MeV_"+str(n_events)+"evt_"+sub_detector, collection)
 
     if integration_time > 1:
         draw_hist(h_tot_pu, "Number of pileup hits", "Entries",  sample_name+"_tot_pu_"+str(n_events)+"evt_"+sub_detector, collection)
         draw_hist(h_avg_pu_x_layer, "Layer", "Average pileup hits",  sample_name+"_avg_pu_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
 
-print("Writing histograms...")
-# Write the histograms to the output file
-output_file_name = f"{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.root"
-with ROOT.TFile(output_file_name,"RECREATE") as f:
-    for h in histograms:
-        if(debug>1): print("Writing histo:", h.GetName())
-        h.Write()
+    if not skip_plot_per_layer:
+        for l, h in h_occ_x_layer.items():
+            draw_hist(h, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_x_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
 
+        for l in h_z_density_vs_layer_mm.keys():
+            draw_hist(h_z_density_vs_layer_mm[l], "z [mm]","Hits/event",  sample_name+f"_zDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
+            draw_hist(h_phi_density_vs_layer[l],  "phi","Hits/event",  sample_name+f"_phiDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
+            draw_hist(h_xy_density_vs_layer[l], "x [mm]", "y [mm]", sample_name+f"_xyDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection, draw_opt="colz")
+
+# Open ROOT file and create directory structure for organized output
+output_file_name = f"{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.root"
+output_file = ROOT.TFile(output_file_name, "RECREATE")
+dir_maps = output_file.mkdir("maps")
+dir_origin = output_file.mkdir("mc_origin")
+dir_per_layer = output_file.mkdir("per_layer")
+
+
+# Categorize and write histograms to appropriate directories
+for h in histograms:
+    if(debug>1): print("Writing histo:", h.GetName())
+    
+    hname = h.GetName()
+    
+    # Categorize and write to appropriate directory
+    if plot_origin and "origin" in hname:
+        dir_origin.cd()
+    elif "map" in hname or "hit_xy" in hname or "hit_zr" in hname or "hit_zphi" in hname:
+        dir_maps.cd()
+    elif ("_layer" in hname) or ("_x_layer" in hname):
+        dir_per_layer.cd()
+    else:
+        output_file.cd()  # root directory for general histograms
+    h.Write()
+
+output_file.Close()
 print("Histograms saved in:", output_file_name)
 
 

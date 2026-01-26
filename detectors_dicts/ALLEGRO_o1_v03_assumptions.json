@@ -17,8 +17,10 @@
     },
     "multipliers": {
       "safety_factor": 3,
-      "cluster_size": 5
-    }
+      "cluster_size_IPC": 5,
+      "cluster_size_SR": 2
+    },
+    "E_thr_MeV": 0.001800
   },
 
   "VertexDisks": {
@@ -34,8 +36,10 @@
     },
     "multipliers": {
       "safety_factor": 3,
-      "cluster_size": 5
-    }
+      "cluster_size_IPC": 5,
+      "cluster_size_SR": 2
+    },
+    "E_thr_MeV": 0.001800
   },
 
   "DCH_v2": {
@@ -51,12 +55,14 @@
     "hit_size": 64,
     "multipliers": {
       "safety_factor": 3,
-      "cluster_size": 5
+      "cluster_size_IPC": 5,
+      "cluster_size_SR": 2
     },
     "pixel_size_uv": {
       "layer0": [0.050, 1.000],
       "layer1": [0.050, 1.000]
-    }
+    },
+    "E_thr_MeV": 0.001800
   },
 
   "SiWrD": {
@@ -64,14 +70,16 @@
     "hit_size": 64,
     "multipliers": {
       "safety_factor": 3,
-      "cluster_size": 5                                                                                                                                                                                                                                                                                                                                                                    
+      "cluster_size_IPC": 5,
+      "cluster_size_SR": 2
     },
     "pixel_size_uv": {
       "layer_-2": [0.050,1.000],
       "layer_-1": [0.050,1.000],
       "layer_1": [0.050,1.000],
       "layer_2": [0.050,1.000]
-    }
+    },
+    "E_thr_MeV": 0.001800
   },
 
   "HCalBarrel": {

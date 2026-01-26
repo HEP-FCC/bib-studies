@@ -36,6 +36,12 @@ parser.add_argument('-r', '--rate',
 parser.add_argument('--hitRateOccPlots',
                   action="store_true",
                   help='Create hit rate and pixel occupancy plots (needs pixel size assumption and sensor sizes).')
+parser.add_argument('--sampleType', 
+                    type=str, 
+                    choices=['IPC', 'SR'],
+                    help='Type of sample simulated, will influence assumed cluster size. Options so far: "IPC" (incoherent pair creation), "SR" (synchrotron radiation). Default: "IPC".',
+                    default='IPC')
+
 parser.add_argument('--hitRateOccStats',
                   action="store_true",
                   help='Print histo stats.')
@@ -48,6 +54,7 @@ detector_dict_path = options.detDictFile
 assumptions_path = options.assumptions
 rate = options.rate
 do_hitRateOcc_plots = options.hitRateOccPlots
+sample_type = options.sampleType
 do_hitRateOcc_stats = options.hitRateOccStats
 
 ######################################
@@ -88,6 +95,10 @@ hits_collection = detector_dict["hitsCollection"]
 strategy = assumptions_dict["strategy"]
 hit_size = assumptions_dict["hit_size"]
 multipliers = assumptions_dict["multipliers"]
+
+# Filter out dict entries for other sample types (e.g. filter out cluster_size_SR if sample_type 'IPC' is chosen, but keep 'safety_factor' for all samples as it neither contains 'IPC' nor 'SR')
+multipliers = {key: value for key, value in multipliers.items() if (sample_type in key) or all(s not in key for s in parser._option_string_actions['--sampleType'].choices)}
+print("Using multipliers:", multipliers)
 
 # Update layer related dictionary to have identical keys
 layer_cells = simplify_dict(detector_dict["det_element_cells"])
@@ -138,12 +149,13 @@ if isinstance(hit_size, dict):
 h_name = ""
 match strategy:
     case "hit_counts":
-        h_name = f"h_avg_hits_x_layer_{hits_collection}"
+        h_name = f"per_layer/h_avg_hits_x_layer_{hits_collection}"
     case "occupancy":
-        h_name = f"h_avg_occ_x_layer_{hits_collection}"
+        h_name = f"per_layer/h_avg_occ_x_layer_{hits_collection}"
     case _:
         raise AttributeError(f"Unknown strategy defined to compute the bandwidth ({strategy})")
 
+input_file.cd("per_layer")
 h_bw = input_file.Get(h_name).Clone()
 h_bw.SetNameTitle(f"{input_file_name}_bw_per_layer",f"{input_file_name}_bw_per_layer")
 h_avg_hit_rate = input_file.Get(h_name).Clone()
@@ -227,6 +239,8 @@ if do_hitRateOcc_plots:
 
     h_avg_hit_rate_per_cell = {}
     h_occ_per_cell = {}
+    h_bandwidth_per_cell = {}
+
     #h_occ_layer = {}
    
     print(f"Layer Mean-occ  StdDev    95th%%ile")
@@ -237,20 +251,30 @@ if do_hitRateOcc_plots:
             i_layer_bin = ln + 1
 
         # Hit rate per module
-        h_avg_hit_rate_per_cell[ln] = input_file.Get(f"h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
+        h_avg_hit_rate_per_cell[ln] = input_file.Get(f"per_layer/h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
         h_avg_hit_rate_per_cell[ln].Scale(rate*cm2_to_mm2*scale_factor/hist_module_size.GetBinContent(i_layer_bin))
         h_avg_hit_rate_per_cell[ln].SetNameTitle(f"{input_file_name}_hitRate_layer{ln}_per_cell", f"{input_file_name}_hitRate_layer{ln}_per_cell;Module;Average hit rate per module [MHz/cm^{2}]" )
-        draw_hist(h_avg_hit_rate_per_cell[ln], "Module", "Average hit rate [MHz/cm^{2}]", f"{input_file_name}_hitRate_layer{ln}_per_cell", )
+        draw_hist(h_avg_hit_rate_per_cell[ln], "Module", "Average hit rate [MHz/cm^{2}]", f"{input_file_name}_hitRate_layer{ln}_per_cell")
 
         # Extract maximal hit rate per module
         h_max_hit_rate.SetBinContent(i_layer_bin, h_avg_hit_rate_per_cell[ln].GetMaximum())
         h_max_hit_rate.SetBinError(i_layer_bin, h_avg_hit_rate_per_cell[ln].GetBinError(h_avg_hit_rate_per_cell[ln].GetMaximumBin()))
 
         # Occupancy per module (i.e. pixel occupancy in semiconductor detector). This will not be needed anymore once pixel/strip segmentation is added to these detectors in the DD4hep description. Then each pixel has its own cellID.
-        h_occ_per_cell[ln] = input_file.Get(f"h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
+        h_occ_per_cell[ln] = input_file.Get(f"per_layer/h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
         h_occ_per_cell[ln].Scale(scale_factor/(hist_module_size.GetBinContent(i_layer_bin)/hist_pixel_area.GetBinContent(i_layer_bin)))
         h_occ_per_cell[ln].SetNameTitle(f"{input_file_name}_occ_x_module_layer{ln}", f"{input_file_name}_occ_x_module_layer{ln};Module;Pixel occupancy per event" )
         draw_hist(h_occ_per_cell[ln], "Module", "Pixel occupancy per event", f"{input_file_name}_occ_x_module_layer{ln}")
+
+        # Bandwidth per module
+        h_bandwidth_per_cell[ln] = input_file.Get(f"per_layer/h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
+        try:
+            print(hit_size[ln])
+            h_bandwidth_per_cell[ln].Scale(rate*MHz_to_Hz*scale_factor*hit_size[ln]*b_to_GB)
+        except TypeError:
+            h_bandwidth_per_cell[ln].Scale(rate*MHz_to_Hz*scale_factor*hit_size*b_to_GB)
+        h_bandwidth_per_cell[ln].SetNameTitle(f"{input_file_name}_bandwidth_x_module_layer{ln}", f"{input_file_name}_bandwidth_x_module_layer{ln};Module;Bandwidth [GB/s]" )
+        draw_hist(h_bandwidth_per_cell[ln], "Module", "Bandwidth [GB/s]", f"{input_file_name}_bandwidth_x_module_layer{ln}")
 
         # Extract maximal occupancy per module
         h_max_cell_occ.SetBinContent(i_layer_bin, h_occ_per_cell[ln].GetMaximum())
@@ -289,4 +313,5 @@ with ROOT.TFile(output_file_name,"RECREATE") as f:
         for ln, cells in detector_dict["det_element_cells"].items():
             h_avg_hit_rate_per_cell[ln].Write()
             h_occ_per_cell[ln].Write()
+            h_bandwidth_per_cell[ln].Write()
 print("Histograms saved in:", output_file_name)
