@@ -88,9 +88,9 @@ def parse_args():
     parser.add_argument('--e_cut',
                     action='store_true',
                     help='apply energy cut (requires to pass also the assumptions dict with energy threshold).')
-    parser.add_argument('--plot_origin',
+    parser.add_argument('--plot_primary',
                     action='store_true',
-                    help='plot the origin of the particles of the collection.')
+                    help='plot the primary particle and parent of the particle creating a hit/cluster.')
 
     return (parser.parse_args())
 
@@ -116,7 +116,7 @@ integration_time = options.integration_time
 energy_per_layer = options.energy_per_layer
 digi = options.digi
 e_cut = options.e_cut
-plot_origin = options.plot_origin
+plot_primary = options.plot_primary
 
 ######################################
 # style
@@ -361,16 +361,16 @@ for l in layer_cells.keys():
     histograms += [h_occ_x_layer[l]]
 histograms += [ h_occ := ROOT.TH1D(f"h_occ_tot_{collection}", f"h_occ_tot_{collection} ; total fired cells / total layer cells [%]", len(log_bins)-1, log_bins) ]
 
-if plot_origin:
-    # Special binning for origin plots (zoom in to MDI region)
-    x_binning_origin = [100, -150, 150]
-    bw_x_origin = 2*150/100
-    y_binning_origin = [100, -150, 150]
-    bw_y_origin = 2*150/100
-    z_binning_origin = [100, -2300, 2300]
-    bw_z_origin = 4600/100
-    r_binning_origin = [150, 0, 150]
-    bw_r_origin = 150/150
+if plot_primary:
+    # Special binning for primary particle plots (zoom in to MDI region)
+    x_binning_primary = [100, -150, 150]
+    bw_x_primary = 2*150/100
+    y_binning_primary = [100, -150, 150]
+    bw_y_primary = 2*150/100
+    z_binning_primary = [100, -2300, 2300]
+    bw_z_primary = 4600/100
+    r_binning_primary = [150, 0, 150]
+    bw_r_primary = 150/150
 
     z_binning_mask = [100, -2220, -2180]
     bw_z_mask = 40/100
@@ -378,28 +378,46 @@ if plot_origin:
     bw_x_mask = 25/100
 
     histograms += [
-        hist_origin_zr := ROOT.TH2D("hist_origin_zr_"+collection, "hist_origin_zr_"+collection+";  z (bin=%dmm) ;r (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_origin, bw_r_origin,bw_z_origin, bw_r_origin), *z_binning_origin, *r_binning_origin),
-        hist_origin_zx := ROOT.TH2D("hist_origin_zx_"+collection, "hist_origin_zx_"+collection+";  z (bin=%dmm) ;x (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_origin, bw_x_origin,bw_z_origin, bw_x_origin), *z_binning_origin, *x_binning_origin),
-        hist_origin_xy := ROOT.TH2D("hist_origin_xy_"+collection, "hist_origin_xy_"+collection+";  x (bin=%dmm) ;y (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_x_origin, bw_y_origin,bw_x_origin, bw_y_origin), *x_binning_origin, *y_binning_origin),
-        hist_origin_zphi := ROOT.TH2D("hist_origin_zphi_"+collection, "hist_origin_zphi_"+collection+"; phi (bin=%1.2frad) ; z (bin=%dmm); hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z_origin,bw_phi,bw_z_origin), *z_binning_origin, *phi_binning),
-        hist_origin_zx_masks := ROOT.TH2D("hist_origin_zx_masks_"+collection, "hist_origin_zx_masks_"+collection+";  z (bin=%dmm) ;x (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_mask, bw_x_mask,bw_z_mask, bw_x_mask), *z_binning_mask, *x_binning_mask),
+        hist_primary_zr := ROOT.TH2D("hist_primary_zr_"+collection, "hist_primary_zr_"+collection+";  z (bin=%dmm) ;r (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_primary, bw_r_primary,bw_z_primary, bw_r_primary), *z_binning_primary, *r_binning_primary),
+        hist_primary_zx := ROOT.TH2D("hist_primary_zx_"+collection, "hist_primary_zx_"+collection+";  z (bin=%dmm) ;x (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_primary, bw_x_primary,bw_z_primary, bw_x_primary), *z_binning_primary, *x_binning_primary),
+        hist_primary_xy := ROOT.TH2D("hist_primary_xy_"+collection, "hist_primary_xy_"+collection+";  x (bin=%dmm) ;y (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_x_primary, bw_y_primary,bw_x_primary, bw_y_primary), *x_binning_primary, *y_binning_primary),
+        hist_primary_zphi := ROOT.TH2D("hist_primary_zphi_"+collection, "hist_primary_zphi_"+collection+"; phi (bin=%1.2frad) ; z (bin=%dmm); hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z_primary,bw_phi,bw_z_primary), *z_binning_primary, *phi_binning),
+        hist_primary_zx_masks := ROOT.TH2D("hist_primary_zx_masks_"+collection, "hist_primary_zx_masks_"+collection+";  z (bin=%dmm) ;x (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_mask, bw_x_mask,bw_z_mask, bw_x_mask), *z_binning_mask, *x_binning_mask),
 
-        hist_origin_ID_map := ROOT.TH2D("hist_origin_ID_map_"+collection, "hist_origin_ID_map_"+collection+"; ; ; hits / events", 1, 0, 1, *layer_binning),
+        hist_primary_ID_map := ROOT.TH2D("hist_primary_ID_map_"+collection, "hist_primary_ID_map_"+collection+"; ; ; hits / events", 1, 0, 1, *layer_binning),
 
-        h_E_MeV_origin_layer_map := ROOT.TH2D(f"h_E_MeV_origin_layer_map_{collection}", f"h_E_MeV_origin_layer_map_{collection}; Energy of original particle [MeV] ; layer index ; hits / events", 500, 0, 50, *layer_binning),
-        h_E_keV_origin_layer_map := ROOT.TH2D(f"h_E_keV_origin_layer_map_{collection}", f"h_E_keV_origin_layer_map_{collection}; Energy of original particle [keV] ; layer index ; hits / events", 500, 0, 1000, *layer_binning),
-        h_E_eV_origin_layer_map := ROOT.TH2D(f"h_E_eV_origin_layer_map_{collection}", f"h_E_eV_origin_layer_map_{collection}; Energy of original particle [eV] ; layer index ; hits / events", 500, 0, 1000, *layer_binning),
-        h_pT_MeV_origin_layer_map := ROOT.TH2D(f"h_pT_MeV_origin_layer_map_{collection}", f"h_pT_MeV_origin_layer_map_{collection}; Transverse momentum of original particle [MeV/c] ; layer index ; hits / events", 500, 0, 50, *layer_binning),
-        h_pT_keV_origin_layer_map := ROOT.TH2D(f"h_pT_keV_origin_layer_map_{collection}", f"h_pT_keV_origin_layer_map_{collection}; Transverse momentum of original particle [keV/c] ; layer index ; hits / events", 500, 0, 1000, *layer_binning)
+        h_E_MeV_primary_layer_map := ROOT.TH2D(f"h_E_MeV_primary_layer_map_{collection}", f"h_E_MeV_primary_layer_map_{collection}; Energy of primary particle [MeV] ; layer index ; hits / events", 500, 0, 50, *layer_binning),
+        h_E_keV_primary_layer_map := ROOT.TH2D(f"h_E_keV_primary_layer_map_{collection}", f"h_E_keV_primary_layer_map_{collection}; Energy of primary particle [keV] ; layer index ; hits / events", 500, 0, 1000, *layer_binning),
+        h_E_eV_primary_layer_map := ROOT.TH2D(f"h_E_eV_primary_layer_map_{collection}", f"h_E_eV_primary_layer_map_{collection}; Energy of primary particle [eV] ; layer index ; hits / events", 500, 0, 1000, *layer_binning),
+        h_pT_MeV_primary_layer_map := ROOT.TH2D(f"h_pT_MeV_primary_layer_map_{collection}", f"h_pT_MeV_primary_layer_map_{collection}; Transverse momentum of primary particle [MeV/c] ; layer index ; hits / events", 500, 0, 50, *layer_binning),
+        h_pT_keV_primary_layer_map := ROOT.TH2D(f"h_pT_keV_primary_layer_map_{collection}", f"h_pT_keV_primary_layer_map_{collection}; Transverse momentum of primary particle [keV/c] ; layer index ; hits / events", 500, 0, 1000, *layer_binning),
+
+
+        hist_parent_zr := ROOT.TH2D("hist_parent_zr_"+collection, "hist_parent_zr_"+collection+";  z (bin=%dmm) ;r (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_primary, bw_r_primary,bw_z_primary, bw_r_primary), *z_binning_primary, *r_binning_primary),
+        hist_parent_zx := ROOT.TH2D("hist_parent_zx_"+collection, "hist_parent_zx_"+collection+";  z (bin=%dmm) ;x (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_primary, bw_x_primary,bw_z_primary, bw_x_primary), *z_binning_primary, *x_binning_primary),
+        hist_parent_xy := ROOT.TH2D("hist_parent_xy_"+collection, "hist_parent_xy_"+collection+";  x (bin=%dmm) ;y (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_x_primary, bw_y_primary,bw_x_primary, bw_y_primary), *x_binning_primary, *y_binning_primary),
+        hist_parent_zphi := ROOT.TH2D("hist_parent_zphi_"+collection, "hist_parent_zphi_"+collection+"; phi (bin=%1.2frad) ; z (bin=%dmm); hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z_primary,bw_phi,bw_z_primary), *z_binning_primary, *phi_binning),
+        hist_parent_zx_masks := ROOT.TH2D("hist_parent_zx_masks_"+collection, "hist_parent_zx_masks_"+collection+";  z (bin=%dmm) ;x (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_mask, bw_x_mask,bw_z_mask, bw_x_mask), *z_binning_mask, *x_binning_mask),
+
+        hist_parent_ID_map := ROOT.TH2D("hist_parent_ID_map_"+collection, "hist_parent_ID_map_"+collection+"; ; ; hits / events", 1, 0, 1, *layer_binning),
+
+        h_E_MeV_parent_layer_map := ROOT.TH2D(f"h_E_MeV_parent_layer_map_{collection}", f"h_E_MeV_parent_layer_map_{collection}; Energy of parent particle [MeV] ; layer index ; hits / events", 500, 0, 50, *layer_binning),
+        h_E_keV_parent_layer_map := ROOT.TH2D(f"h_E_keV_parent_layer_map_{collection}", f"h_E_keV_parent_layer_map_{collection}; Energy of parent particle [keV] ; layer index ; hits / events", 500, 0, 1000, *layer_binning),
+        h_E_eV_parent_layer_map := ROOT.TH2D(f"h_E_eV_parent_layer_map_{collection}", f"h_E_eV_parent_layer_map_{collection}; Energy of parent particle [eV] ; layer index ; hits / events", 500, 0, 1000, *layer_binning),
+        h_pT_MeV_parent_layer_map := ROOT.TH2D(f"h_pT_MeV_parent_layer_map_{collection}", f"h_pT_MeV_parent_layer_map_{collection}; Transverse momentum of parent particle [MeV/c] ; layer index ; hits / events", 500, 0, 50, *layer_binning),
+        h_pT_keV_parent_layer_map := ROOT.TH2D(f"h_pT_keV_parent_layer_map_{collection}", f"h_pT_keV_parent_layer_map_{collection}; Transverse momentum of parent particle [keV/c] ; layer index ; hits / events", 500, 0, 1000, *layer_binning)
     ]
-    hist_origin_ID_map.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
+    hist_primary_ID_map.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
+    hist_parent_ID_map.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
 
     if not skip_plot_per_layer:
-        h_zr_origin_zr_layer = {}
+        h_zr_primary_zr_layer = {}
+        h_zr_parent_zr_layer = {}
 
         for l in layer_cells.keys():
-            h_zr_origin_zr_layer[l] = ROOT.TH2D(f"hist_origin_zr_layer{l}_{collection}", f"hist_origin_zr_layer{l}_{collection};  z (bin=%dmm) ;r (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_origin, bw_r_origin,bw_z_origin, bw_r_origin), *z_binning_origin, *r_binning_origin)
-            histograms += [h_zr_origin_zr_layer[l]]
+            h_zr_primary_zr_layer[l] = ROOT.TH2D(f"hist_primary_zr_layer{l}_{collection}", f"hist_primary_zr_layer{l}_{collection};  z (bin=%dmm) ;r (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_primary, bw_r_primary,bw_z_primary, bw_r_primary), *z_binning_primary, *r_binning_primary)
+            h_zr_parent_zr_layer[l] = ROOT.TH2D(f"hist_parent_zr_layer{l}_{collection}", f"hist_parent_zr_layer{l}_{collection};  z (bin=%dmm) ;r (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_primary, bw_r_primary,bw_z_primary, bw_r_primary), *z_binning_primary, *r_binning_primary)
+            histograms += [h_zr_primary_zr_layer[l], h_zr_parent_zr_layer[l]]
 
 # Hit rate density VS eta
 h_hit_rateDensity_VS_eta = {}
@@ -573,35 +591,63 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             hit_xy.Fill(x_mm, y_mm, fill_weight)
             hit_zphi.Fill(z_mm, phi, fill_weight)
 
-            if plot_origin:
+            if plot_primary:
 
-                # Go up in the MC truth chain to find the primary particle
-                mc = hit.getParticle()
-                while mc.getParents().size() > 0:
-                    mc = mc.getParents(0)
+                # Go up in the MC truth chain to find the primary particle and the direct parent
+                primary = hit.getParticle()# Initialize primary particle, if no parent is found then this is just the particle causing the hit itself
+                parent = hit.getParticle() # Initialize parent, if no parent is found then this is just the particle causing the hit itself
+                counter = 0
+                while primary.getParents().size() > 0: # 'primary' goes up all the way in the MC truth chain, 'parent' only one level
+                    primary = primary.getParents(0)
+                    counter += 1
+                    if counter == 1:
+                        parent = primary
 
-                origin_vertex = mc.getVertex()
-                origin_vertex_r = math.sqrt(math.pow(origin_vertex.x,2) + math.pow(origin_vertex.y,2))
-                hist_origin_zr.Fill(origin_vertex.z, origin_vertex_r, fill_weight)
-                hist_origin_zx.Fill(origin_vertex.z, origin_vertex.x, fill_weight)
-                hist_origin_zx_masks.Fill(origin_vertex.z, origin_vertex.x, fill_weight)
-                hist_origin_xy.Fill(origin_vertex.x, origin_vertex.y, fill_weight)
-                hist_origin_zphi.Fill(origin_vertex.z, math.atan2(origin_vertex.y, origin_vertex.x), fill_weight)
+                # Plots for the primary particle
+                primary_vertex = primary.getVertex()
+                primary_vertex_r = math.sqrt(math.pow(primary_vertex.x,2) + math.pow(primary_vertex.y,2))
+                hist_primary_zr.Fill(primary_vertex.z, primary_vertex_r, fill_weight)
+                hist_primary_zx.Fill(primary_vertex.z, primary_vertex.x, fill_weight)
+                hist_primary_zx_masks.Fill(primary_vertex.z, primary_vertex.x, fill_weight)
+                hist_primary_xy.Fill(primary_vertex.x, primary_vertex.y, fill_weight)
+                hist_primary_zphi.Fill(primary_vertex.z, math.atan2(primary_vertex.y, primary_vertex.x), fill_weight)
 
-                pdg=mc.getPDG()
-                hist_origin_ID_map.Fill(Particle.from_pdgid(pdg).name, layer_n, fill_weight)
-                E_primary = mc.getEnergy()
-                h_E_MeV_origin_layer_map.Fill(E_primary * 1e3, layer_n, fill_weight)
-                h_E_keV_origin_layer_map.Fill(E_primary * 1e6, layer_n, fill_weight)
-                h_E_eV_origin_layer_map.Fill(E_primary * 1e9, layer_n, fill_weight)
+                pdg=primary.getPDG()
+                hist_primary_ID_map.Fill(Particle.from_pdgid(pdg).name, layer_n, fill_weight)
+                E_primary = primary.getEnergy()
+                h_E_MeV_primary_layer_map.Fill(E_primary * 1e3, layer_n, fill_weight)
+                h_E_keV_primary_layer_map.Fill(E_primary * 1e6, layer_n, fill_weight)
+                h_E_eV_primary_layer_map.Fill(E_primary * 1e9, layer_n, fill_weight)
 
-                particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(mc.getMomentum().x, mc.getMomentum().y, mc.getMomentum().z, mc.getMass())
-                h_pT_MeV_origin_layer_map.Fill(particle_p4.pt() * 1e3, layer_n, fill_weight)
-                h_pT_keV_origin_layer_map.Fill(particle_p4.pt() * 1e6, layer_n, fill_weight)
+                particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(primary.getMomentum().x, primary.getMomentum().y, primary.getMomentum().z, primary.getMass())
+                h_pT_MeV_primary_layer_map.Fill(particle_p4.pt() * 1e3, layer_n, fill_weight)
+                h_pT_keV_primary_layer_map.Fill(particle_p4.pt() * 1e6, layer_n, fill_weight)
 
                 if not skip_plot_per_layer:
-                    h_zr_origin_zr_layer[layer_n].Fill(origin_vertex.z, origin_vertex_r, fill_weight)
+                    h_zr_primary_zr_layer[layer_n].Fill(primary_vertex.z, primary_vertex_r, fill_weight)
 
+                # Plots for the parent particle
+                parent_vertex = parent.getVertex()
+                parent_vertex_r = math.sqrt(math.pow(parent_vertex.x,2) + math.pow(parent_vertex.y,2))
+                hist_parent_zr.Fill(parent_vertex.z, parent_vertex_r, fill_weight)
+                hist_parent_zx.Fill(parent_vertex.z, parent_vertex.x, fill_weight)
+                hist_parent_zx_masks.Fill(parent_vertex.z, parent_vertex.x, fill_weight)
+                hist_parent_xy.Fill(parent_vertex.x, parent_vertex.y, fill_weight)
+                hist_parent_zphi.Fill(parent_vertex.z, math.atan2(parent_vertex.y, parent_vertex.x), fill_weight)
+
+                pdg=parent.getPDG()
+                hist_parent_ID_map.Fill(Particle.from_pdgid(pdg).name, layer_n, fill_weight)
+                E_parent = parent.getEnergy()
+                h_E_MeV_parent_layer_map.Fill(E_parent * 1e3, layer_n, fill_weight)
+                h_E_keV_parent_layer_map.Fill(E_parent * 1e6, layer_n, fill_weight)
+                h_E_eV_parent_layer_map.Fill(E_parent * 1e9, layer_n, fill_weight)
+
+                particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(parent.getMomentum().x, parent.getMomentum().y, parent.getMomentum().z, parent.getMass())
+                h_pT_MeV_parent_layer_map.Fill(particle_p4.pt() * 1e3, layer_n, fill_weight)
+                h_pT_keV_parent_layer_map.Fill(particle_p4.pt() * 1e6, layer_n, fill_weight)
+
+                if not skip_plot_per_layer:
+                    h_zr_parent_zr_layer[layer_n].Fill(parent_vertex.z, parent_vertex_r, fill_weight)
 
             h_hit_t.Fill(t, fill_weight)
             h_hit_t_corr.Fill(t - (hit_distance / C_MM_NS), fill_weight)
@@ -717,26 +763,45 @@ if draw_maps:
         for l, h in h_zphi_density_vs_layer.items():
             draw_map(h, "z [mm]", "#phi [rad]", sample_name+f"_map_zphi_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
 
-if plot_origin:
-    draw_map(hist_origin_zr, "z [mm]", "r [mm]", sample_name+"_map_origin_zr_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_map(hist_origin_zx, "z [mm]", "x [mm]", sample_name+"_map_origin_zx_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_map(hist_origin_xy, "x [mm]", "y [mm]", sample_name+"_map_origin_xy_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_map(hist_origin_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_origin_zphi_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_map(hist_origin_zx_masks, "z [mm]", "x [mm]", sample_name+"_map_origin_zx_masks_"+str(n_events)+"evt_"+sub_detector, collection)
+if plot_primary:
+    draw_map(hist_primary_zr, "z [mm]", "r [mm]", sample_name+"_map_primary_zr_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_primary_zx, "z [mm]", "x [mm]", sample_name+"_map_primary_zx_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_primary_xy, "x [mm]", "y [mm]", sample_name+"_map_primary_xy_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_primary_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_primary_zphi_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_primary_zx_masks, "z [mm]", "x [mm]", sample_name+"_map_primary_zx_masks_"+str(n_events)+"evt_"+sub_detector, collection)
 
-    hist_origin_ID_map.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
-    draw_map(hist_origin_ID_map, "ID of original particle", "layer number", sample_name+"_map_origin_ID_"+str(n_events)+"evt_"+sub_detector, collection)
+    hist_primary_ID_map.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
+    draw_map(hist_primary_ID_map, "ID of primary particle", "layer number", sample_name+"_map_primary_ID_"+str(n_events)+"evt_"+sub_detector, collection)
 
-    draw_map(h_E_MeV_origin_layer_map, "Energy of original particle [MeV]", "layer number", sample_name+"_map_E_MeV_origin_layer_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_map(h_E_keV_origin_layer_map, "Energy of original particle [keV]", "layer number", sample_name+"_map_E_keV_origin_layer_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_map(h_E_eV_origin_layer_map, "Energy of original particle [eV]", "layer number", sample_name+"_map_E_eV_origin_layer_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_map(h_pT_MeV_origin_layer_map, "Transverse momentum of original particle [MeV/c]", "layer number", sample_name+"_map_pT_MeV_origin_layer_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_map(h_pT_keV_origin_layer_map, "Transverse momentum of original particle [keV/c]", "layer number", sample_name+"_map_pT_keV_origin_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(h_E_MeV_primary_layer_map, "Energy of primary particle [MeV]", "layer number", sample_name+"_map_E_MeV_primary_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(h_E_keV_primary_layer_map, "Energy of primary particle [keV]", "layer number", sample_name+"_map_E_keV_primary_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(h_E_eV_primary_layer_map, "Energy of primary particle [eV]", "layer number", sample_name+"_map_E_eV_primary_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(h_pT_MeV_primary_layer_map, "Transverse momentum of primary particle [MeV/c]", "layer number", sample_name+"_map_pT_MeV_primary_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(h_pT_keV_primary_layer_map, "Transverse momentum of primary particle [keV/c]", "layer number", sample_name+"_map_pT_keV_primary_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+
+
+    draw_map(hist_parent_zr, "z [mm]", "r [mm]", sample_name+"_map_parent_zr_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_parent_zx, "z [mm]", "x [mm]", sample_name+"_map_parent_zx_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_parent_xy, "x [mm]", "y [mm]", sample_name+"_map_parent_xy_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_parent_zphi, "z [mm]", "#phi [rad]", sample_name+"_map_parent_zphi_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(hist_parent_zx_masks, "z [mm]", "x [mm]", sample_name+"_map_parent_zx_masks_"+str(n_events)+"evt_"+sub_detector, collection)
+
+    hist_parent_ID_map.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
+    draw_map(hist_parent_ID_map, "ID of parent particle", "layer number", sample_name+"_map_parent_ID_"+str(n_events)+"evt_"+sub_detector, collection)
+
+    draw_map(h_E_MeV_parent_layer_map, "Energy of parent particle [MeV]", "layer number", sample_name+"_map_E_MeV_parent_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(h_E_keV_parent_layer_map, "Energy of parent particle [keV]", "layer number", sample_name+"_map_E_keV_parent_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(h_E_eV_parent_layer_map, "Energy of parent particle [eV]", "layer number", sample_name+"_map_E_eV_parent_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(h_pT_MeV_parent_layer_map, "Transverse momentum of parent particle [MeV/c]", "layer number", sample_name+"_map_pT_MeV_parent_layer_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_map(h_pT_keV_parent_layer_map, "Transverse momentum of parent particle [keV/c]", "layer number", sample_name+"_map_pT_keV_parent_layer_"+str(n_events)+"evt_"+sub_detector, collection)
 
     if not skip_plot_per_layer:
-        for l, h in h_zr_origin_zr_layer.items():
-            draw_map(h, "z [mm]", "r [mm]", sample_name+f"_map_origin_zr_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
-            
+        for l, h in h_zr_primary_zr_layer.items():
+            draw_map(h, "z [mm]", "r [mm]", sample_name+f"_map_primary_zr_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
+
+        for l, h in h_zr_parent_zr_layer.items():
+            draw_map(h, "z [mm]", "r [mm]", sample_name+f"_map_parent_zr_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
+
 if draw_hists: 
     draw_hist(h_hit_E_MeV, "Deposited energy [MeV]", "Hits / events",  sample_name+"_hit_E_MeV_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_hit_E_keV, "Deposited energy [keV]", "Hits / events",  sample_name+"_hit_E_keV_"+str(n_events)+"evt_"+sub_detector, collection)
@@ -777,8 +842,10 @@ if draw_hists:
 output_file_name = f"{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.root"
 output_file = ROOT.TFile(output_file_name, "RECREATE")
 dir_maps = output_file.mkdir("maps")
-dir_origin = output_file.mkdir("mc_origin")
 dir_per_layer = output_file.mkdir("per_layer")
+if plot_primary:
+    dir_primary = output_file.mkdir("mc_primary")
+    dir_parent = output_file.mkdir("mc_parent")
 
 
 # Categorize and write histograms to appropriate directories
@@ -788,8 +855,10 @@ for h in histograms:
     hname = h.GetName()
     
     # Categorize and write to appropriate directory
-    if plot_origin and "origin" in hname:
-        dir_origin.cd()
+    if plot_primary and "primary" in hname:
+        dir_primary.cd()
+    elif plot_primary and "parent" in hname:
+        dir_parent.cd()
     elif "map" in hname or "hit_xy" in hname or "hit_zr" in hname or "hit_zphi" in hname:
         dir_maps.cd()
     elif ("_layer" in hname) or ("_x_layer" in hname):
