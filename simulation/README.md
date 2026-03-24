@@ -100,6 +100,13 @@ For specific studies, some algorithms that aren't needed can be turned off (e.g.
 The production of Incoherent Pair Creation (IPC) background simulation takes two steps.
 
 ### set_vertex_000.py
+
+**Not needed** for files after end of 2025 (Jan fixed it ;))
+
+<details>
+<summary>Click to expand</summary>
+
+
 Reset the position of particles to (0,0,0) in `.pairs` files 
 created by GuineaPig. This is required as the event generator doesn't
 include any B-field. Therefore, the positions are inexact, especially if
@@ -121,6 +128,9 @@ Note that not all the folders contain a `.pair` file,
 but only a `.dat` version of it. In that case, the `--do_dat` flag might be needed.
 
 
+</details>
+
+
 ### submit_pairs.py
 
 How to set up the condor (or local) submission of simulation jobs of 
@@ -136,10 +146,11 @@ After the preparation is done, the command to launch the jobs
 Example usage command:
 ```sh
 #important note: this fccsetup version should be the same with the earlier one used to compile k4geo, otherwise MIGHT get ROOT or other mismatch errors
+# lxplus!! , and NOT on EOS directory (condor submit will complain)
+# make sure the setup cmd matches the k4_local_repo you use (eg fccsetupnightly -r 2026-03-23)
 submit_pairs.py --tag IDEA_my_test --compactFile $K4GEO/FCCee/IDEA/compact/IDEA_o1_v03/IDEA_o1_v03.xml -n 10
 ```
-which will prepare the submission for 10 events (jobs),
-using the `IDEA_o1_v03` geometry description.
+
 All the available geometries are stored in the
 [`k4geo`](https://github.com/key4hep/k4geo/tree/main)
 repository.
@@ -163,12 +174,7 @@ submit_pairs.py \
 ```
 
 All the available options can be seen using the `-h` flag.
-For example the default input path is currently:
-```
-/eos/user/s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/
-``` 
-but can be modified specifying `--input <your/path>`,
-which should contain files with a naming format: `your/path/*_XYZ.pairs`,
+Input path `--input <your/path>` is expected to contain files with the naming format: `your/path/*_XYZ.pairs`,
 where `XYZ` is an event number.
 
 ----
