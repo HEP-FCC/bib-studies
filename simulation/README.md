@@ -25,7 +25,8 @@ Here is a **full recipe to run the simulation** in the appropriate conditions fo
 ```bash
 # connect to an Alma9 machine with cvmfs mounted
 source /cvmfs/sw.hsf.org/key4hep/setup.sh
-#important note: this fccsetup version should be the same with the later one used to submit_pairs, otherwise MIGHT get ROOT or other mismatch errors
+#important note: this fccsetup version should be
+# the same with the later one used to submit_pairs, otherwise MIGHT get ROOT or other mismatch errors
 git clone https://github.com/key4hep/k4geo
 cd k4geo
 mkdir build install
@@ -150,6 +151,7 @@ specify the path to the local build with the `--k4geo` flag.
 Example running on Jan's recent files 
 ```sh
 # lxplus!! , and NOT on EOS directory (condor submit will complain)
+# make sure the setup cmd matches the k4_local_repo you use (eg fccsetupnightly -r 2026-03-23)
 submit_pairs.py \
 -i /eos/experiment/fcc/users/j/jaeyserm/guineapig/guineapig_samples_CERN_oct25/FCCee_Z_4IP_FSR_FCCee_Z256_2T_grids8 \
 -t ALLEGRO_FSR_FCCee_Z256_2T_grids8 \
