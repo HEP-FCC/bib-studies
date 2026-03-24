@@ -179,6 +179,16 @@ condor_q -nobatch # shows jobs, not in batch groups
 condor_rm 10113537.1 # stops that job..
 ```
 
+### Merge sim output files
+
+For IPC, as an example, multiple files (1 per event) are produced, so it's good to merge them in one, for easier access and loading later.
+
+```sh
+#example
+podio-merge-files --output-file test.root /eos/home-s/sfranche/FCC/samples/bib/ipc/jaeyserm_Z_4IP_29may24_FCCee_Z256_2
+T_grids8/ALLEGRO_29may24_FCCee_Z256_2T_grids8/ALLEGRO_o1_v03_99*
+```
+
 
 ## Calorimeter calibration
 
