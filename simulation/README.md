@@ -47,7 +47,14 @@ Now let's switch to the CAD beampipe, and set vacuum everywhere (ALLEGRO is take
   - Change the physics list to `SIM.physics.list = "FTFP_BERT_EMZ"`
   - Change the range cut: `SIM.physics.rangecut = 0.05*mm`
   - Remove the energy threshold for tracker hits: `SIM.filter.tracker = "edep0"`
-  - At the bottom of the file, change the Geant4 UI configure commands to: `SIM.ui.commandsConfigure = ["/cuts/setLowEdge 50 eV", "/process/em/lowestElectronEnergy 1 eV", "/process/em/auger true" , "/process/em/deexcitationIgnoreCut true"]`
+  - At the bottom of the file, change the Geant4 UI configure commands to:
+    ```
+    SIM.ui.commandsConfigure =
+    ["/cuts/setLowEdge 50 eV",
+    "/process/em/lowestElectronEnergy 1 eV",
+    "/process/em/auger true" ,
+    "/process/em/deexcitationIgnoreCut true"]
+    ```
 - For some BIB (e.g. IPC), the **boost due to the crossing angle has to be applied**:
   - At the beginning of the file, use: `SIM.crossingAngleBoost = 0.015`
   - (boost depends on BIB generation => contact responsible/creator if in doubt)
