@@ -171,7 +171,7 @@ where `XYZ` is an event number.
 
 ----
 
-[What is condor??](https://htcondor.readthedocs.io/en/25.0/users-manual/managing-a-job.html) and [how to submit my own jobs]([url](https://batchdocs.web.cern.ch/local/quick.html))
+[What is condor??](https://htcondor.readthedocs.io/en/25.0/users-manual/managing-a-job.html) and [how to submit my own jobs](https://batchdocs.web.cern.ch/local/quick.html)
 
 ```sh
 condor_q #shows idle/running jobs
