@@ -197,6 +197,28 @@ podio-merge-files --output-file test.root /eos/home-s/sfranche/FCC/samples/bib/i
 T_grids8/ALLEGRO_29may24_FCCee_Z256_2T_grids8/ALLEGRO_o1_v03_99*
 ```
 
+### All steps together
+
+Full example, without explanations, just to see the full recipe.
+
+```
+source .../bib-studies/setup.sh -r 2026-03-23 #or the appropriate date when you compiled your local k4 repo
+cd my/k4geo/at/eos
+k4_local_repo
+cd back/to/afs
+
+submit_pairs.py \
+-i /eos/project/f/fcc-ee-mdi/BIB/GHC/V25.3-4/IPC/Z/ \
+-t IDEA_SIM.enableDetailedShowerMode_GHC_V25.3-4_Z \
+-n 4000 \
+-c $K4GEO/FCCee/IDEA/compact/IDEA_o1_v03/IDEA_o1_v03.xml \
+-o /eos/user/a/aikoulou/fcc_workdir/samples/bib/ipc/jaeyserm_Z_4IP_GHC_V25.3-4_Z \
+-s $FCCCONFIG/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py \
+--k4geo /eos/user/a/aikoulou/fcc_workdir/k4geo/
+
+condor_submit IDEA_SIM.enableDetailedShowerMode_GHC_V25.3-4_Z.cmd
+```
+
 
 ## Calorimeter calibration
 
