@@ -187,15 +187,6 @@ condor_q -nobatch # shows jobs, not in batch groups
 condor_rm 10113537.1 # stops that job..
 ```
 
-### Merge sim output files
-
-For IPC, as an example, multiple files (1 per event) are produced, so it's good to merge them in one, for easier access and loading later.
-
-```sh
-#example
-podio-merge-files --output-file test.root /eos/home-s/sfranche/FCC/samples/bib/ipc/jaeyserm_Z_4IP_29may24_FCCee_Z256_2
-T_grids8/ALLEGRO_29may24_FCCee_Z256_2T_grids8/ALLEGRO_o1_v03_99*
-```
 
 ### All steps together
 
@@ -219,6 +210,24 @@ submit_pairs.py \
 condor_submit IDEA_SIM.enableDetailedShowerMode_GHC_V25.3-4_Z.cmd
 ```
 
+### Merge sim output files
+
+For IPC, as an example, multiple files (1 per event) are produced, so it's good to merge them in one, for easier access and loading later.
+
+```sh
+#example
+podio-merge-files --output-file test.root /eos/home-s/sfranche/FCC/samples/bib/ipc/jaeyserm_Z_4IP_29may24_FCCee_Z256_2
+T_grids8/ALLEGRO_29may24_FCCee_Z256_2T_grids8/ALLEGRO_o1_v03_99*
+
+#note1:
+- if mergine many files, might not get output for a few minutes in the very beginning
+
+#note2:
+podio-merge might run extremely slow sometimes
+- check first if the running PC is not overloaded, and that EOS is not generally slow
+- try to move the files off EOS (eg to local disk somewhere), and retry there
+- 
+```
 
 ## Calorimeter calibration
 
