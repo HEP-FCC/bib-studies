@@ -16,7 +16,7 @@ also accessible through [this CERN Box link](https://cernbox.cern.ch/files/space
 
 ### Prepare your setup
 
-The configuration used to run the simulation for BIB studies is slightly different than the one used for phyiscs event processing. Mainly because of the following points:
+The configuration used to run the simulation for BIB studies is slightly different than the one used for physics event processing. Mainly because of the following points:
 - We need a detailed modeling of the MDI elements --> we use the (slow and imperfect) CAD based beampipe
 - Due to technical difficulties, their is air inside the CAD beampipe --> we use a temporary workaround setting the world volume as vacuum while waiting for a better solution
 - To properly model the effect of BIB, a detailed treatment of EM processes has to be used (e.g. we enable fluorescence)
@@ -50,8 +50,8 @@ Now let's switch to the CAD beampipe, and set vacuum everywhere (ALLEGRO is take
   - Remove the energy threshold for tracker hits: `SIM.filter.tracker = "edep0"`
   - At the bottom of the file, change the Geant4 UI configure commands to:
     ```
-    SIM.ui.commandsConfigure =
-    ["/cuts/setLowEdge 50 eV",
+    SIM.ui.commandsConfigure = [
+    "/cuts/setLowEdge 50 eV",
     "/process/em/lowestElectronEnergy 1 eV",
     "/process/em/auger true" ,
     "/process/em/deexcitationIgnoreCut true"]
