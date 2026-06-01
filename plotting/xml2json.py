@@ -29,7 +29,11 @@ match geo_file.short:
     case "ALLEGRO":
         from ALLEGRO import get_cells_map
     case "IDEA":
-        from IDEA import get_cells_map
+        # Some changes in vertex and silicon wrapper require different get_cells_map (for ALLEGRO o1_v03 and o2_v01 they use the same function as in IDEA_o1_v04/IDEA_o2_v01)
+        if(geo_file.version=="o1_v04" or geo_file.version=="o2_v01"):
+            from IDEA_o1_v04_o2_v01 import get_cells_map
+        else:
+            from IDEA import get_cells_map
     case "CLD":
         from CLD import get_cells_map
     case "ILD_FCCee":

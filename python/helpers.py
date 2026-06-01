@@ -109,7 +109,10 @@ def simplify_dict(d):
     """ 
     old_keys = list(d.keys())
     for k in old_keys:
-        d[layer_number_from_string(k)] = d.pop(k)
+        try: # In case there are multiple entries for the same layer, e.g. "layer1_1" and "layer1_2", we sum them together in the same layer number key
+            d[layer_number_from_string(k)] += d.pop(k)
+        except :
+            d[layer_number_from_string(k)] = d.pop(k)
     return d
 
 skip_pattern = r"(supportTube)|(cryo)"
@@ -135,6 +138,8 @@ def get_cells(detector, n_cells = 0):
 # Read detector types as defined in the XML
 is_calo = lambda x: (x & dd4hep.DetType.CALORIMETER) == dd4hep.DetType.CALORIMETER  #e.g. DetType_CALORIMETER in xml
 is_endcap = lambda x: (x & dd4hep.DetType.ENDCAP) == dd4hep.DetType.ENDCAP          #e.g. DetType_ENDCAP in xml
+is_pixel = lambda x: (x & dd4hep.DetType.PIXEL) == dd4hep.DetType.PIXEL             #e.g. DetType_PIXEL in xml
+
 # All DetType definitions can be found here:
 # https://github.com/AIDASoft/DD4hep/blob/master/DDCore/include/DD4hep/DetType.h
 

@@ -7,7 +7,7 @@ import array
 
 import ROOT
 
-from helpers import load_json, simplify_dict, layer_number_from_string, is_endcap
+from helpers import load_json, simplify_dict, layer_number_from_string, is_endcap, is_pixel
 from constants import b_to_GB, MHz_to_Hz, cm2_to_mm2
 from visualization import setup_root_style, draw_hist
 
@@ -100,7 +100,7 @@ multipliers = assumptions_dict["multipliers"]
 multipliers = {key: value for key, value in multipliers.items() if (sample_type in key) or all(s not in key for s in parser._option_string_actions['--sampleType'].choices)}
 print("Using multipliers:", multipliers)
 
-# Update layer related dictionary to have identical keys
+# Update layer related dictionary to~ have identical keys
 layer_cells = simplify_dict(detector_dict["det_element_cells"])
 print("Number of cells: ",layer_cells)
 n_layers = len(layer_cells.keys())
@@ -134,7 +134,7 @@ if do_hitRateOcc_plots:
     hist_module_size.Multiply(hist_sensors_per_module)
     hist_module_size.SetNameTitle("hist_module_size", "Module size per Layer;Layer;Module size [mm^{2}]")
 
-    print(f"Sensor size: {sensor_size_map}, sensors per module: {sensors_per_module_map}, module size: {[hist_module_size.GetBinContent(i+1) for i in range(hist_module_size.GetNbinsX())]}")
+    print(f"Sensor size: {sensor_size_map}, sensors per module: {sensors_per_module_map}, module size: {[hist_module_size.GetBinContent(i+1) for i in range(hist_module_size.GetNbinsX())]}, hist_pixel_area: {[hist_pixel_area.GetBinContent(i+1) for i in range(hist_pixel_area.GetNbinsX())]}")
 
 if isinstance(hit_size, dict):
     hit_size_tmp = simplify_dict(hit_size)
@@ -249,7 +249,7 @@ if do_hitRateOcc_plots:
             i_layer_bin = int(ln + len(detector_dict["det_element_cells"])/2) + 1 # to skip layer 0 in case of disk
         else:
             i_layer_bin = ln + 1
-
+            
         # Hit rate per module
         h_avg_hit_rate_per_cell[ln] = input_file.Get(f"per_layer/h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
         h_avg_hit_rate_per_cell[ln].Scale(rate*cm2_to_mm2*scale_factor/hist_module_size.GetBinContent(i_layer_bin))
