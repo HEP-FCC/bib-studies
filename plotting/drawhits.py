@@ -524,11 +524,11 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         E_hit_thr = 0
         if isinstance(E_thr_MeV, dict):
             E_hit_thr = E_thr_MeV[layer_n]
+        else:
+            E_hit_thr = E_thr_MeV
 
         if is_calo_hit:
             t = -999  # Timing not available for MutableSimCalorimeterHit
-        else:
-            E_hit_thr = E_thr_MeV
 
         # Deposited energy, converted to MeV
         E_hit = 0
