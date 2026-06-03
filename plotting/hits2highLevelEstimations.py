@@ -45,6 +45,10 @@ parser.add_argument('--sampleType',
 parser.add_argument('--hitRateOccStats',
                   action="store_true",
                   help='Print histo stats.')
+parser.add_argument('--useDigiHits',
+                  action="store_true",
+                  default=False,
+                  help='Use digitized hits instead of simulated hits to compute the hit rates and occupancies (will look for the collection defined in the assumptions json file under "digitized_hits").')
                   
 options = parser.parse_args()
 
@@ -83,6 +87,11 @@ sub_detector = re.search(r"[0-9]+evt_([^_]+)", input_file_name).group(1)
 if sub_detector=="DCH": sub_detector="DCH_v2"
 if sub_detector=="EMEC": sub_detector="EMEC_turbine"
 
+if sub_detector in ["VertexBarrel", "VertexDisks", "SiWrB", "SiWrD"]:
+    str_hit_rate = "pixel hit rate"
+else:
+    str_hit_rate = "hit rate"
+
 print(f"Reading file '{input_file_name}' (sub detector: {sub_detector})")
 
 input_file = ROOT.TFile(input_file_path, "READ")
@@ -91,7 +100,11 @@ assumptions_dict = load_json(assumptions_path, sub_detector)
 
 detector_type = detector_dict["typeFlag"]
 
-hits_collection = detector_dict["hitsCollection"]
+if options.useDigiHits:
+    print("Using digitized hits as input for the bandwidth estimation")
+    hits_collection = assumptions_dict["digitized_hits"]["collection"]
+else:
+    hits_collection = detector_dict["hitsCollection"]
 strategy = assumptions_dict["strategy"]
 hit_size = assumptions_dict["hit_size"]
 multipliers = assumptions_dict["multipliers"]
@@ -229,7 +242,7 @@ if do_hitRateOcc_plots:
     h_avg_hit_rate.Scale(rate*cm2_to_mm2*scale_factor)
     h_avg_hit_rate.Divide(hist_n_cells*hist_sensor_size)
     h_avg_hit_rate.SetNameTitle(f"{input_file_name}_avg_hit_rate_per_layer", f"{input_file_name}_avg_hit_rate_per_layer")
-    draw_hist(h_avg_hit_rate, "Layer", "Average hit rate [MHz/cm^{2}]", f"{input_file_name}_hit_rate_per_layer")
+    draw_hist(h_avg_hit_rate, "Layer", f"Average {str_hit_rate} [MHz/cm^{2}]", f"{input_file_name}_hit_rate_per_layer")
 
     # Average cell occupancy per layer
     h_avg_occ_cell_per_layer.Scale(scale_factor)
@@ -253,8 +266,8 @@ if do_hitRateOcc_plots:
         # Hit rate per module
         h_avg_hit_rate_per_cell[ln] = input_file.Get(f"per_layer/h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
         h_avg_hit_rate_per_cell[ln].Scale(rate*cm2_to_mm2*scale_factor/hist_module_size.GetBinContent(i_layer_bin))
-        h_avg_hit_rate_per_cell[ln].SetNameTitle(f"{input_file_name}_hitRate_layer{ln}_per_cell", f"{input_file_name}_hitRate_layer{ln}_per_cell;Module;Average hit rate per module [MHz/cm^{2}]" )
-        draw_hist(h_avg_hit_rate_per_cell[ln], "Module", "Average hit rate [MHz/cm^{2}]", f"{input_file_name}_hitRate_layer{ln}_per_cell")
+        h_avg_hit_rate_per_cell[ln].SetNameTitle(f"{input_file_name}_hitRate_layer{ln}_per_cell", f"{input_file_name}_hitRate_layer{ln}_per_cell;Module;Average {str_hit_rate} per module [MHz/cm^{2}]" )
+        draw_hist(h_avg_hit_rate_per_cell[ln], "Module", f"Average {str_hit_rate} [MHz/cm^{2}]", f"{input_file_name}_hitRate_layer{ln}_per_cell")
 
         # Extract maximal hit rate per module
         h_max_hit_rate.SetBinContent(i_layer_bin, h_avg_hit_rate_per_cell[ln].GetMaximum())
@@ -280,8 +293,8 @@ if do_hitRateOcc_plots:
         h_max_cell_occ.SetBinContent(i_layer_bin, h_occ_per_cell[ln].GetMaximum())
         h_max_cell_occ.SetBinError(i_layer_bin, h_occ_per_cell[ln].GetBinError(h_occ_per_cell[ln].GetMaximumBin()))
 
-    h_max_hit_rate.SetNameTitle(f"{input_file_name}_max_hit_rate_per_cell", f"{input_file_name}_max_hit_rate_per_cell;Layer;Maximal hit rate per module [MHz/cm^{2}]")
-    draw_hist(h_max_hit_rate, "Layer", "Maximal hit rate [MHz/cm^{2}]", f"{input_file_name}_max_hit_rate_per_layer")
+    h_max_hit_rate.SetNameTitle(f"{input_file_name}_max_hit_rate_per_cell", f"{input_file_name}_max_hit_rate_per_cell;Layer;Maximal {str_hit_rate} per module [MHz/cm^{2}]")
+    draw_hist(h_max_hit_rate, "Layer", f"Maximal {str_hit_rate} [MHz/cm^{2}]", f"{input_file_name}_max_hit_rate_per_layer")
 
     h_max_cell_occ.SetNameTitle(f"{input_file_name}_max_cell_occupancy", f"{input_file_name}_max_cell_occupancy;Layer;Maximal pixel occupancy per event")
     draw_hist(h_max_cell_occ, "Layer", "Maximal pixel occupancy per event", f"{input_file_name}_max_pixel_occupancy_per_layer")
