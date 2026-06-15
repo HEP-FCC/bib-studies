@@ -209,7 +209,7 @@
     "sensor_size_map": {},
     "sensors_per_module_map": {},
     "max_z": 1190,
-    "max_r": 160
+    "max_r": 170
   },
   "LumiCalBackShield": {
     "id": 18,
@@ -248,7 +248,7 @@
     "sensor_size_map": {},
     "sensors_per_module_map": {},
     "max_z": 1190,
-    "max_r": 190
+    "max_r": 200
   },
   "MuonTaggerBarrel": {
     "id": 12,
@@ -308,22 +308,22 @@
     "typeFlag": 265,
     "hitsCollection": "SiWrDCollection",
     "det_element_cells": {
-      "layer-1": 4692,
+      "layer-1": 9384,
       "layer-2": 9384,
-      "layer1": 4692,
+      "layer1": 9384,
       "layer2": 9384
     },
     "sensor_size_map": {
-      "layer-1": 3401.32,
-      "layer-2": 3401.32,
-      "layer1": 3401.32,
-      "layer2": 3401.32
+      "layer-1": 1495.4400000000005,
+      "layer-2": 1495.4400000000005,
+      "layer1": 1495.4400000000005,
+      "layer2": 1495.4400000000005
     },
     "sensors_per_module_map": {
-      "layer-1": 4692,
-      "layer-2": 4692,
-      "layer1": 4692,
-      "layer2": 4692
+      "layer-1": 2,
+      "layer-2": 2,
+      "layer1": 2,
+      "layer2": 2
     },
     "max_z": 2340,
     "max_r": 2840
@@ -361,28 +361,28 @@
     "typeFlag": 329,
     "hitsCollection": "VertexEndcapCollection",
     "det_element_cells": {
-      "layer-1": 244,
-      "layer-2": 492,
-      "layer-3": 708,
-      "layer1": 244,
-      "layer2": 492,
-      "layer3": 708
+      "layer-1": 976,
+      "layer-2": 992,
+      "layer-3": 864,
+      "layer1": 976,
+      "layer2": 992,
+      "layer3": 864
     },
     "sensor_size_map": {
-      "layer-1": 1713.3199999999997,
-      "layer-2": 1713.3199999999997,
-      "layer-3": 1713.3199999999997,
-      "layer1": 1713.3199999999997,
-      "layer2": 1713.3199999999997,
-      "layer3": 1713.3199999999997
+      "layer-1": 368.2800000000001,
+      "layer-2": 368.2800000000001,
+      "layer-3": 368.2800000000001,
+      "layer1": 368.2800000000001,
+      "layer2": 368.2800000000001,
+      "layer3": 368.2800000000001
     },
     "sensors_per_module_map": {
-      "layer-1": 244,
-      "layer-2": 246,
-      "layer-3": 236,
-      "layer1": 244,
-      "layer2": 246,
-      "layer3": 236
+      "layer-1": 4,
+      "layer-2": 4,
+      "layer-3": 4,
+      "layer1": 4,
+      "layer2": 4,
+      "layer3": 4
     },
     "max_z": 950,
     "max_r": 420

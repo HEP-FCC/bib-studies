@@ -31,8 +31,9 @@ parser.add_argument('-a', '--assumptions',
                   type=str, default='$BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_assumptions.json',
                   help='JSON dictionary with assumptions for bandwidth estimates.')
 parser.add_argument('-r', '--rate',
-                  type=float, default=52.,
-                  help='hit rate in MHz.')
+                  type=float, default=40.,
+                  help='bunch crossing rate in MHz.')
+parser.add_argument('--addScaleFactor', type=float, default=1.0, help='Additional scale factor to apply to all calculations. Can e.g. be used to apply sample-specific factor for SR halo/core calculation')
 parser.add_argument('--hitRateOccPlots',
                   action="store_true",
                   help='Create hit rate and pixel occupancy plots (needs pixel size assumption and sensor sizes).')
@@ -111,6 +112,10 @@ multipliers = assumptions_dict["multipliers"]
 
 # Filter out dict entries for other sample types (e.g. filter out cluster_size_SR if sample_type 'IPC' is chosen, but keep 'safety_factor' for all samples as it neither contains 'IPC' nor 'SR')
 multipliers = {key: value for key, value in multipliers.items() if (sample_type in key) or all(s not in key for s in parser._option_string_actions['--sampleType'].choices)}
+
+if options.addScaleFactor != 1.0:
+    multipliers["addScaleFactor"] = options.addScaleFactor
+
 print("Using multipliers:", multipliers)
 
 # Update layer related dictionary to~ have identical keys
@@ -242,13 +247,13 @@ if do_hitRateOcc_plots:
     h_avg_hit_rate.Scale(rate*cm2_to_mm2*scale_factor)
     h_avg_hit_rate.Divide(hist_n_cells*hist_sensor_size)
     h_avg_hit_rate.SetNameTitle(f"{input_file_name}_avg_hit_rate_per_layer", f"{input_file_name}_avg_hit_rate_per_layer")
-    draw_hist(h_avg_hit_rate, "Layer", f"Average {str_hit_rate} [MHz/cm^{2}]", f"{input_file_name}_hit_rate_per_layer")
+    draw_hist(h_avg_hit_rate, "Layer", f"Average {str_hit_rate} [MHz/cm^{2}]", f"{input_file_name}_hit_rate_per_layer", log_y=True)
 
     # Average cell occupancy per layer
     h_avg_occ_cell_per_layer.Scale(scale_factor)
     h_avg_occ_cell_per_layer.Divide(hist_n_cells*hist_sensor_size/hist_pixel_area)
     h_avg_occ_cell_per_layer.SetNameTitle(f"{input_file_name}_avg_occ_per_layer", f"{input_file_name}_avg_occ_per_layer;Layer;Average pixel occupancy per event")
-    draw_hist(h_avg_occ_cell_per_layer, "Layer", "Average pixel occupancy per event", f"{input_file_name}_avg_pixel_occupancy_per_layer")
+    draw_hist(h_avg_occ_cell_per_layer, "Layer", "Average pixel occupancy per event", f"{input_file_name}_avg_pixel_occupancy_per_layer", log_y=True)
 
     h_avg_hit_rate_per_cell = {}
     h_occ_per_cell = {}
@@ -294,10 +299,10 @@ if do_hitRateOcc_plots:
         h_max_cell_occ.SetBinError(i_layer_bin, h_occ_per_cell[ln].GetBinError(h_occ_per_cell[ln].GetMaximumBin()))
 
     h_max_hit_rate.SetNameTitle(f"{input_file_name}_max_hit_rate_per_cell", f"{input_file_name}_max_hit_rate_per_cell;Layer;Maximal {str_hit_rate} per module [MHz/cm^{2}]")
-    draw_hist(h_max_hit_rate, "Layer", f"Maximal {str_hit_rate} [MHz/cm^{2}]", f"{input_file_name}_max_hit_rate_per_layer")
+    draw_hist(h_max_hit_rate, "Layer", f"Maximal {str_hit_rate} [MHz/cm^{2}]", f"{input_file_name}_max_hit_rate_per_layer", log_y=True)
 
     h_max_cell_occ.SetNameTitle(f"{input_file_name}_max_cell_occupancy", f"{input_file_name}_max_cell_occupancy;Layer;Maximal pixel occupancy per event")
-    draw_hist(h_max_cell_occ, "Layer", "Maximal pixel occupancy per event", f"{input_file_name}_max_pixel_occupancy_per_layer")
+    draw_hist(h_max_cell_occ, "Layer", "Maximal pixel occupancy per event", f"{input_file_name}_max_pixel_occupancy_per_layer", log_y=True)
 
 #######################################
 # Output the results

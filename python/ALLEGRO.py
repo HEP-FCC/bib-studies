@@ -120,10 +120,6 @@ def get_cells_map(detector, sub_det, name, skip_pattern = r"(supportTube)|(cryo)
                 cells_map[f"layer{i}"] = total_cells
 
         case "VertexBarrel" | "SiWrB":
-            # Rename layers shifting their value by 1
-            # to remove degeneracy of layer 0
-            # N.B. this needs to be accounted when reading the layer number
-
             for de_name, de in sub_det.children():
                 modules = 0
                 sensors = 0
@@ -145,19 +141,15 @@ def get_cells_map(detector, sub_det, name, skip_pattern = r"(supportTube)|(cryo)
                 sensors_per_module_map[str(de_name)] = int(sensors / modules)
 
         case "VertexDisks" | "SiWrD":
-            # Rename layers shifting their value by 1
-            # to remove degeneracy of layer 0
-            # N.B. this needs to be accounted when reading the layer number
-
             for de_name, de in sub_det.children():
-                modules = 0
-                sensors = 0
                 for de_name2, de2 in de.children():
-                    modules += 1
+                    modules = 0
+                    sensors = 0
                     for de_name3, de3 in de2.children():
-                        sensors += 1
-                        area = de3.volume().solid().GetDX()*2.*10.*de3.volume().solid().GetDY()*2.*10. # Make it to mm and get sensor area in mm2. Assuming each sensor has the same area!
-                        # print("   sensor area (mm2): ", area)
+                        modules += 1
+                        for de_name4, de4 in de3.children():
+                            sensors += 1
+                            area = de4.volume().solid().GetDX()*2.*10.*de4.volume().solid().GetDY()*2.*10. # Make it to mm and get sensor area in mm2. Assuming each sensor has the same area!
 
                     if(modules==0): # Skip if there are no modules (e.g. for layers that are solely support structures)
                         print("Skipping layer with no modules: ", de_name)
