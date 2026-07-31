@@ -38,9 +38,12 @@ parser.add_argument('-k', '--k4geo', default=None, type=str,
                     help='Path to custom k4geo.')
 parser.add_argument('--crossingAngleBoost', default=0.015, type=str,
                     help='Crossing angle boost to be applied.')
+#NEW
+parser.add_argument('-j', '--job_flavor', default="longlunch", type=str,
+                    help='Job flavor for Condor submission.')
 
 
-# Condor command content
+# Condor command content with custom JobFlavor
 condor_cmd_content = """executable     = $(filename)
 # for debugging:
 # redirect the log file to somewhere accessible (uncomment lines below)
@@ -52,7 +55,8 @@ Output         = $(CONDOR_JOB_ID).out
 Error          = $(CONDOR_JOB_ID).err
 requirements    = ( (OpSysAndVer =?= "AlmaLinux9") && (Machine =!= LastRemoteHost) && (TARGET.has_avx2 =?= True) )
 max_retries    = 3
-+JobFlavour    = "espresso"
++JobFlavour    = "{1}" 
+request_memory = 8GB 
 RequestCpus = 1
 queue filename matching files {0}
 """
@@ -99,7 +103,7 @@ def run(args):
     compact = args.compactFile
     k4geo = args.k4geo
     x_angle = args.crossingAngleBoost
-
+    job_flavor = args.job_flavor  # NEW ADDED THIS LINE
 
     # Get the short name of geometry file
     geo = compact.split("/")[-1].strip(".xml")
@@ -146,17 +150,28 @@ def run(args):
         item_path = os.path.join(input_file_path, item)
         bx_id = None
         input_filename = None
+        
+        # 1. Check for older folder-based IPC samples
         if os.path.isdir(item_path):
             if "data" not in item:
                 continue
             bx_id = item.replace("data", "")
             input_filename = os.path.join(input_file_path, item, "pairs.pairs")
             print("- "+input_filename)
-        # otherwise, check if it's a .pairs file
+            
+        # 2. Check for newer file-based IPC samples (.pairs)
         elif item.endswith(".pairs"):
             input_filename = os.path.join(input_file_path, item)
             bx_id = re.search(r"_[0-9]+\.",item).group(0).strip("_.")
             print("- "+input_filename)
+            
+        # 3. NEW: Check for Synchrotron Radiation samples (.hepevt)
+        elif item.endswith(".hepevt"):
+            input_filename = os.path.join(input_file_path, item)
+            # Extracts just the number (e.g., '100004') from 'output_100004.hepevt'
+            bx_id = item.replace("output_", "").replace(".hepevt", "")
+            print("- "+input_filename)
+            
         else:
             print("Skipping item:", item)
             continue
@@ -187,7 +202,7 @@ def run(args):
     # Setup the condor script
     condor_submit_path = f"{tag}.cmd"
     exec_pattern = exec_template_name.replace("FILENAME", "*")
-    cmd_file_content = condor_cmd_content.format(exec_pattern)
+    cmd_file_content = condor_cmd_content.format(exec_pattern, job_flavor)
 
     with open(condor_submit_path, "w") as f:
         f.write(cmd_file_content)
