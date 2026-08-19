@@ -127,6 +127,8 @@ ROOT.gROOT.SetBatch(True)
 #to avoid canvas->Print printouts
 ROOT.gErrorIgnoreLevel = ROOT.kWarning
 
+# ROOT stats
+ROOT.TH1.SetDefaultSumw2()
 
 #######################################
 # functions
@@ -205,9 +207,14 @@ assumptions = load_json(assumptions_path, sub_detector) if assumptions_path else
 
 # get the hits collection name
 collection =  detector_dict["hitsCollection"]
+id_encoding = metadata.get_parameter(collection+"__CellIDEncoding")
 if digi:
     collection = assumptions["digitized_hits"]["collection"]
-id_encoding = metadata.get_parameter(collection+"__CellIDEncoding")
+
+    try:
+        id_encoding = metadata.get_parameter(collection+"__CellIDEncoding")
+    except:
+        print("No CellIDEncoding found for the digitized collection, using the one from the hits collection.")
 decoder = ROOT.dd4hep.BitFieldCoder(id_encoding)
 #print("HERE",decoder.fieldDescription()) #get possible values
 
@@ -217,7 +224,12 @@ layer_cells = {}
 n_tot_cells = 0
 for det_element, cells in detector_dict["det_element_cells"].items():
     ln = layer_number_from_string(det_element)
-    layer_cells[ln] = cells
+
+    # If multiple detector elements correspond to the same layer, sum the number of cells
+    try:
+        layer_cells[ln] += cells
+    except:
+        layer_cells[ln] = cells
     n_tot_cells += cells
 
 n_layers = len(layer_cells.keys())
@@ -419,26 +431,22 @@ if plot_primary:
             h_zr_parent_zr_layer[l] = ROOT.TH2D(f"hist_parent_zr_layer{l}_{collection}", f"hist_parent_zr_layer{l}_{collection};  z (bin=%dmm) ;r (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_primary, bw_r_primary,bw_z_primary, bw_r_primary), *z_binning_primary, *r_binning_primary)
             histograms += [h_zr_primary_zr_layer[l], h_zr_parent_zr_layer[l]]
 
-# Hit rate density VS eta
-h_hit_rateDensity_VS_eta = {}
-for l in layer_cells.keys():
-    h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(f"h_hit_rateDensity_layer{l}_VS_eta_"+collection , f"h_hit_rateDensity_layer{l}_VS_eta_"+collection +"; [eta]; [MHz/cm^2];", eta_bins, 0, eta_range)
-    #h_hit_area_cm2_VS_eta[l] = ROOT.TH1D(f"h_hit_area_cm2_layer{l}_VS_eta_"+collection , f"h_hit_area_cm2_layer{l}_VS_eta_"+collection +"; [eta]; [cm^2];", eta_bins, 0, eta_range)
-    histograms += [h_hit_rateDensity_VS_eta[l]]
-
 # Hit densities per layer
 if not skip_plot_per_layer:
     h_z_density_vs_layer_mm = {}
     h_phi_density_vs_layer = {}
     h_zphi_density_vs_layer = {}
     h_xy_density_vs_layer = {}
+    h_hit_rateDensity_VS_eta = {}
     for l in layer_cells.keys():
         h_z_density_vs_layer_mm[l] = ROOT.TH1D(f"hist_z_density_vs_layer{l}_mm_{collection}", f"hist_z_density_vs_layer{l}_mm_{collection}", *z_binning)
         h_phi_density_vs_layer[l] = ROOT.TH1D(f"hist_phi_density_vs_layer{l}_{collection}", f"hist_phi_density_vs_layer{l}_{collection}", *phi_binning)
         h_zphi_density_vs_layer[l] = ROOT.TH2D(f"hist_zphi_vs_layer{l}_{collection}", f"hist_zphi_vs_layer{l}_"+collection+"; ; ; hits/(%1.2f#times%d)rad#timesmm per event"%(bw_phi,bw_z), *z_binning, *phi_binning)
         h_xy_density_vs_layer[l] = ROOT.TH2D(f"hist_xy_vs_layer{l}_{collection}", f"hist_xy_vs_layer{l}_{collection};  x (bin=%dmm) ;y (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_r, bw_r,bw_r, bw_r), *r_binning, *r_binning)
+        h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(f"h_hit_rateDensity_layer{l}_VS_eta_{collection}" , f"h_hit_rateDensity_layer{l}_VS_eta_{collection}; [eta]; [a.u];", eta_bins, 0, eta_range)
+        #h_hit_area_cm2_VS_eta[l] = ROOT.TH1D(f"h_hit_area_cm2_layer{l}_VS_eta_"+collection , f"h_hit_area_cm2_layer{l}_VS_eta_"+collection +"; [eta]; [cm^2];", eta_bins, 0, eta_range)
 
-        histograms += [h_z_density_vs_layer_mm[l], h_phi_density_vs_layer[l], h_zphi_density_vs_layer[l], h_xy_density_vs_layer[l]]
+        histograms += [h_z_density_vs_layer_mm[l], h_phi_density_vs_layer[l], h_zphi_density_vs_layer[l], h_xy_density_vs_layer[l], h_hit_rateDensity_VS_eta[l]]
 
     # Per-module histograms
     h_avg_hits_x_layer_x_module = {}
@@ -449,8 +457,8 @@ if not skip_plot_per_layer:
 
         h_avg_hits_x_layer_x_module[l] = ROOT.TH1D(f"h_avg_hits_x_layer{l}_x_module_{collection}", f"h_avg_hits_x_layer{l}_x_module_{collection};Module ID;Hits / event", *cell_binning[l])
         histograms += [h_avg_hits_x_layer_x_module[l]]
-        if(sub_detector=="VertexBarrel" or sub_detector=="SiWrB"):
-            bin_start += layer_cells[l]/sensors_per_module_map[l]
+        # if(sub_detector=="VertexBarrel" or sub_detector=="SiWrB"):
+        #     bin_start += layer_cells[l]/sensors_per_module_map[l]
 
     h_pu_x_layer = {}
     for l in layer_cells.keys():
@@ -523,11 +531,11 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         E_hit_thr = 0
         if isinstance(E_thr_MeV, dict):
             E_hit_thr = E_thr_MeV[layer_n]
+        else:
+            E_hit_thr = E_thr_MeV
 
         if is_calo_hit:
             t = -999  # Timing not available for MutableSimCalorimeterHit
-        else:
-            E_hit_thr = E_thr_MeV
 
         # Deposited energy, converted to MeV
         E_hit = 0
@@ -572,8 +580,6 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             h_hit_z_mm.Fill(z_mm, fill_weight)
             h_hit_r_mm.Fill(r_mm, fill_weight)
             h_hit_eta.Fill(eta, fill_weight)
-            #foreach event, fill the eta bin, scaled by the bin area in cm2 => <hits>/evt/cm2, but 40MHz evt rate => multiply to getMHz/cm2
-            h_hit_rateDensity_VS_eta[layer_n].Fill(abs(eta), 52.0*1./area_cm2 * fill_weight * 3 * 5)  # hits/cm2 => X52MHz for MHz/cm2
             h_hit_E_MeV.Fill(E_hit, fill_weight)
             h_hit_E_keV.Fill(E_hit * 1e3, fill_weight)
             h_hit_E_eV.Fill(E_hit * 1e6, fill_weight)
@@ -658,20 +664,25 @@ for i,event in enumerate(podio_reader.get(tree_name)):
                 h_phi_density_vs_layer[layer_n].Fill(phi, fill_weight)
                 h_zphi_density_vs_layer[layer_n].Fill(z_mm, phi, fill_weight)
                 h_xy_density_vs_layer[layer_n].Fill(x_mm, y_mm, fill_weight)
+                h_hit_rateDensity_VS_eta[layer_n].Fill(abs(eta), 52.0*1./area_cm2 * fill_weight * 3 * 5)  # hits/cm2 => X52MHz for MHz/cm2. To do: Make this adjustable to use correct bunch crossing frequency and not just 52 MHz!
+
 
             if not is_calo_hit:
-                particle = hit.getParticle()
+                try:
+                    particle = hit.getParticle()
 
-                particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
+                    particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
 
-                # Fill MC particle histograms
-                pdg=particle.getPDG()
-                h_hit_particle_ID.Fill(Particle.from_pdgid(pdg).name, fill_weight)
-                h_hit_particle_ID_map.Fill(Particle.from_pdgid(pdg).name, layer_n, fill_weight)
-                h_hit_particle_E.Fill(particle_p4.E(), fill_weight)
-                h_hit_particle_pt.Fill(particle_p4.pt(), fill_weight)
-                h_hit_particle_eta.Fill(particle_p4.eta(), fill_weight)
-                h_hit_particle_ID_E_MeV.Fill(Particle.from_pdgid(pdg).name, particle_p4.E(), fill_weight)
+                    # Fill MC particle histograms
+                    pdg=particle.getPDG()
+                    h_hit_particle_ID.Fill(Particle.from_pdgid(pdg).name, fill_weight)
+                    h_hit_particle_ID_map.Fill(Particle.from_pdgid(pdg).name, layer_n, fill_weight)
+                    h_hit_particle_E.Fill(particle_p4.E(), fill_weight)
+                    h_hit_particle_pt.Fill(particle_p4.pt(), fill_weight)
+                    h_hit_particle_eta.Fill(particle_p4.eta(), fill_weight)
+                    h_hit_particle_ID_E_MeV.Fill(Particle.from_pdgid(pdg).name, particle_p4.E(), fill_weight)
+                except:
+                    print("Not possible to retrieve mc particle information for this hit. Skipping MC truth plots for this hit.")
 
             # Monitor in channels that are integrating signal
             if integration_time > 1:
@@ -734,7 +745,6 @@ if integration_time > 1:
 
 # # Draw TEST histos
 # cm1 = ROOT.TCanvas("cm1_", "cm1_", 800, 600)
-# h_hit_rateDensity_VS_eta.Draw("COLZ")
 # #draw_eta_line(1)
 # cm1.SetLogy()
 # cm1.Print("test.pdf")
@@ -837,7 +847,8 @@ if draw_hists:
             draw_hist(h_z_density_vs_layer_mm[l], "z [mm]","Hits/event",  sample_name+f"_zDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
             draw_hist(h_phi_density_vs_layer[l],  "phi","Hits/event",  sample_name+f"_phiDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
             draw_hist(h_xy_density_vs_layer[l], "x [mm]", "y [mm]", sample_name+f"_xyDensity_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection, draw_opt="colz")
-
+            draw_hist(h_hit_rateDensity_VS_eta[l], "eta", "Hit rate density [a.u.]", sample_name+f"_hitRateDensity_VS_eta_layer{l}_"+str(n_events)+"evt_"+sub_detector, collection)
+            
 # Open ROOT file and create directory structure for organized output
 output_file_name = f"{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.root"
 output_file = ROOT.TFile(output_file_name, "RECREATE")

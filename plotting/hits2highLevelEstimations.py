@@ -7,7 +7,7 @@ import array
 
 import ROOT
 
-from helpers import load_json, simplify_dict, layer_number_from_string, is_endcap
+from helpers import load_json, simplify_dict, layer_number_from_string, is_endcap, is_pixel
 from constants import b_to_GB, MHz_to_Hz, cm2_to_mm2
 from visualization import setup_root_style, draw_hist
 
@@ -31,8 +31,9 @@ parser.add_argument('-a', '--assumptions',
                   type=str, default='$BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_assumptions.json',
                   help='JSON dictionary with assumptions for bandwidth estimates.')
 parser.add_argument('-r', '--rate',
-                  type=float, default=52.,
-                  help='hit rate in MHz.')
+                  type=float, default=40.,
+                  help='bunch crossing rate in MHz.')
+parser.add_argument('--addScaleFactor', type=float, default=1.0, help='Additional scale factor to apply to all calculations. Can e.g. be used to apply sample-specific factor for SR halo/core calculation')
 parser.add_argument('--hitRateOccPlots',
                   action="store_true",
                   help='Create hit rate and pixel occupancy plots (needs pixel size assumption and sensor sizes).')
@@ -45,6 +46,10 @@ parser.add_argument('--sampleType',
 parser.add_argument('--hitRateOccStats',
                   action="store_true",
                   help='Print histo stats.')
+parser.add_argument('--useDigiHits',
+                  action="store_true",
+                  default=False,
+                  help='Use digitized hits instead of simulated hits to compute the hit rates and occupancies (will look for the collection defined in the assumptions json file under "digitized_hits").')
                   
 options = parser.parse_args()
 
@@ -83,6 +88,11 @@ sub_detector = re.search(r"[0-9]+evt_([^_]+)", input_file_name).group(1)
 if sub_detector=="DCH": sub_detector="DCH_v2"
 if sub_detector=="EMEC": sub_detector="EMEC_turbine"
 
+if sub_detector in ["VertexBarrel", "VertexDisks", "SiWrB", "SiWrD"]:
+    str_hit_rate = "pixel hit rate"
+else:
+    str_hit_rate = "hit rate"
+
 print(f"Reading file '{input_file_name}' (sub detector: {sub_detector})")
 
 input_file = ROOT.TFile(input_file_path, "READ")
@@ -91,16 +101,24 @@ assumptions_dict = load_json(assumptions_path, sub_detector)
 
 detector_type = detector_dict["typeFlag"]
 
-hits_collection = detector_dict["hitsCollection"]
+if options.useDigiHits:
+    print("Using digitized hits as input for the bandwidth estimation")
+    hits_collection = assumptions_dict["digitized_hits"]["collection"]
+else:
+    hits_collection = detector_dict["hitsCollection"]
 strategy = assumptions_dict["strategy"]
 hit_size = assumptions_dict["hit_size"]
 multipliers = assumptions_dict["multipliers"]
 
 # Filter out dict entries for other sample types (e.g. filter out cluster_size_SR if sample_type 'IPC' is chosen, but keep 'safety_factor' for all samples as it neither contains 'IPC' nor 'SR')
 multipliers = {key: value for key, value in multipliers.items() if (sample_type in key) or all(s not in key for s in parser._option_string_actions['--sampleType'].choices)}
+
+if options.addScaleFactor != 1.0:
+    multipliers["addScaleFactor"] = options.addScaleFactor
+
 print("Using multipliers:", multipliers)
 
-# Update layer related dictionary to have identical keys
+# Update layer related dictionary to~ have identical keys
 layer_cells = simplify_dict(detector_dict["det_element_cells"])
 print("Number of cells: ",layer_cells)
 n_layers = len(layer_cells.keys())
@@ -134,7 +152,7 @@ if do_hitRateOcc_plots:
     hist_module_size.Multiply(hist_sensors_per_module)
     hist_module_size.SetNameTitle("hist_module_size", "Module size per Layer;Layer;Module size [mm^{2}]")
 
-    print(f"Sensor size: {sensor_size_map}, sensors per module: {sensors_per_module_map}, module size: {[hist_module_size.GetBinContent(i+1) for i in range(hist_module_size.GetNbinsX())]}")
+    print(f"Sensor size: {sensor_size_map}, sensors per module: {sensors_per_module_map}, module size: {[hist_module_size.GetBinContent(i+1) for i in range(hist_module_size.GetNbinsX())]}, hist_pixel_area: {[hist_pixel_area.GetBinContent(i+1) for i in range(hist_pixel_area.GetNbinsX())]}")
 
 if isinstance(hit_size, dict):
     hit_size_tmp = simplify_dict(hit_size)
@@ -229,13 +247,13 @@ if do_hitRateOcc_plots:
     h_avg_hit_rate.Scale(rate*cm2_to_mm2*scale_factor)
     h_avg_hit_rate.Divide(hist_n_cells*hist_sensor_size)
     h_avg_hit_rate.SetNameTitle(f"{input_file_name}_avg_hit_rate_per_layer", f"{input_file_name}_avg_hit_rate_per_layer")
-    draw_hist(h_avg_hit_rate, "Layer", "Average hit rate [MHz/cm^{2}]", f"{input_file_name}_hit_rate_per_layer")
+    draw_hist(h_avg_hit_rate, "Layer", f"Average {str_hit_rate} [MHz/cm^{2}]", f"{input_file_name}_hit_rate_per_layer", log_y=True)
 
     # Average cell occupancy per layer
     h_avg_occ_cell_per_layer.Scale(scale_factor)
     h_avg_occ_cell_per_layer.Divide(hist_n_cells*hist_sensor_size/hist_pixel_area)
     h_avg_occ_cell_per_layer.SetNameTitle(f"{input_file_name}_avg_occ_per_layer", f"{input_file_name}_avg_occ_per_layer;Layer;Average pixel occupancy per event")
-    draw_hist(h_avg_occ_cell_per_layer, "Layer", "Average pixel occupancy per event", f"{input_file_name}_avg_pixel_occupancy_per_layer")
+    draw_hist(h_avg_occ_cell_per_layer, "Layer", "Average pixel occupancy per event", f"{input_file_name}_avg_pixel_occupancy_per_layer", log_y=True)
 
     h_avg_hit_rate_per_cell = {}
     h_occ_per_cell = {}
@@ -249,12 +267,12 @@ if do_hitRateOcc_plots:
             i_layer_bin = int(ln + len(detector_dict["det_element_cells"])/2) + 1 # to skip layer 0 in case of disk
         else:
             i_layer_bin = ln + 1
-
+            
         # Hit rate per module
         h_avg_hit_rate_per_cell[ln] = input_file.Get(f"per_layer/h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
         h_avg_hit_rate_per_cell[ln].Scale(rate*cm2_to_mm2*scale_factor/hist_module_size.GetBinContent(i_layer_bin))
-        h_avg_hit_rate_per_cell[ln].SetNameTitle(f"{input_file_name}_hitRate_layer{ln}_per_cell", f"{input_file_name}_hitRate_layer{ln}_per_cell;Module;Average hit rate per module [MHz/cm^{2}]" )
-        draw_hist(h_avg_hit_rate_per_cell[ln], "Module", "Average hit rate [MHz/cm^{2}]", f"{input_file_name}_hitRate_layer{ln}_per_cell")
+        h_avg_hit_rate_per_cell[ln].SetNameTitle(f"{input_file_name}_hitRate_layer{ln}_per_cell", f"{input_file_name}_hitRate_layer{ln}_per_cell;Module;Average {str_hit_rate} per module [MHz/cm^{2}]" )
+        draw_hist(h_avg_hit_rate_per_cell[ln], "Module", f"Average {str_hit_rate} [MHz/cm^{2}]", f"{input_file_name}_hitRate_layer{ln}_per_cell")
 
         # Extract maximal hit rate per module
         h_max_hit_rate.SetBinContent(i_layer_bin, h_avg_hit_rate_per_cell[ln].GetMaximum())
@@ -280,11 +298,11 @@ if do_hitRateOcc_plots:
         h_max_cell_occ.SetBinContent(i_layer_bin, h_occ_per_cell[ln].GetMaximum())
         h_max_cell_occ.SetBinError(i_layer_bin, h_occ_per_cell[ln].GetBinError(h_occ_per_cell[ln].GetMaximumBin()))
 
-    h_max_hit_rate.SetNameTitle(f"{input_file_name}_max_hit_rate_per_cell", f"{input_file_name}_max_hit_rate_per_cell;Layer;Maximal hit rate per module [MHz/cm^{2}]")
-    draw_hist(h_max_hit_rate, "Layer", "Maximal hit rate [MHz/cm^{2}]", f"{input_file_name}_max_hit_rate_per_layer")
+    h_max_hit_rate.SetNameTitle(f"{input_file_name}_max_hit_rate_per_cell", f"{input_file_name}_max_hit_rate_per_cell;Layer;Maximal {str_hit_rate} per module [MHz/cm^{2}]")
+    draw_hist(h_max_hit_rate, "Layer", f"Maximal {str_hit_rate} [MHz/cm^{2}]", f"{input_file_name}_max_hit_rate_per_layer", log_y=True)
 
     h_max_cell_occ.SetNameTitle(f"{input_file_name}_max_cell_occupancy", f"{input_file_name}_max_cell_occupancy;Layer;Maximal pixel occupancy per event")
-    draw_hist(h_max_cell_occ, "Layer", "Maximal pixel occupancy per event", f"{input_file_name}_max_pixel_occupancy_per_layer")
+    draw_hist(h_max_cell_occ, "Layer", "Maximal pixel occupancy per event", f"{input_file_name}_max_pixel_occupancy_per_layer", log_y=True)
 
 #######################################
 # Output the results
