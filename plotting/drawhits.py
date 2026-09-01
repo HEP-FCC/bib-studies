@@ -29,7 +29,7 @@ def parse_args():
                     type=int, default=1,
                     help='debug level (0:quiet, 1:default, 2:verbose)')
     parser.add_argument('-i', '--infilePath',
-                    type=str, default='/eos/home-s/sfranche/FCC/samples/bib/ipc/aciarma_4IP_2024may29_Z/CADbp_ALLEGRO_o1_v03_r2025-05-29_3998.root',
+                    type=str,
                     help='path to input file or input directory')
     #parser.add_argument('-o', '--outputFileTag',
     #                type=str, default='hits',
@@ -102,7 +102,9 @@ events_per_file = options.numberOfEvents
 input_path = options.infilePath
 tree_name = options.tree
 sample_name = options.sample
-det_file =  DetFilePath(options.detDictFile)
+_default_det_file = '$BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json'
+if "IDEA" in input_path: _default_det_file = '$BIB_STUDIES/detectors_dicts/IDEA_DetectorDimensions.json'
+det_file =  DetFilePath(_default_det_file if options.detDictFile=='' else options.detDictFile )
 assumptions_path = options.assumptions
 sub_detector = options.subDetector
 draw_maps = options.draw_maps
