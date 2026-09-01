@@ -432,6 +432,11 @@ if plot_primary:
             h_zr_primary_zr_layer[l] = ROOT.TH2D(f"hist_primary_zr_layer{l}_{collection}", f"hist_primary_zr_layer{l}_{collection};  z (bin=%dmm) ;r (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_primary, bw_r_primary,bw_z_primary, bw_r_primary), *z_binning_primary, *r_binning_primary)
             h_zr_parent_zr_layer[l] = ROOT.TH2D(f"hist_parent_zr_layer{l}_{collection}", f"hist_parent_zr_layer{l}_{collection};  z (bin=%dmm) ;r (bin=%dmm) ; hits/(%d#times%d) mm^{2} per event"%(bw_z_primary, bw_r_primary,bw_z_primary, bw_r_primary), *z_binning_primary, *r_binning_primary)
             histograms += [h_zr_primary_zr_layer[l], h_zr_parent_zr_layer[l]]
+h_hit_rateDensity_VS_eta = {}
+for l in layer_cells.keys():
+    h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(f"h_hit_rateDensity_layer{l}_VS_eta_"+collection , f"h_hit_rateDensity_layer{l}_VS_eta_"+collection +" (not applied: rate, pix/cl, SF); [eta]; [MHz/cm^2];", eta_bins, 0, eta_range)
+    #h_hit_area_cm2_VS_eta[l] = ROOT.TH1D(f"h_hit_area_cm2_layer{l}_VS_eta_"+collection , f"h_hit_area_cm2_layer{l}_VS_eta_"+collection +"; [eta]; [cm^2];", eta_bins, 0, eta_range)
+    histograms += [h_hit_rateDensity_VS_eta[l]]
 
 # Hit densities per layer
 if not skip_plot_per_layer:
@@ -582,6 +587,8 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             h_hit_z_mm.Fill(z_mm, fill_weight)
             h_hit_r_mm.Fill(r_mm, fill_weight)
             h_hit_eta.Fill(eta, fill_weight)
+            #foreach event, fill the eta bin, scaled by the bin area in cm2 => <hits>/evt/cm2, but 40MHz evt rate => multiply to getMHz/cm2
+            #h_hit_rateDensity_VS_eta[layer_n].Fill(abs(eta), 1./area_cm2 * fill_weight)  # hits/cm2 => X52MHz for MHz/cm2
             h_hit_E_MeV.Fill(E_hit, fill_weight)
             h_hit_E_keV.Fill(E_hit * 1e3, fill_weight)
             h_hit_E_eV.Fill(E_hit * 1e6, fill_weight)
@@ -666,7 +673,8 @@ for i,event in enumerate(podio_reader.get(tree_name)):
                 h_phi_density_vs_layer[layer_n].Fill(phi, fill_weight)
                 h_zphi_density_vs_layer[layer_n].Fill(z_mm, phi, fill_weight)
                 h_xy_density_vs_layer[layer_n].Fill(x_mm, y_mm, fill_weight)
-                h_hit_rateDensity_VS_eta[layer_n].Fill(abs(eta), 52.0*1./area_cm2 * fill_weight * 3 * 5)  # hits/cm2 => X52MHz for MHz/cm2. To do: Make this adjustable to use correct bunch crossing frequency and not just 52 MHz!
+                h_hit_rateDensity_VS_eta[layer_n].Fill(abs(eta), 1./area_cm2 * fill_weight )  # hits/cm2 => X52MHz for MHz/cm2.
+                #h_hit_rateDensity_VS_eta[layer_n].Fill(abs(eta), 52.0*1./area_cm2 * fill_weight * 3 * 5)  # hits/cm2 => X52MHz for MHz/cm2. To do: Make this adjustable to use correct bunch crossing frequency and not just 52 MHz!
 
 
             if not is_calo_hit:
