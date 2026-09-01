@@ -20,6 +20,7 @@ parser.add_option('-d', '--detGeoFile',
 
 (options, args) = parser.parse_args()
 
+print("Detector geometry file: "+options.detGeoFile)
 geo_file = DetFilePath(options.detGeoFile)
 
 ######################################
