@@ -153,9 +153,15 @@ class DetFilePath:
     def __init__(self, path):
         self.path    = os.path.expandvars(path)                                # Full path to XML/JSON file
         self.f_name  = self.path.split("/")[-1].strip(".xml").strip(".json")   # Get the file name
-        self.name    = re.search(".*_o[0-9]_v[0-9]{2}", self.f_name).group(0)  # Get detector name and version
-        self.short   = re.sub("_o[0-9]_v[0-9]{2}", "", self.name)              # Get name only
-        self.version = re.search("o[0-9]_v[0-9]{2}", self.name).group(0)       # Get version only
+        try:
+            self.name    = re.search(".*_o[0-9]_v[0-9]{2}", self.f_name).group(0)  # Get detector name and version
+            self.short   = re.sub("_o[0-9]_v[0-9]{2}", "", self.name)              # Get name only
+            self.version = re.search("o[0-9]_v[0-9]{2}", self.name).group(0)       # Get version only
+        except AttributeError:
+            print("file format oXX_vXX not found, trying only version")
+            self.name    = re.search(".*_v[0-9]{2}", self.f_name).group(0)    
+            self.short   = re.sub("_v[0-9]{2}", "", self.name)              # Get name only
+            self.version = re.search("v[0-9]{2}", self.name).group(0)       # Get version only
 
 
 ##simple function to print "header" with CYAN color
