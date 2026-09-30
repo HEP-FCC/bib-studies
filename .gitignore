@@ -7,7 +7,7 @@ ide/*
 
 *pdf
 *png
-*json
+#*json
 *root
 #symlinks
 ALLEGRO*
