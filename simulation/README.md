@@ -85,10 +85,81 @@ ddsim -N -1 \
 simulation/submit_bkg.py serves as a generalization of the previous submit_pairs.py, which submits an HTCondor job for every background file submitted, each containing N events. 
 The generalized script allows the processing of .root IPC and SR files in the new format, and leverages embedded metadata for weight calculations etc.
 
+Example usage:
+```sh
+# lxplus!! , and NOT on EOS directory (condor submit will complain)
+python3 $BIB_STUDIES/simulation/submit_bkg.py \
+-i /eos/experiment/fcc/users/j/jaeyserm/bdsim/LCC_v2short_halo \
+-t ALLEGRO_SR_halo \
+-c $K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml \
+-k /eos/user/<u>/<user>/k4geo \
+-n 10
+```
+
+Key input arguments are:
+- `-i` / `--input` input folder with the background files (`.pairs`, `.hepevt` or edm4hep `.root`)
+- `-o` / `--output` output folder for the simulated files
+- `-t` / `--tag` tag of the dataset, used to name the submission folder and the `.cmd` / `.sh` files
+- `-c` / `--compactFile` detector geometry
+- `-s` / `--steering_file` path to the steering file (if not given, a default is looked up from `$FCCCONFIG`)
+
+Other useful options are:
+- `-n` / `--n_max_jobs` the maximum number of jobs to create (`-1` for all)
+- `-k` / `--k4geo` path to a local k4geo build, set up in the job with `k4_local_repo` + `thisk4geo.sh`
+- `-d` / `--dd4hep` path to a local DD4hep build, set up in the job before k4geo (e.g. for DD4hep changes not yet in the release)
+- `--crossingAngleBoost` crossing angle boost passed to `ddsim` (default `0.015`, required for the SR samples that are given in the beamline frame)
+- `--mcCollection` name of the `MCParticle` collection in the edm4hep `.root` inputs (`MCParticles` for SR, `Pairs` for IPC from guinea-pig)
+- `-j` / `--job_flavor` condor job flavour (default `espresso`)
+- `--seed` random seed passed to `ddsim` (default `42`, so re-running a file reproduces the same result)
+
+Notes:
+- `ddsim` writes its output in the condor scratch directory and the file is moved to the output folder at the end of the job. The output is always written in EDM4hep format and keeps all the particles (`--part.keepAllParticles`).
+- Condor accepts at most 20000 jobs per submission: for larger samples one `<tag>_part<N>.cmd` file is written per slice of 20000 files, and each of them has to be submitted.
+- For `.root` inputs, the number of background events per file is read and a summary of the normalisation (events, files, bunch crossings covered) is printed at submission time.
+- A `<tag>.sh` script to run the same jobs locally is also created.
+
 
 ### Running the overlay
 Before the digitization step, it is important to overlay the ddsim simulation output for which we are running our BIB studies to have a comprehensive picture of the detected occupancy for a physics
-event produced at BX 0 for different subdetectors with diffreent readout windows. A concrete implementation of the overlay process will be pushed in an upcoming PR.
+event produced at BX 0 for different subdetectors with diffreent readout windows.
+
+The overlay is done with the `OverlayTiming` algorithm, configured in `overlay.py` and run with `k4run`.
+It overlays the background onto the tracker hits of the DCH, silicon wrapper (`SiWrD`, `SiWrB`) and vertex (barrel, endcap) collections, 
+with a different time window per sub-detector (`[-400, 400]` ns for the DCH, `[0, 25]` ns for the others).
+Calorimeter hits are not overlaid.
+The hits are saved in new `Overlay*` collections, together with the `OverlayMCParticles`.
+
+Key input arguments of `overlay.py` are:
+- `--inputFile` the physics simulation input
+- `--outputFile` the overlaid EDM4hep output
+- `--backgroundFilesPath` directory containing the background `.root` files (searched recursively)
+- `--numEvents` the number of physics events to overlay (`-1` for all)
+
+The bunch train (33 BX, 25 ns apart), the BX of the physics event and the number of background events per BX are set in `overlay.py`.
+
+Note: `NumberBackground` is the number of background *events* per BX, which is not necessarily the number of BX that one background event represents.
+Check the normalisation printed by `submit_bkg.py` (e.g. one SR halo file corresponds to about 1/2020 BX, while one IPC file is `bw_scale` BX) before interpreting the overlaid occupancy.
+
+#### submit_overlay.py
+
+`submit_overlay.py` generates the executable and the HTCondor submit file for a single `overlay.py` run
+(the nightlies are used, since the `TimeWindows` property is not available in the stable releases),
+and prints the command to launch it.
+
+Example usage:
+```sh
+# lxplus!! , and NOT on EOS directory (condor submit will complain)
+python3 $BIB_STUDIES/simulation/submit_overlay.py \
+--inputFile <path/to/physics_sim.root> \
+--backgroundFilesPath <path/to/background/files> \
+--outputFile <path/to/overlaid.root>
+```
+
+Other useful options are:
+- `--numEvents` the number of physics events to overlay (`-1` for all)
+- `--jobFlavour` condor job flavour (default `tomorrow`)
+- `--requestMemory` condor memory request (default `8GB`)
+- `--tag` base name of the generated `.sh` / `.cmd` files, written in the current directory (default: from `--outputFile`)
 
 
 ### Running the digitization
@@ -236,6 +307,30 @@ podio-merge might run extremely slow sometimes
 - check first if the running PC is not overloaded, and that EOS is not generally slow
 - try to move the files off EOS (eg to local disk somewhere), and retry there
 - 
+```
+
+#### merge_edm4hep_files.py
+
+For the edm4hep samples (e.g. the SR halo, 1 event per file), `python/merge_edm4hep_files.py` merges many single-event files into chunked output files,
+with one output event per input event.
+Collections can be dropped at the ROOT level (without reading them), which reduces the size of the merged files.
+
+Key input arguments are:
+- `--input-dir` directory with the input files
+- `--output-dir` output directory (default: `<input-dir>/../merged`)
+- `--drop <regex>` drop the event collections matching the regex (can be repeated)
+- `--no-mcparticles` also drop `MCParticles` (about 98% of the file size), the hit to `MCParticle` links are then not available (see the [plotting docs](../plotting/README.md))
+
+Other useful options are:
+- `--pattern` glob pattern for the input files (default `*_edm4hep_*.root`)
+- `--files-per-output` number of input files per output file (`0` for all in one file)
+- `--prefix` output file name prefix
+- `--max-files` use only the first N input files, for testing
+
+Example usage:
+```sh
+# inside the Key4hep nightly environment
+python3 $BIB_STUDIES/python/merge_edm4hep_files.py --input-dir <path/to/files> --files-per-output 100 --no-mcparticles
 ```
 
 ## Calorimeter calibration
