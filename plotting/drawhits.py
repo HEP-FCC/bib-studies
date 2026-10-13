@@ -90,7 +90,8 @@ def parse_args():
                     help='apply energy cut (requires to pass also the assumptions dict with energy threshold).')
     parser.add_argument('--plot_primary',
                     action='store_true',
-                    help='plot the primary particle and parent of the particle creating a hit/cluster.')
+                    help='plot the primary particle and parent of the particle creating a hit/cluster '
+                         '(needs the MCParticles collection; skipped with a warning if it is missing from the input).')
 
     return (parser.parse_args())
 
@@ -359,7 +360,9 @@ log_bins = np.hstack([0,np.logspace(-2,2,50)]) #add 0 value to log bins (to avoi
 for l in layer_cells.keys():
     h_occ_x_layer[l] = ROOT.TH1D(f"h_occ_x_layer{l}_{collection}", f"h_occ_x_layer{l}_{collection} ; fired cells / total layer cells [%];;", len(log_bins)-1, log_bins)
     histograms += [h_occ_x_layer[l]]
-histograms += [ h_occ := ROOT.TH1D(f"h_occ_tot_{collection}", f"h_occ_tot_{collection} ; total fired cells / total layer cells [%]", len(log_bins)-1, log_bins) ]
+low_edges = np.array([0, 1, 2, 4, 6]) / n_tot_cells * 100              # bins: 0 | 1 | 2-3 | 4-5 fired cells
+occ_bins = np.hstack([low_edges, log_bins[log_bins > low_edges[-1]]])  # then the usual log bins
+histograms += [ h_occ := ROOT.TH1D(f"h_occ_tot_{collection}", f"h_occ_tot_{collection} ; total fired cells / total layer cells [%]", len(occ_bins)-1, occ_bins) ]
 
 if plot_primary:
     # Special binning for primary particle plots (zoom in to MDI region)
@@ -464,9 +467,9 @@ histograms += [
 ]
 
 
-if events_per_file==-1: 
-    events_per_file = nEvents_fullFileList
-n_events = events_per_file * len(list_input_files)
+n_events = nEvents_fullFileList  # already the total over all input files
+if events_per_file != -1:
+    n_events = min(events_per_file * len(list_input_files), nEvents_fullFileList)
 
 
 fill_weight = 1. / (n_events)
@@ -478,6 +481,11 @@ if debug>1: print(f"fill weight: {fill_weight}")
 # Counters for the event / hit loops
 processed_events = 0
 processed_hits = 0
+# MC truth bookkeeping: input files may have the MCParticles collection dropped (e.g. merged BIB
+# samples, to save space). Then hit.getParticle() returns an empty handle, and calling any getter
+# on it segfaults in C++, so every MC-truth access below is guarded by particle.isAvailable().
+hits_with_mc = 0
+hits_without_mc = 0
 
 integrating_channels = defaultdict(int)
 pile_up_counter = defaultdict(int)
@@ -591,7 +599,16 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             hit_xy.Fill(x_mm, y_mm, fill_weight)
             hit_zphi.Fill(z_mm, phi, fill_weight)
 
-            if plot_primary:
+            # MC truth link of this hit (only tracker hits have one); unavailable if MCParticles was dropped
+            has_mc = False
+            if not is_calo_hit:
+                has_mc = hit.getParticle().isAvailable()
+                if has_mc:
+                    hits_with_mc += 1
+                else:
+                    hits_without_mc += 1
+
+            if plot_primary and has_mc:
 
                 # Go up in the MC truth chain to find the primary particle and the direct parent
                 primary = hit.getParticle()# Initialize primary particle, if no parent is found then this is just the particle causing the hit itself
@@ -659,7 +676,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
                 h_zphi_density_vs_layer[layer_n].Fill(z_mm, phi, fill_weight)
                 h_xy_density_vs_layer[layer_n].Fill(x_mm, y_mm, fill_weight)
 
-            if not is_calo_hit:
+            if has_mc:  # implies a tracker hit with a valid MC particle link
                 particle = hit.getParticle()
 
                 particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
@@ -723,8 +740,18 @@ print("Loop done!")
 print(" - Processed events:", processed_events)
 print(" - Processed hits:", processed_hits, 
       f"(avg. per event: {processed_hits/processed_events})")
-print(" - Number of unique cells fired:", len(fullRun_fired_cellIDs), 
+print(" - Number of unique cells fired:", len(fullRun_fired_cellIDs),
       f"(avg. per event: {len(fullRun_fired_cellIDs)/processed_events})")
+
+# If no hit had an MC truth link (MCParticles dropped), skip drawing/writing the MC-truth
+# histograms (h_hit_particle_*, primary/parent) instead of producing empty ones
+has_mc_truth = hits_with_mc > 0
+if hits_without_mc > 0:
+    print(f"WARNING: {hits_without_mc} / {hits_with_mc + hits_without_mc} hits have no MC particle link"
+          " (MCParticles collection missing from the input?): MC-truth histograms skipped for them.")
+if not has_mc_truth:
+    plot_primary = False
+    histograms = [h for h in histograms if not any(k in h.GetName() for k in ("hit_particle", "primary", "parent"))]
 
 # Compute the average pile up hits
 if integration_time > 1:
@@ -814,16 +841,17 @@ if draw_hists:
     draw_hist(h_avg_hits_x_layer, "Layer number", "Hits / events",  sample_name+"_avg_hits_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_avg_firing_cells_x_layer, "Layer number", "Firing cells / events",  sample_name+"_avg_firing_cells_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_occ, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
-    draw_hist(h_hit_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_hit_particle_E_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_hit_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_hit_particle_pt_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_hit_particle_eta, "MC particle #eta", "Particle / events",  sample_name+"_hit_particle_eta_"+str(n_events)+"evt_"+sub_detector, collection)
+    if has_mc_truth:  # MC-truth histograms, skipped if the input has no MCParticles
+        draw_hist(h_hit_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_hit_particle_E_"+str(n_events)+"evt_"+sub_detector, collection)
+        draw_hist(h_hit_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_hit_particle_pt_"+str(n_events)+"evt_"+sub_detector, collection)
+        draw_hist(h_hit_particle_eta, "MC particle #eta", "Particle / events",  sample_name+"_hit_particle_eta_"+str(n_events)+"evt_"+sub_detector, collection)
 
-    h_hit_particle_ID.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
-    h_hit_particle_ID_map.GetXaxis().LabelsOption("v>")
-    h_hit_particle_ID_E_MeV.GetXaxis().LabelsOption("v>")
-    draw_hist(h_hit_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_hit_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_hit_particle_ID_map, "MC particle PDG ID", "Layer number",  sample_name+"_hit_particle_ID_map_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_hit_particle_ID_E_MeV, "MC particle type", "Deposited energy of particle [MeV]",  sample_name+"_hit_particle_ID_E_MeV_"+str(n_events)+"evt_"+sub_detector, collection)
+        h_hit_particle_ID.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
+        h_hit_particle_ID_map.GetXaxis().LabelsOption("v>")
+        h_hit_particle_ID_E_MeV.GetXaxis().LabelsOption("v>")
+        draw_hist(h_hit_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_hit_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
+        draw_hist(h_hit_particle_ID_map, "MC particle PDG ID", "Layer number",  sample_name+"_hit_particle_ID_map_"+str(n_events)+"evt_"+sub_detector, collection)
+        draw_hist(h_hit_particle_ID_E_MeV, "MC particle type", "Deposited energy of particle [MeV]",  sample_name+"_hit_particle_ID_E_MeV_"+str(n_events)+"evt_"+sub_detector, collection)
 
     if integration_time > 1:
         draw_hist(h_tot_pu, "Number of pileup hits", "Entries",  sample_name+"_tot_pu_"+str(n_events)+"evt_"+sub_detector, collection)

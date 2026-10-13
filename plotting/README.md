@@ -28,8 +28,8 @@ Key input arguments are:
 - `-s` / `--subDetector` the target sub-detector name
 
 Other useful options are:
-- `-e` / `numberOfEvents` the number of events to process 
-- `-n` / `numberOfFiles` the number of files to process
+- `-e` / `numberOfEvents` the number of events to process per file (`-1` for all events)
+- `-n` / `numberOfFiles` the number of files to process (`-1` for all files)
 - `--sample` name of the sample, used as prefix of output files
 - `-m` / `--draw_maps`, `-p` / `--draw_hists` whether to save maps or 1D histograms also in pdf
 - `-r <width_in_mm>` , `-z  <width_in_mm>`, `--bin_width_phi  <width_in_rad>` bin widths for r/z/phi 
@@ -39,7 +39,23 @@ Other useful options are:
 - `--e_cut` to apply the energy cut (threshold defined in the assumptions dict)
 - `--skip_layers` to skip creating and filling histograms per layer, useful for sub-detectors with many layers (e.g. drift chamber)
 
+- `--plot_primary` to plot the primary particle and direct parent of the particle creating each hit (needs the `MCParticles` collection, see below)
+
 Use the `-h` / `--help` flag to print all the available arguments.
+
+**Inputs without `MCParticles`** (e.g. merged BIB samples where the collection was dropped to save space):
+the script still runs and fills all hit-based histograms as usual.
+The hits' MC particle links cannot be resolved (calling any getter on them segfaults),
+so each link is checked with `isAvailable()` before use. Hits without a link do not fill the MC-truth
+histograms (`h_hit_particle_*` and the `--plot_primary` primary/parent ones), and a warning reports how many there were.
+If no hit has a link, those histograms are neither drawn nor written to the output ROOT file.
+
+**Normalisation**: all histograms are normalised per event. The number of events used is the number requested
+(`-e` times the number of input files), capped to the total number of events available in the input files,
+so asking for more events than exist no longer dilutes the results. With `-e -1` all events of all the input files are used.
+
+**Total occupancy binning**: `h_occ_tot_<collection>` has fine bins at low occupancy, in units of fired cells
+(0, 1, 2-3 and 4-5 fired cells), followed by the usual logarithmic bins, so the sparse-occupancy regime (e.g. the drift chamber) can be resolved.
 
 #### Examples
 ```sh
