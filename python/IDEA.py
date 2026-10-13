@@ -42,7 +42,9 @@ def get_cells_map(detector, sub_det, name, skip_pattern = r"(supportTube)|(cryo)
                     for de_name3, de3 in de2.children():
                         sensors += 1
                         area = de3.volume().solid().GetDY()*2.*10.*de3.volume().solid().GetDZ()*2.*10. # Make it to mm and get sensor area in mm2. Assuming each sensor has the same area!
-                        # print("   sensor area (mm2): ", area)
+                        area_curved = de3.volume().solid().GetDX()*2.*10.*de3.volume().solid().GetDY()*2.*10. # Area in case the ultra-light curved vertex is used with the trapezoidal approximation. The volume does not lie in the Y-Z plane, but in the X-Y plane.
+                        area = max(area, area_curved) # Ensuring the correct area for the sensor is used
+
                 cells_map[str(de_name)] = sensors
                 sensor_size_map[str(de_name)] = area
                 sensors_per_module_map[str(de_name)] = int(sensors / modules)

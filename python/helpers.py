@@ -109,7 +109,10 @@ def simplify_dict(d):
     """ 
     old_keys = list(d.keys())
     for k in old_keys:
-        d[layer_number_from_string(k)] = d.pop(k)
+        try: # In case there are multiple entries for the same layer, e.g. "layer1_1" and "layer1_2", we sum them together in the same layer number key
+            d[layer_number_from_string(k)] += d.pop(k)
+        except :
+            d[layer_number_from_string(k)] = d.pop(k)
     return d
 
 skip_pattern = r"(supportTube)|(cryo)"
@@ -135,6 +138,8 @@ def get_cells(detector, n_cells = 0):
 # Read detector types as defined in the XML
 is_calo = lambda x: (x & dd4hep.DetType.CALORIMETER) == dd4hep.DetType.CALORIMETER  #e.g. DetType_CALORIMETER in xml
 is_endcap = lambda x: (x & dd4hep.DetType.ENDCAP) == dd4hep.DetType.ENDCAP          #e.g. DetType_ENDCAP in xml
+is_pixel = lambda x: (x & dd4hep.DetType.PIXEL) == dd4hep.DetType.PIXEL             #e.g. DetType_PIXEL in xml
+
 # All DetType definitions can be found here:
 # https://github.com/AIDASoft/DD4hep/blob/master/DDCore/include/DD4hep/DetType.h
 
@@ -148,9 +153,15 @@ class DetFilePath:
     def __init__(self, path):
         self.path    = os.path.expandvars(path)                                # Full path to XML/JSON file
         self.f_name  = self.path.split("/")[-1].strip(".xml").strip(".json")   # Get the file name
-        self.name    = re.search(".*_o[0-9]_v[0-9]{2}", self.f_name).group(0)  # Get detector name and version
-        self.short   = re.sub("_o[0-9]_v[0-9]{2}", "", self.name)              # Get name only
-        self.version = re.search("o[0-9]_v[0-9]{2}", self.name).group(0)       # Get version only
+        try:
+            self.name    = re.search(".*_o[0-9]_v[0-9]{2}", self.f_name).group(0)  # Get detector name and version
+            self.short   = re.sub("_o[0-9]_v[0-9]{2}", "", self.name)              # Get name only
+            self.version = re.search("o[0-9]_v[0-9]{2}", self.name).group(0)       # Get version only
+        except AttributeError:
+            print("file format oXX_vXX not found, trying only version")
+            self.name    = re.search(".*_v[0-9]{2}", self.f_name).group(0)    
+            self.short   = re.sub("_v[0-9]{2}", "", self.name)              # Get name only
+            self.version = re.search("v[0-9]{2}", self.name).group(0)       # Get version only
 
 
 ##simple function to print "header" with CYAN color
