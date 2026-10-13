@@ -38,7 +38,6 @@ parser.add_argument('-k', '--k4geo', default=None, type=str,
                     help='Path to custom k4geo.')
 parser.add_argument('--crossingAngleBoost', default=0.015, type=str,
                     help='Crossing angle boost to be applied.')
-#NEW
 parser.add_argument('-j', '--job_flavor', default="longlunch", type=str,
                     help='Job flavor for Condor submission.')
 
@@ -75,9 +74,20 @@ done
 
 # Header of executable script
 fcc_cfg = os.environ["FCCCONFIG"]
-fcc_dir = "/".join(fcc_cfg.split("/")[:4])  # get software stack directory
-fcc_ver = fcc_cfg.split("/")[5]             # get the release number
-exec_header = f"""#!/bin/bash
+if "sft-nightlies.cern.ch/lcg" in fcc_cfg:
+    # On AlmaLinux9, key4hep nightlies' setup.sh defaults to sourcing the
+    # rolling LCG "devkey-head" view directly from CVMFS; there is no dated
+    # "-r <release>" tree to re-source here (see setup.sh's --lcg codepath,
+    # which has no monolithic <fcc_dir>/setup.sh). Re-add "--lcg" explicitly
+    # so the generated job is self-describing even if the default changes.
+    fcc_ver = fcc_cfg.split("/")[6]  # day-of-week tag of the LCG nightly view
+    exec_header = """#!/bin/bash
+source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh --lcg
+"""
+else:
+    fcc_dir = "/".join(fcc_cfg.split("/")[:4])  # get software stack directory
+    fcc_ver = fcc_cfg.split("/")[5]             # get the release number
+    exec_header = f"""#!/bin/bash
 source {fcc_dir}/setup.sh -r {fcc_ver}
 """
 
@@ -103,7 +113,7 @@ def run(args):
     compact = args.compactFile
     k4geo = args.k4geo
     x_angle = args.crossingAngleBoost
-    job_flavor = args.job_flavor  # NEW ADDED THIS LINE
+    job_flavor = args.job_flavor
 
     # Get the short name of geometry file
     geo = compact.split("/")[-1].strip(".xml")
@@ -165,11 +175,18 @@ def run(args):
             bx_id = re.search(r"_[0-9]+\.",item).group(0).strip("_.")
             print("- "+input_filename)
             
-        # 3. NEW: Check for Synchrotron Radiation samples (.hepevt)
+        # 3. Check for Synchrotron Radiation samples (.hepevt)
         elif item.endswith(".hepevt"):
             input_filename = os.path.join(input_file_path, item)
             # Extracts just the number (e.g., '100004') from 'output_100004.hepevt'
             bx_id = item.replace("output_", "").replace(".hepevt", "")
+            print("- "+input_filename)
+
+        # 4. Check for EDM4hep Synchrotron Radiation samples (.root)
+        elif item.endswith(".root"):
+            input_filename = os.path.join(input_file_path, item)
+            # Extracts just the number (e.g., '100004') from 'output_100004.hepevt'
+            bx_id = item.replace("output_", "").replace(".root", "")
             print("- "+input_filename)
             
         else:
@@ -183,6 +200,7 @@ def run(args):
         # for performance, write the output locally first and copy at the end
         tmp_output_filename = os.path.basename(output_filename)
 
+        # Note that N -1 will not work for .root files containing more than one event -> Use submit_bkg.py instead
         command += f"""ddsim \
             --compactFile  {compact} \
             -I {input_filename} \

@@ -518,7 +518,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
         is_calo_hit = is_calo(detector_type)
 
-        cell_id = hit.cellID()
+        cell_id = hit.getCellID()
         cell_fired = False
 
         # skip cells firing multiple times
