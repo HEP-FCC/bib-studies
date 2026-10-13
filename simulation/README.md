@@ -242,5 +242,13 @@ podio-merge might run extremely slow sometimes
 
 TODO: add docu
 
+## Tracking studies/performance
 
+To be exercised, instructions not checked yet: 
+
+- clone the k4DetectorPerformance package (add it to your path with k4_local_repo (not yet in nightlies)
+- switch that to true  https://github.com/HEP-FCC/FCC-config/blob/main/FCCee/FullSim/ALLEGRO/ALLEGRO_o1_v03/ctest_sim_digi_reco.sh#L11
+- good to go 
+
+See also https://github.com/key4hep/k4DetectorPerformance/tree/main/TrackingPerformance#trackingvalidation
 
