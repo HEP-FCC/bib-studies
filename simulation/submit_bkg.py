@@ -41,6 +41,8 @@ parser.add_argument('-s', '--steering_file', default=None, type=str,
                     help='Path to steering file (if not given, attempt to find default from $FCCConfig.')
 parser.add_argument('-k', '--k4geo', default=None, type=str,
                     help='Path to custom k4geo.')
+parser.add_argument('-d', '--dd4hep', default=None, type=str,
+                    help='Path to custom dd4hep.')
 parser.add_argument('--crossingAngleBoost', default=0.015, type=str,
                     help='Crossing angle boost to be applied. Required (+15 mrad) for '
                          'the SR samples, which are given in the beamline frame.')
@@ -69,7 +71,7 @@ max_retries    = 3
 +JobFlavour    = "{1}" 
 request_memory = 8GB 
 RequestCpus = 1
-queue filename matching files {0}
+queue filename matching files {2}{0}
 """
 
 # Local command content
@@ -92,20 +94,35 @@ if "sft-nightlies.cern.ch/lcg" in fcc_cfg:
     fcc_ver = fcc_cfg.split("/")[6]             # get the nightly weekday (e.g. "Tue")
     exec_header = """#!/bin/bash
 source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh --lcg
+# Condor scratch dir: ddsim writes here, output is mv'd to EOS at the end
+JOBDIR=$PWD
 """
 else:
     fcc_dir = "/".join(fcc_cfg.split("/")[:4])  # get software stack directory
     fcc_ver = fcc_cfg.split("/")[5]             # get the release number
     exec_header = f"""#!/bin/bash
-source {fcc_dir}/setup.sh -r {fcc_ver}
+source {fcc_dir}/setup.sh --spack -r {fcc_ver}
+# Condor scratch dir: ddsim writes here, output is mv'd to EOS at the end
+JOBDIR=$PWD
+"""
+    
+dd4hep_path="""
+# For using a local version of DD4HEP
+# Return via $JOBDIR, not cd -: thisdd4hep.sh cd's internally and clobbers $OLDPWD
+cd DD4HEP_PATH
+k4_local_repo
+source bin/thisdd4hep.sh
+cd "$JOBDIR"
 """
 
 k4geo_path="""
 # For using a local version of K4GEO
 cd GEO_PATH
 k4_local_repo
-cd -
+source install/bin/thisk4geo.sh
+cd "$JOBDIR"
 """
+
 
 # Path to steering files (skipped if -s option set)
 steering_dict = {
@@ -120,6 +137,7 @@ def run(args):
     n_max = args.n_max_jobs
     compact = args.compactFile
     k4geo = args.k4geo
+    dd4hep = args.dd4hep
     x_angle = args.crossingAngleBoost
     job_flavor = args.job_flavor  
 
@@ -138,8 +156,12 @@ def run(args):
     print("Creating submission folder:", tag)
     os.makedirs(tag, exist_ok=True)
 
-    # Check if custom k4geo is to be used
+    # Check if custom dd4hep is to be used
     header = exec_header
+    if dd4hep != None:
+        header += dd4hep_path.replace("DD4HEP_PATH",dd4hep)
+
+    # Check if custom k4geo is to be used
     if k4geo != None:
         header += k4geo_path.replace("GEO_PATH",k4geo)
 
@@ -239,7 +261,8 @@ def run(args):
             -I {input_filename} \
             -O {tmp_output_filename} \
             -N {n_events} --crossingAngleBoost {x_angle} --random.seed {args.seed} \
-            --part.keepAllParticles True  {reader_opt}{steering_opt}\n"""
+            --part.keepAllParticles True --outputConfig.forceEDM4HEP \
+            {reader_opt}{steering_opt}\n"""
 
         command += f"mv {tmp_output_filename} {output_filename}"
 
@@ -253,16 +276,21 @@ def run(args):
     if submitted_root_files:
         edm4hep_helper.print_normalisation(submitted_root_files, root_events)
 
-    # Setup the condor script
-    condor_submit_path = f"{tag}.cmd"
+    # Condor caps one submission at 20000 jobs: queue disjoint slices of the
+    # same glob, one .cmd per slice
+    max_per_submit = 20000
     exec_pattern = exec_template_name.replace("FILENAME", "*")
-    cmd_file_content = condor_cmd_content.format(exec_pattern, job_flavor)
-
-    with open(condor_submit_path, "w") as f:
-        f.write(cmd_file_content)
-    submit_cmd = f"condor_submit {condor_submit_path}"
-
-    print("To submit the condor job: ", submit_cmd)
+    n_parts = max(1, -(-n_jobs // max_per_submit))
+    for i_part in range(n_parts):
+        if n_parts == 1:
+            condor_submit_path, queue_slice = f"{tag}.cmd", ""
+        else:
+            start = i_part * max_per_submit
+            condor_submit_path = f"{tag}_part{i_part + 1}.cmd"
+            queue_slice = f"[{start}:{start + max_per_submit}] "
+        with open(condor_submit_path, "w") as f:
+            f.write(condor_cmd_content.format(exec_pattern, job_flavor, queue_slice))
+        print("To submit the condor job: ", f"condor_submit {condor_submit_path}")
 
     # Local run script
     local_submit_path = f"{tag}.sh"
