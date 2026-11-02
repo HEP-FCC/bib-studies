@@ -49,7 +49,7 @@ parser.add_argument('--crossingAngleBoost', default=0.015, type=str,
 parser.add_argument('--mcCollection', default="MCParticles", type=str,
                     help='MCParticle collection name inside edm4hep .root inputs. '
                          '"MCParticles" for the SR samples, "Pairs" for guinea-pig IPC.')
-parser.add_argument('-j', '--job_flavor', default="espresso", type=str,
+parser.add_argument('-j', '--job_flavor', default="longlunch", type=str,
                     help='Job flavor for Condor submission.')
 parser.add_argument('--seed', default=42, type=int,
                     help='Random seed passed to ddsim (--random.seed). Fixed by default '
