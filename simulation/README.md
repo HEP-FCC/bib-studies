@@ -265,7 +265,18 @@ where `XYZ` is an event number.
 condor_q #shows idle/running jobs
 condor_q -nobatch # shows jobs, not in batch groups
 condor_rm 10113537.1 # stops that job..
+condor_q 10113537.1 -af JobStatus MemoryUsage RequestMemory HoldReason # 1 idle, 2 running, 5 held (+ why)
+condor_history <user> -limit 5 # recently finished/removed jobs (check RemoveReason, e.g. wall time exceeded)
 ```
+
+The job stdout/stderr are only copied back when the job ends. To look at a running job:
+```sh
+condor_tail 10113537.1 # tail of the stdout (e.g. which event ddsim is at)
+condor_tail -stderr 10113537.1 # tail of the stderr
+condor_tail -follow 10113537.1 # keep following the stdout
+condor_ssh_to_job 10113537.1 # shell on the worker node, in the job scratch dir
+```
+The per-job log (`<ClusterId>.<ProcId>.log`, in the submit directory) shows the job events and the memory usage, updated every few minutes.
 
 
 ### All steps together
