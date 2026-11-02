@@ -1,9 +1,11 @@
 # Beam induced background studies
 
 Code and scripts developed to run beam induced background (BIB) studies,
-following a _detector agnostic_ approach.
+following a _detector agnostic_ approach. 
 
 ## Quick Start
+
+For recent practices/files, see also the [FCC SW MDI page](https://hep-fcc.github.io/FCCSW/mdi/)
 
 ```sh
 # starting in an AFS/EOS folder with cvmfs+eos access, and subscription to
