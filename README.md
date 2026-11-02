@@ -25,18 +25,13 @@ drawhits.py -s VertexBarrel -e 10 -D 0
 
 The `setup.sh` script will setup this repository paths and 
 the latest *stable* release of the `key4hep` software stack:
+
 ```sh
 source setup.sh
-```
-```sh
 # or, for latest nightly:
 source setup.sh -n
-```
-```sh
 # for a given release:
 source setup.sh 2025-05-29
-```
-```sh
 # or for given nightly
 source setup.sh -n 2025-07-22
 ```
