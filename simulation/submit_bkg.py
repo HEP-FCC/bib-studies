@@ -63,9 +63,9 @@ condor_cmd_content = """executable     = $(filename)
 #Log            = $(filename).log
 #Output         = $(filename).out
 #Error          = $(filename).err
-Log            = $(CONDOR_JOB_ID).log
-Output         = $(CONDOR_JOB_ID).out
-Error          = $(CONDOR_JOB_ID).err
+Log            = $(ClusterId).$(ProcId).log
+Output         = $(ClusterId).$(ProcId).out
+Error          = $(ClusterId).$(ProcId).err
 requirements    = ( (OpSysAndVer =?= "AlmaLinux9") && (Machine =!= LastRemoteHost) && (TARGET.has_avx2 =?= True) )
 max_retries    = 3
 +JobFlavour    = "{1}" 
