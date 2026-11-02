@@ -697,18 +697,16 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             if has_mc:  # implies a tracker hit with a valid MC particle link
                 particle = hit.getParticle()
 
-                    particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
+                particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
 
-                    # Fill MC particle histograms
-                    pdg=particle.getPDG()
-                    h_hit_particle_ID.Fill(Particle.from_pdgid(pdg).name, fill_weight)
-                    h_hit_particle_ID_map.Fill(Particle.from_pdgid(pdg).name, layer_n, fill_weight)
-                    h_hit_particle_E.Fill(particle_p4.E(), fill_weight)
-                    h_hit_particle_pt.Fill(particle_p4.pt(), fill_weight)
-                    h_hit_particle_eta.Fill(particle_p4.eta(), fill_weight)
-                    h_hit_particle_ID_E_MeV.Fill(Particle.from_pdgid(pdg).name, particle_p4.E(), fill_weight)
-                except:
-                    print("Not possible to retrieve mc particle information for this hit. Skipping MC truth plots for this hit.")
+                # Fill MC particle histograms
+                pdg=particle.getPDG()
+                h_hit_particle_ID.Fill(Particle.from_pdgid(pdg).name, fill_weight)
+                h_hit_particle_ID_map.Fill(Particle.from_pdgid(pdg).name, layer_n, fill_weight)
+                h_hit_particle_E.Fill(particle_p4.E(), fill_weight)
+                h_hit_particle_pt.Fill(particle_p4.pt(), fill_weight)
+                h_hit_particle_eta.Fill(particle_p4.eta(), fill_weight)
+                h_hit_particle_ID_E_MeV.Fill(Particle.from_pdgid(pdg).name, particle_p4.E(), fill_weight)
 
             # Monitor in channels that are integrating signal
             if integration_time > 1:
