@@ -350,11 +350,27 @@ TODO: add docu
 
 ## Tracking studies/performance
 
-To be exercised, instructions not checked yet: 
+Tracking validation (finder/fitter efficiency, resolutions, pulls vs. MC truth and vs. perfect tracks) comes from the `TrackingValidation` algorithm of [k4DetectorPerformance](https://github.com/key4hep/k4DetectorPerformance/tree/main/TrackingPerformance#trackingvalidation), which is not in the key4hep stack yet, so build it locally.
+Checked with ALLEGRO_o1_v03 on the key4hep nightly 2026-10-01:
 
-- clone the k4DetectorPerformance package (add it to your path with k4_local_repo (not yet in nightlies)
-- switch that to true  https://github.com/HEP-FCC/FCC-config/blob/main/FCCee/FullSim/ALLEGRO/ALLEGRO_o1_v03/ctest_sim_digi_reco.sh#L11
-- good to go 
+```sh
+source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh --spack -r 2026-10-01
+git clone https://github.com/key4hep/k4DetectorPerformance.git
+cd k4DetectorPerformance
+k4_local_repo
+mkdir build && cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=../install
+make install -j 8
+```
 
-See also https://github.com/key4hep/k4DetectorPerformance/tree/main/TrackingPerformance#trackingvalidation
+Then, in a shell with the same stack and `k4_local_repo` run from `k4DetectorPerformance` (not from a k4geo with BIB edits: use the stack's k4geo), run the [FCC-config](https://github.com/HEP-FCC/FCC-config/tree/main/FCCee/FullSim/ALLEGRO/ALLEGRO_o1_v03) sim+digi+reco script with `--runTrkValidation` (no need to edit the script):
+
+```sh
+bash $FCCCONFIG/FullSim/ALLEGRO/ALLEGRO_o1_v03/ctest_sim_digi_reco.sh --particle mu- --energy "10*GeV" --nEvents 20 --seed 1 --outputFile trkval --runTrkValidation
+```
+
+- run it in an empty directory, the script downloads the calorimeter input files into the current directory
+- output: `ALLEGRO_trkval_sim.root`, `ALLEGRO_trkval_digi.root` and `ALLEGRO_sim_digi_reco_trkval.root` (the validation output: finder/perfect/fitter TTrees, resolution and efficiency vs. p graphs, pull histograms). The name does not follow `--outputFile`
+- needs a machine with `libGLU.so.1` (e.g. lxplus), otherwise `libTracking.so` fails to load and the digitization algorithms are reported as unknown
+- on lxplus, processes started in the background die when the ssh session closes: keep the session open or use condor
 
