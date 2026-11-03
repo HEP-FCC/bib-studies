@@ -8,6 +8,7 @@ Preparing and submitting simulations of background samples.
 - Find supported samples in the Machine-Detector Interface (MDI) EOS space:
 ```sh
 /eos/project/f/fcc-ee-mdi/BIB/
+
 #see readme in the folder for more info
 ```
 also accessible through [this CERN Box link](https://cernbox.cern.ch/files/spaces/eos/project/f/fcc-ee-mdi/BIB). See readme in the folder for sample definitions and contact persons.
@@ -83,7 +84,7 @@ ddsim -N -1 \
 ```
 
 simulation/submit_bkg.py serves as a generalization of the previous submit_pairs.py, which submits an HTCondor job for every background file submitted, each containing N events. 
-The generalized script allows the processing of .root IPC and SR files in the new format, and leverages embedded metadata for weight calculations etc.
+The generalized script allows the processing of .root IPC and SR files in the new edm4hep format, and leverages embedded metadata for weight calculations etc.
 
 Example usage:
 ```sh
@@ -120,8 +121,7 @@ Notes:
 
 
 ### Running the overlay
-Before the digitization step, it is important to overlay the ddsim simulation output for which we are running our BIB studies to have a comprehensive picture of the detected occupancy for a physics
-event produced at BX 0 for different subdetectors with diffreent readout windows.
+Before the digitization step, it is important to overlay the ddsim simulation output for which we are running our BIB studies to have a comprehensive picture of the detected occupancy for a physics event produced at BX 0 for different subdetectors with diffreent readout windows.
 
 The overlay is done with the `OverlayTiming` algorithm, configured in `overlay.py` and run with `k4run`.
 It overlays the background onto the tracker hits of the DCH, silicon wrapper (`SiWrD`, `SiWrB`) and vertex (barrel, endcap) collections, 
@@ -135,10 +135,17 @@ Key input arguments of `overlay.py` are:
 - `--backgroundFilesPath` directory containing the background `.root` files (searched recursively)
 - `--numEvents` the number of physics events to overlay (`-1` for all)
 
-The bunch train (33 BX, 25 ns apart), the BX of the physics event and the number of background events per BX are set in `overlay.py`.
+The bunch train (31 BX, 27 ns apart, `NBunchtrain` and `Delta_t`), the BX of the physics event (`PhysicsBX = 16`) and the number of background events per BX (`NumberBackground = [1]`) are set in `overlay.py`.
+The physics event is placed at `PhysicsBX`, and every other BX in the train gets `NumberBackground` background events.
 
 Note: `NumberBackground` is the number of background *events* per BX, which is not necessarily the number of BX that one background event represents.
-Check the normalisation printed by `submit_bkg.py` (e.g. one SR halo file corresponds to about 1/2020 BX, while one IPC file is `bw_scale` BX) before interpreting the overlaid occupancy.
+Check the normalisation printed by `submit_bkg.py` before interpreting the overlaid occupancy:
+- SR halo: one file is about 1/2020 BX (from the metadata `nPrimariesTotal` / `bunchIntensity`).
+- IPC: the number of BX per file depends on the sample. Check the file's `bw_scale` metadata and the number of events it holds (e.g. the `_10KBX` sample has 10 events per file, each ~1100 pairs = 1 BX, so 10 BX per file).
+
+Caveats:
+- If the physics input is itself a background-like event (e.g. an IPC event), `PhysicsBX` adds a second BX worth of particles on top of the 41 background slots. Use the `Overlay*` hits with `isOverlay()` to count background only.
+- If the physics input file is also in `--backgroundFilesPath`, its events can be drawn again as background (`AllowReusingBackgroundFiles = True`). Keep the physics input outside that directory.
 
 #### submit_overlay.py
 
@@ -174,6 +181,54 @@ Currently available options:
 
 Note: this process run also some reconstruction by default, which can be computationally intensive and memory demanding.
 For specific studies, some algorithms that aren't needed can be turned off (e.g. `--doTopoClustering=false`).
+
+
+### Computing the occupancy
+
+`python/occupancy.py` computes the occupancy (fired cells / total cells) of a sub-detector, in total and per layer,
+with an uncertainty that takes the clustering of the hits into account (one particle fires several cells).
+It can be run on the output of any of the previous steps (simulation, overlay, digitization),
+and the cells per layer are taken from the detector dictionary.
+
+Two modes, depending on what one input event represents:
+- **default**: the whole input is one readout window (e.g. many raw single-BX files, which add up to a window).
+  Each cell counts once, however many events fire it. The error is the leave-one-event-out jackknife, which needs at least ~10 events.
+- `--per_event`: every event is one readout window (e.g. the overlaid and digitized files, where an event already holds a whole bunch train).
+  The occupancy of each event is computed, and the result is the mean over the events with its standard error.
+
+Example usage:
+```sh
+# inside the Key4hep environment (e.g. after source $BIB_STUDIES/setup.sh)
+# raw IPC simulation: all the files are one window of 31 BX
+python3 $BIB_STUDIES/python/occupancy.py -i <path/to/sim/files> -n 31 -s DCH --sample ipc \
+-d $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json --bx_per_event 1
+
+# overlaid + digitized windows: one event = one window
+python3 $BIB_STUDIES/python/occupancy.py -i <path/to/overlaid_digi.root> -n 1 -e -1 -s DCH --per_event --digi --e_cut \
+-d $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json \
+-a $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_assumptions.json
+```
+
+Key input arguments are:
+- `-i` / `--infilePath` input file or folder (the files are sorted, so the same ones are always taken)
+- `-s` / `--subDetector` sub-detector, as named in the detector dictionary
+- `-d` / `--detDictFile` detector dictionary, with the number of cells per layer (default ALLEGRO_o1_v03)
+- `-n` / `--numberOfFiles` and `-e` / `--numberOfEvents` number of files and of events per file to use (`-1` for all)
+- `--per_event` each event is one readout window (see above)
+
+Other useful options are:
+- `--bx_per_event` BX represented by one input event (e.g. `1` for raw IPC, `1/2020` for the SR halo), used only to warn if the window is not `--window_bx` BX long (default 31)
+- `--digi`, `--e_cut` and `-a` / `--assumptions` use the digitized collection and/or apply the energy threshold, both defined in the assumptions dictionary
+- `--collection` hits collection to read, e.g. `OverlayDCHCollection` for overlaid but non-digitized files
+- `-p` / `--draw_hists` also draw the occupancy per layer (with the total as a dashed line)
+- `--sample` name used in the plot and output file names
+
+Notes:
+- The total and per-layer occupancy are printed, and saved in a `<sample>_<N>evt[_perEvent]_<subDetector>_<input>.root` file in the current directory.
+- The window length is not extrapolated: if the input covers fewer (more) BX than `--window_bx`, the occupancy is under(over)estimated, and this bias is not included in the error.
+- Check the BX covered by one event before interpreting the number (see the normalisation notes in the overlay section).
+- Pixel detectors: the cellID identifies a pixel but the dictionary counts sensors, so the occupancy is fired pixels / sensors (a warning is printed).
+- The `drawhits.py` occupancy is instead computed per event (see the [plotting docs](../plotting/README.md)).
 
 ## Production of IPC backgrounds
 

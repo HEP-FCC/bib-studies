@@ -55,6 +55,9 @@ def parse_args():
     parser.add_argument('-s', '--subDetector',
                     type=str, default='VertexBarrel',
                     help='Name of the sub detector system')
+    parser.add_argument('--collection',
+                    type=str, default=None,
+                    help='hits collection to read, overriding the one in the detector/assumptions dict (e.g. OverlayDCHCollection)')
     parser.add_argument('-p', '--draw_hists',
                     action="store_true",
                     help='activate drawing of 1D histograms')
@@ -208,16 +211,22 @@ detector_dict = load_json(det_file.path, sub_detector)
 detector_type = detector_dict["typeFlag"]
 assumptions = load_json(assumptions_path, sub_detector) if assumptions_path else None  #TODO: set default path to the /templates folder
 
+if (e_cut or digi) and assumptions == None:
+    raise ValueError(f"Given the input settings (e_cut={e_cut}, digi={digi})," +
+                     "an 'assumptions' JSON is needed as input (-a/--assumptions <assumptions.json>)")
+
 # get the hits collection name
 collection =  detector_dict["hitsCollection"]
-id_encoding = metadata.get_parameter(collection+"__CellIDEncoding")
 if digi:
     collection = assumptions["digitized_hits"]["collection"]
-
-    try:
-        id_encoding = metadata.get_parameter(collection+"__CellIDEncoding")
-    except:
-        print("No CellIDEncoding found for the digitized collection, using the one from the hits collection.")
+if options.collection:
+    collection = options.collection
+if collection+"__CellIDEncoding" in metadata.parameters:
+    id_encoding = metadata.get_parameter(collection+"__CellIDEncoding")
+else:
+    # e.g. DCH_DigiCollection: the digitizer does not store an encoding, but keeps the sim hit cellIDs
+    print(f"WARNING: no CellIDEncoding stored for {collection}, using the one of {detector_dict['hitsCollection']}")
+    id_encoding = metadata.get_parameter(detector_dict["hitsCollection"]+"__CellIDEncoding")
 decoder = ROOT.dd4hep.BitFieldCoder(id_encoding)
 #print("HERE",decoder.fieldDescription()) #get possible values
 
@@ -251,10 +260,6 @@ print(">>>", sensors_per_module_map)
 if not layer_cells:
     print("WARNING: map of cells per layer is empty.")
     n_tot_cells = 1
-
-if (e_cut or digi) and assumptions == None:
-    raise ValueError(f"Given the input settings (e_cut={e_cut}, digi={digi})," +
-                     "an 'assumptions' JSON is needed as input (-a/--assumptions <assumptions.json>)")
 
 # Set the energy thresholds, if required
 E_thr_MeV = 0
@@ -697,6 +702,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             if has_mc:  # implies a tracker hit with a valid MC particle link
                 particle = hit.getParticle()
 
+                try:
                     particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
 
                     # Fill MC particle histograms

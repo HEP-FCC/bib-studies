@@ -36,6 +36,7 @@ Other useful options are:
 - `--integration_time <it_in_BX>` integration in units of bunch-crossings/events for pile-up counting
 - `-a` / `--assumptions` path to the "assumptions" JSON dictionary
 - `--digi` to use digitzed hits (collection defined in the assumptions dict)
+- `--collection <name>` to read a different hits collection, overriding the detector/assumptions dict (e.g. `OverlayDCHCollection` for overlaid but non-digitized files). If no CellIDEncoding is stored for it, the one of the detector dict `hitsCollection` is used
 - `--e_cut` to apply the energy cut (threshold defined in the assumptions dict)
 - `--skip_layers` to skip creating and filling histograms per layer, useful for sub-detectors with many layers (e.g. drift chamber)
 
