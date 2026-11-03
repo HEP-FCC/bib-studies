@@ -49,7 +49,9 @@ parser.add_argument('--crossingAngleBoost', default=0.015, type=str,
 parser.add_argument('--mcCollection', default="MCParticles", type=str,
                     help='MCParticle collection name inside edm4hep .root inputs. '
                          '"MCParticles" for the SR samples, "Pairs" for guinea-pig IPC.')
-parser.add_argument('-j', '--job_flavor', default="longlunch", type=str,
+# A 100-event edm4hep file takes ~4-5 h (measured: IDEA ~4.8 h, ALLEGRO 3.7-5.2 h, CAD beampipe),
+# so espresso (20 min) and longlunch (2 h) get killed by the wall-time limit. workday is 8 h.
+parser.add_argument('-j', '--job_flavor', default="workday", type=str,
                     help='Job flavor for Condor submission.')
 parser.add_argument('--seed', default=42, type=int,
                     help='Random seed passed to ddsim (--random.seed). Fixed by default '

@@ -109,7 +109,7 @@ Other useful options are:
 - `-d` / `--dd4hep` path to a local DD4hep build, set up in the job before k4geo (e.g. for DD4hep changes not yet in the release)
 - `--crossingAngleBoost` crossing angle boost passed to `ddsim` (default `0.015`, required for the SR samples that are given in the beamline frame)
 - `--mcCollection` name of the `MCParticle` collection in the edm4hep `.root` inputs (`MCParticles` for SR, `Pairs` for IPC from guinea-pig)
-- `-j` / `--job_flavor` condor job flavour (default `longlunch` => ~2h)
+- `-j` / `--job_flavor` condor job flavour (default `workday` => 8h; a 100-event edm4hep file takes ~4-5 h with the CAD beampipe, `espresso`/`longlunch` are too short)
 - `--seed` random seed passed to `ddsim` (default `42`, so re-running a file reproduces the same result)
 
 Notes:
