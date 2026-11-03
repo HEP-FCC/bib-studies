@@ -32,6 +32,14 @@ import time
 # xrootd otherwise tries GSI first and asks for the PEM pass phrase
 os.environ.setdefault("XrdSecPROTOCOL", "krb5,unix")
 
+# KNOWN ISSUE (found 2026-11-03): a single output file larger than 50 GB cannot be written on
+# /eos/user (home) directories: they carry sys.forced.maxsize="50000000000" (check with
+# `EOS_MGM_URL=root://eosuser.cern.ch eos attr ls <dir>`). Writing past it fails mid-run, e.g.
+# "copied 0 (or a negative number) of 1 'runs' entries" at input file 60 of 100 ALLEGRO IPC
+# outputs of 0.84 GB each (~50 GB written), after ~16 min, and the partial output is deleted.
+# podio-merge-files stops at the same size (it left a 49,999,978,496-byte stub).
+# Raising ROOT's TTree max tree size does NOT help. Use --files-per-output so that each output
+# stays below 50 GB (e.g. 50 inputs of 0.84 GB), or write to a location without this limit.
 DEFAULT_DROP = []
 META_TREES = ("metadata", "podio_metadata")  # written from podio, not copied from the inputs
 
@@ -95,6 +103,12 @@ def select_collections(names, drop):
     return kept, dropped
 
 
+# KNOWN ISSUE (found 2026-11-03): a path under /eos/home-X/ is turned into
+# root://eosuser.cern.ch//eos/home-X/..., which podio cannot open: the run fails at the end, in
+# write_podio_metadata(), with 'podio_metadata tree couldn't be read' after minutes of xrootd
+# timeouts and no output file. The /eos/user/X/<user>/... form of the same path works, so pass
+# --input-dir/--output-dir in that form. A fix would map /eos/home-X/<user> to /eos/user/X/<user>
+# here, and/or fall back to the plain path in write_podio_metadata() (as open_root_file() does).
 def read_url(path):
     """Read EOS user files through xrootd (about 2x faster per file than the fuse mount)."""
     if path.startswith("/eos/user/") or path.startswith("/eos/home-"):
