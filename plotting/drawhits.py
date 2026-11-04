@@ -435,12 +435,6 @@ if plot_primary:
             h_zr_primary_zr_layer[l] = ROOT.TH2D(f"hist_primary_zr_layer{l}_{collection}", f"hist_primary_zr_layer{l}_{collection};  z (bin={bw_z_primary}mm) ;r (bin={bw_r_primary}mm) ; hits/({bw_z_primary}#times{bw_r_primary}) mm^{{2}} per event", *z_binning_primary, *r_binning_primary)
             h_zr_parent_zr_layer[l] = ROOT.TH2D(f"hist_parent_zr_layer{l}_{collection}", f"hist_parent_zr_layer{l}_{collection};  z (bin={bw_z_primary}mm) ;r (bin={bw_r_primary}mm) ; hits/({bw_z_primary}#times{bw_r_primary}) mm^{{2}} per event", *z_binning_primary, *r_binning_primary)
             histograms += [h_zr_primary_zr_layer[l], h_zr_parent_zr_layer[l]]
-h_hit_rateDensity_VS_eta = {}
-for l in layer_cells.keys():
-    h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(f"h_hit_rateDensity_layer{l}_VS_eta_{collection}" , f"h_hit_rateDensity_layer{l}_VS_eta_{collection} (not applied: rate, pix/cl, SF); [eta]; [MHz/cm^2];", eta_bins, 0, eta_range)
-    #h_hit_area_cm2_VS_eta[l] = ROOT.TH1D(f"h_hit_area_cm2_layer{l}_VS_eta_"+collection , f"h_hit_area_cm2_layer{l}_VS_eta_"+collection +"; [eta]; [cm^2];", eta_bins, 0, eta_range)
-    histograms += [h_hit_rateDensity_VS_eta[l]]
-
 # Hit densities per layer
 if not skip_plot_per_layer:
     h_z_density_vs_layer_mm = {}
@@ -453,7 +447,13 @@ if not skip_plot_per_layer:
         h_phi_density_vs_layer[l] = ROOT.TH1D(f"hist_phi_density_vs_layer{l}_{collection}", f"hist_phi_density_vs_layer{l}_{collection}", *phi_binning)
         h_zphi_density_vs_layer[l] = ROOT.TH2D(f"hist_zphi_vs_layer{l}_{collection}", f"hist_zphi_vs_layer{l}_{collection}; z [mm]; #phi [rad]; hits/({bw_phi:1.2f}#times{bw_z})rad#timesmm per event", *z_binning, *phi_binning)
         h_xy_density_vs_layer[l] = ROOT.TH2D(f"hist_xy_vs_layer{l}_{collection}", f"hist_xy_vs_layer{l}_{collection};  x (bin={bw_r}mm) ;y (bin={bw_r}mm) ; hits/({bw_r}#times{bw_r}) mm^{{2}} per event", *r_binning, *r_binning)
-        h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(f"h_hit_rateDensity_layer{l}_VS_eta_{collection}" , f"h_hit_rateDensity_layer{l}_VS_eta_{collection}; [eta]; [a.u];", eta_bins, 0, eta_range)
+        h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(
+            f"h_hit_rateDensity_layer{l}_VS_eta_{collection}",
+            f"#splitline{{h_hit_rateDensity_layer{l}_VS_eta_{collection}}}{{Scale example: #times52 MHz (BX) #times5 pix/cl}}; [eta]; [a.u];",
+            eta_bins,
+            0,
+            eta_range,
+        )
         #h_hit_area_cm2_VS_eta[l] = ROOT.TH1D(f"h_hit_area_cm2_layer{l}_VS_eta_"+collection , f"h_hit_area_cm2_layer{l}_VS_eta_"+collection +"; [eta]; [cm^2];", eta_bins, 0, eta_range)
 
         histograms += [h_z_density_vs_layer_mm[l], h_phi_density_vs_layer[l], h_zphi_density_vs_layer[l], h_xy_density_vs_layer[l], h_hit_rateDensity_VS_eta[l]]
@@ -882,6 +882,8 @@ if draw_hists:
             draw_hist(h_z_density_vs_layer_mm[l], "z [mm]","Hits/event", f"{sample_name}_zDensity_layer{l}_{n_events}evt_{sub_detector}", collection)
             draw_hist(h_phi_density_vs_layer[l],  "phi","Hits/event", f"{sample_name}_phiDensity_layer{l}_{n_events}evt_{sub_detector}", collection)
             draw_hist(h_xy_density_vs_layer[l], "x [mm]", "y [mm]", f"{sample_name}_xyDensity_layer{l}_{n_events}evt_{sub_detector}", collection, draw_opt="colz")
+
+        for l in h_z_density_vs_layer_mm.keys():
             draw_hist(h_hit_rateDensity_VS_eta[l], "eta", "Hit rate density [a.u.]", f"{sample_name}_hitRateDensity_VS_eta_layer{l}_{n_events}evt_{sub_detector}", collection)
             
 # Open ROOT file and create directory structure for organized output
