@@ -322,9 +322,9 @@ histograms += [
     h_hit_E_MeV    := ROOT.TH1D(f"h_hit_E_MeV_{collection}", f"h_hit_E_MeV_{collection}; [MeV]; hits;", 500, 0, 50),
     h_hit_E_keV    := ROOT.TH1D(f"h_hit_E_keV_{collection}", f"h_hit_E_keV_{collection}; [keV]; hits;", 500, 0, 500),
     h_hit_E_eV     := ROOT.TH1D(f"h_hit_E_eV_{collection}", f"h_hit_E_eV_{collection}; [eV]; hits;", 500, 0, 1000),
-    h_hit_E_MeV_map := ROOT.TH2D(f"h_hit_E_MeV_map_{collection}", f"h_hit_E_MeV_map_{collection}; ; ; hits / events", 500, 0, 50, *layer_binning),
-    h_hit_E_keV_map := ROOT.TH2D(f"h_hit_E_keV_map_{collection}", f"h_hit_E_keV_map_{collection}; ; ; hits / events", 500, 0, 500, *layer_binning),
-    h_hit_E_eV_map := ROOT.TH2D(f"h_hit_E_eV_map_{collection}", f"h_hit_E_eV_map_{collection}; ; ; hits / events", 500, 0, 1000, *layer_binning),
+    h_hit_E_MeV_map := ROOT.TH2D(f"h_hit_E_MeV_map_{collection}", f"h_hit_E_MeV_map_{collection}; deposited energy [MeV]; layer number; hits / events", 500, 0, 50, *layer_binning),
+    h_hit_E_keV_map := ROOT.TH2D(f"h_hit_E_keV_map_{collection}", f"h_hit_E_keV_map_{collection}; deposited energy [keV]; layer number; hits / events", 500, 0, 500, *layer_binning),
+    h_hit_E_eV_map := ROOT.TH2D(f"h_hit_E_eV_map_{collection}", f"h_hit_E_eV_map_{collection}; deposited energy [eV]; layer number; hits / events", 500, 0, 1000, *layer_binning),
     h_hit_particle_E   := ROOT.TH1D(f"h_hit_particle_E_{collection}", f"h_hit_particle_E_{collection}; [E] ; hits;", 500, 0, 50),
     h_hit_particle_pt  := ROOT.TH1D(f"h_hit_particle_pt_{collection}", f"h_hit_particle_pt_{collection}; [E/c] ; hits;", 500, 0, 50),
     h_hit_particle_eta := ROOT.TH1D(f"h_hit_particle_eta_{collection}", f"h_hit_particle_eta_{collection}; [eta] ; hits;", 100, -5, 5)
@@ -333,13 +333,13 @@ histograms += [
 # ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
 histograms += [ 
     h_hit_particle_ID := ROOT.TH1D(f"h_hit_particle_ID_{collection}", f"h_hit_particle_ID_{collection}", 1, 0, 1),
-    h_hit_particle_ID_map := ROOT.TH2D(f"h_hit_particle_ID_map_{collection}", f"h_hit_particle_ID_map_{collection}; ; ; hits / events", 1, 0, 1, *layer_binning),
-    h_hit_particle_ID_E_MeV := ROOT.TH2D(f"h_hit_particle_ID_E_MeV_{collection}", f"h_hit_particle_ID_E_MeV_{collection}", 1, 0, 1, 500, 0, 50)
+    h_hit_particle_ID_map := ROOT.TH2D(f"h_hit_particle_ID_map_{collection}", f"h_hit_particle_ID_map_{collection}; particle ID; layer number; hits / events", 1, 0, 1, *layer_binning),
+    h_hit_particle_ID_E_GeV := ROOT.TH2D(f"h_hit_particle_ID_E_GeV_{collection}", f"h_hit_particle_ID_E_GeV_{collection}; particle ID; MC particle energy [GeV]; hits / events", 1, 0, 1, 500, 0, 50)
 ]
 
 h_hit_particle_ID.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
 h_hit_particle_ID_map.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
-h_hit_particle_ID_E_MeV.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
+h_hit_particle_ID_E_GeV.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
 
 h_hit_E_MeV_x_layer = {}
 if energy_per_layer:
@@ -356,9 +356,9 @@ histograms += [
 
 # Timing histograms
 histograms += [
-    h_hit_t := ROOT.TH1D(f"hist_hit_t_{collection}", f"hist_hit_t_{collection}", 200, 0, 20),
-    h_hit_t_corr_x_layer := ROOT.TH2D(f"hist_hit_t_corr_map_{collection}", f"hist_hit_t_{collection}; ; ; hits / events", 200, 0, 20, *layer_binning),
-    h_hit_t_corr := ROOT.TH1D(f"hist_hit_t_corr_{collection}", f"hist_hit_t_corr_{collection}", 200, -10, 10),
+    h_hit_t := ROOT.TH1D(f"hist_hit_t_{collection}", f"hist_hit_t_{collection}; timing [ns]; hits / events", 200, 0, 20),
+    h_hit_t_corr_x_layer := ROOT.TH2D(f"hist_hit_t_corr_map_{collection}", f"hist_hit_t_{collection}; timing - TOF [ns]; layer number; hits / events", 200, 0, 20, *layer_binning),
+    h_hit_t_corr := ROOT.TH1D(f"hist_hit_t_corr_{collection}", f"hist_hit_t_corr_{collection}; timing - TOF [ns]; hits / events", 200, -10, 10),
 ]
 
 histograms += [
@@ -401,7 +401,7 @@ if plot_primary:
         hist_primary_zphi := ROOT.TH2D(f"hist_primary_zphi_{collection}", f"hist_primary_zphi_{collection}; phi (bin={bw_phi:1.2f}rad) ; z (bin={bw_z_primary}mm); hits/({bw_phi:1.2f}#times{bw_z_primary})rad#timesmm per event", *z_binning_primary, *phi_binning),
         hist_primary_zx_masks := ROOT.TH2D(f"hist_primary_zx_masks_{collection}", f"hist_primary_zx_masks_{collection};  z (bin={bw_z_mask}mm) ;x (bin={bw_x_mask}mm) ; hits/({bw_z_mask}#times{bw_x_mask}) mm^{{2}} per event", *z_binning_mask, *x_binning_mask),
 
-        hist_primary_ID_map := ROOT.TH2D(f"hist_primary_ID_map_{collection}", f"hist_primary_ID_map_{collection}; ; ; hits / events", 1, 0, 1, *layer_binning),
+        hist_primary_ID_map := ROOT.TH2D(f"hist_primary_ID_map_{collection}", f"hist_primary_ID_map_{collection}; primary particle ID; layer number; hits / events", 1, 0, 1, *layer_binning),
 
         h_E_MeV_primary_layer_map := ROOT.TH2D(f"h_E_MeV_primary_layer_map_{collection}", f"h_E_MeV_primary_layer_map_{collection}; Energy of primary particle [MeV] ; layer index ; hits / events", 500, 0, 50, *layer_binning),
         h_E_keV_primary_layer_map := ROOT.TH2D(f"h_E_keV_primary_layer_map_{collection}", f"h_E_keV_primary_layer_map_{collection}; Energy of primary particle [keV] ; layer index ; hits / events", 500, 0, 1000, *layer_binning),
@@ -416,7 +416,7 @@ if plot_primary:
         hist_parent_zphi := ROOT.TH2D(f"hist_parent_zphi_{collection}", f"hist_parent_zphi_{collection}; phi (bin={bw_phi:1.2f}rad) ; z (bin={bw_z_primary}mm); hits/({bw_phi:1.2f}#times{bw_z_primary})rad#timesmm per event", *z_binning_primary, *phi_binning),
         hist_parent_zx_masks := ROOT.TH2D(f"hist_parent_zx_masks_{collection}", f"hist_parent_zx_masks_{collection};  z (bin={bw_z_mask}mm) ;x (bin={bw_x_mask}mm) ; hits/({bw_z_mask}#times{bw_x_mask}) mm^{{2}} per event", *z_binning_mask, *x_binning_mask),
 
-        hist_parent_ID_map := ROOT.TH2D(f"hist_parent_ID_map_{collection}", f"hist_parent_ID_map_{collection}; ; ; hits / events", 1, 0, 1, *layer_binning),
+        hist_parent_ID_map := ROOT.TH2D(f"hist_parent_ID_map_{collection}", f"hist_parent_ID_map_{collection}; parent particle ID; layer number; hits / events", 1, 0, 1, *layer_binning),
 
         h_E_MeV_parent_layer_map := ROOT.TH2D(f"h_E_MeV_parent_layer_map_{collection}", f"h_E_MeV_parent_layer_map_{collection}; Energy of parent particle [MeV] ; layer index ; hits / events", 500, 0, 50, *layer_binning),
         h_E_keV_parent_layer_map := ROOT.TH2D(f"h_E_keV_parent_layer_map_{collection}", f"h_E_keV_parent_layer_map_{collection}; Energy of parent particle [keV] ; layer index ; hits / events", 500, 0, 1000, *layer_binning),
@@ -451,7 +451,7 @@ if not skip_plot_per_layer:
     for l in layer_cells.keys():
         h_z_density_vs_layer_mm[l] = ROOT.TH1D(f"hist_z_density_vs_layer{l}_mm_{collection}", f"hist_z_density_vs_layer{l}_mm_{collection}", *z_binning)
         h_phi_density_vs_layer[l] = ROOT.TH1D(f"hist_phi_density_vs_layer{l}_{collection}", f"hist_phi_density_vs_layer{l}_{collection}", *phi_binning)
-        h_zphi_density_vs_layer[l] = ROOT.TH2D(f"hist_zphi_vs_layer{l}_{collection}", f"hist_zphi_vs_layer{l}_{collection}; ; ; hits/({bw_phi:1.2f}#times{bw_z})rad#timesmm per event", *z_binning, *phi_binning)
+        h_zphi_density_vs_layer[l] = ROOT.TH2D(f"hist_zphi_vs_layer{l}_{collection}", f"hist_zphi_vs_layer{l}_{collection}; z [mm]; #phi [rad]; hits/({bw_phi:1.2f}#times{bw_z})rad#timesmm per event", *z_binning, *phi_binning)
         h_xy_density_vs_layer[l] = ROOT.TH2D(f"hist_xy_vs_layer{l}_{collection}", f"hist_xy_vs_layer{l}_{collection};  x (bin={bw_r}mm) ;y (bin={bw_r}mm) ; hits/({bw_r}#times{bw_r}) mm^{{2}} per event", *r_binning, *r_binning)
         h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(f"h_hit_rateDensity_layer{l}_VS_eta_{collection}" , f"h_hit_rateDensity_layer{l}_VS_eta_{collection}; [eta]; [a.u];", eta_bins, 0, eta_range)
         #h_hit_area_cm2_VS_eta[l] = ROOT.TH1D(f"h_hit_area_cm2_layer{l}_VS_eta_"+collection , f"h_hit_area_cm2_layer{l}_VS_eta_"+collection +"; [eta]; [cm^2];", eta_bins, 0, eta_range)
@@ -706,7 +706,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
                 h_hit_particle_E.Fill(particle_p4.E(), fill_weight)
                 h_hit_particle_pt.Fill(particle_p4.pt(), fill_weight)
                 h_hit_particle_eta.Fill(particle_p4.eta(), fill_weight)
-                h_hit_particle_ID_E_MeV.Fill(Particle.from_pdgid(pdg).name, particle_p4.E(), fill_weight)
+                h_hit_particle_ID_E_GeV.Fill(Particle.from_pdgid(pdg).name, particle_p4.E(), fill_weight)
 
             # Monitor in channels that are integrating signal
             if integration_time > 1:
@@ -865,10 +865,10 @@ if draw_hists:
 
         h_hit_particle_ID.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
         h_hit_particle_ID_map.GetXaxis().LabelsOption("v>")
-        h_hit_particle_ID_E_MeV.GetXaxis().LabelsOption("v>")
+        h_hit_particle_ID_E_GeV.GetXaxis().LabelsOption("v>")
         draw_hist(h_hit_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_hit_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
         draw_hist(h_hit_particle_ID_map, "MC particle PDG ID", "Layer number",  sample_name+"_hit_particle_ID_map_"+str(n_events)+"evt_"+sub_detector, collection)
-        draw_hist(h_hit_particle_ID_E_MeV, "MC particle type", "Deposited energy of particle [MeV]",  sample_name+"_hit_particle_ID_E_MeV_"+str(n_events)+"evt_"+sub_detector, collection)
+        draw_hist(h_hit_particle_ID_E_GeV, "MC particle type", "MC particle energy [GeV]",  sample_name+"_hit_particle_ID_E_GeV_"+str(n_events)+"evt_"+sub_detector, collection)
 
     if integration_time > 1:
         draw_hist(h_tot_pu, "Number of pileup hits", "Entries", f"{sample_name}_tot_pu_{n_events}evt_{sub_detector}", collection)
