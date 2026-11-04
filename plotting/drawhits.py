@@ -891,9 +891,41 @@ output_file_name = f"{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_inp
 output_file = ROOT.TFile(output_file_name, "RECREATE")
 dir_maps = output_file.mkdir("maps")
 dir_per_layer = output_file.mkdir("per_layer")
+per_layer_subdirs = {
+    "energy": dir_per_layer.mkdir("energy"),
+    "occupancy": dir_per_layer.mkdir("occupancy"),
+    "module_hits": dir_per_layer.mkdir("module_hits"),
+    "pileup": dir_per_layer.mkdir("pileup"),
+    "density_z": dir_per_layer.mkdir("density_z"),
+    "density_phi": dir_per_layer.mkdir("density_phi"),
+    "density_xy": dir_per_layer.mkdir("density_xy"),
+    "density_zphi": dir_per_layer.mkdir("density_zphi"),
+    "rate_vs_eta": dir_per_layer.mkdir("rate_vs_eta"),
+}
 if plot_primary:
     dir_primary = output_file.mkdir("mc_primary")
     dir_parent = output_file.mkdir("mc_parent")
+
+def get_per_layer_subdir(hname):
+    if "h_hit_E_MeV_layer" in hname:
+        return per_layer_subdirs["energy"]
+    if "h_occ_x_layer" in hname:
+        return per_layer_subdirs["occupancy"]
+    if "h_avg_hits_x_layer" in hname and "_x_module_" in hname:
+        return per_layer_subdirs["module_hits"]
+    if "h_pu_x_layer" in hname:
+        return per_layer_subdirs["pileup"]
+    if "hist_z_density_vs_layer" in hname:
+        return per_layer_subdirs["density_z"]
+    if "hist_phi_density_vs_layer" in hname:
+        return per_layer_subdirs["density_phi"]
+    if "hist_xy_vs_layer" in hname:
+        return per_layer_subdirs["density_xy"]
+    if "hist_zphi_vs_layer" in hname:
+        return per_layer_subdirs["density_zphi"]
+    if "h_hit_rateDensity_layer" in hname:
+        return per_layer_subdirs["rate_vs_eta"]
+    return dir_per_layer
 
 
 # Categorize and write histograms to appropriate directories
@@ -910,7 +942,7 @@ for h in histograms:
     elif "map" in hname or "hit_xy" in hname or "hit_zr" in hname or "hit_zphi" in hname:
         dir_maps.cd()
     elif ("_layer" in hname) or ("_x_layer" in hname):
-        dir_per_layer.cd()
+        get_per_layer_subdir(hname).cd()
     else:
         output_file.cd()  # root directory for general histograms
     h.Write()
