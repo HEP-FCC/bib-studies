@@ -358,7 +358,13 @@ histograms += [
 histograms += [
     h_hit_t := ROOT.TH1D(f"hist_hit_t_{collection}", f"hist_hit_t_{collection}; timing [ns]; hits / events", 200, 0, 20),
     h_hit_t_corr_x_layer := ROOT.TH2D(f"hist_hit_t_corr_map_{collection}", f"hist_hit_t_{collection}; timing - TOF [ns]; layer number; hits / events", 200, 0, 20, *layer_binning),
-    h_hit_t_corr := ROOT.TH1D(f"hist_hit_t_corr_{collection}", f"hist_hit_t_corr_{collection}; timing - TOF [ns]; hits / events", 200, -10, 10),
+    h_hit_t_corr := ROOT.TH1D(
+        f"h_hit_t_corr_{collection}",
+        f"#splitline{{h_hit_t_corr_{collection}}}{{hit time corrected for time-of-flight}}; timing - TOF [ns]; hits / events",
+        200,
+        -10,
+        10,
+    ),
 ]
 
 histograms += [
