@@ -57,10 +57,10 @@ def parse_args():
                     help='Name of the sub detector system')
     parser.add_argument('-p', '--draw_hists',
                     action="store_true",
-                    help='activate drawing of 1D histograms')
+                    help='export histogram PDFs (does not affect ROOT histogram writing)')
     parser.add_argument('-m', '--draw_maps',
                     action="store_true",
-                    help='activate drawing of number of maps plots')
+                    help='export map PDFs (does not affect ROOT histogram writing)')
     parser.add_argument('-r','--bin_width_r',
                     type=int, default=None,
                     help='bin width for radius r in mm')
