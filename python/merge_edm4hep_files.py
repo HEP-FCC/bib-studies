@@ -103,15 +103,12 @@ def select_collections(names, drop):
     return kept, dropped
 
 
-# KNOWN ISSUE (found 2026-11-03): a path under /eos/home-X/ is turned into
-# root://eosuser.cern.ch//eos/home-X/..., which podio cannot open: the run fails at the end, in
-# write_podio_metadata(), with 'podio_metadata tree couldn't be read' after minutes of xrootd
-# timeouts and no output file. The /eos/user/X/<user>/... form of the same path works, so pass
-# --input-dir/--output-dir in that form. A fix would map /eos/home-X/<user> to /eos/user/X/<user>
-# here, and/or fall back to the plain path in write_podio_metadata() (as open_root_file() does).
 def read_url(path):
     """Read EOS user files through xrootd (about 2x faster per file than the fuse mount)."""
-    if path.startswith("/eos/user/") or path.startswith("/eos/home-"):
+    # The fuse alias /eos/home-X/<user> is not served by xrootd (podio fails with
+    # 'podio_metadata tree couldn't be read' after minutes of timeouts): use /eos/user/X/<user>
+    path = re.sub(r"^/eos/home-([^/]+)/", r"/eos/user/\1/", path)
+    if path.startswith("/eos/user/"):
         return "root://eosuser.cern.ch/" + path
     return path
 
