@@ -139,7 +139,7 @@ plot_all_subdetectors.py -i myfile.root -e 100 -j 4 --hits2high --skip_layers_fo
 
 ## Draw MC particles info
 
-The `drawmcparticles.py` script reads the MC particles of the events (`MCParticles` of simulated files, or another collection with `--mcCollection`) and produces kinematic distributions and production vertex maps.
+The `drawMCparticles.py` script reads the MC particles of the events (`MCParticles` of simulated files, or another collection with `--mcCollection`) and produces kinematic distributions and production vertex maps.
 It is independent of the hits: `drawhits.py` only histograms the particles that created a hit, while this script looks at all the particles. It categorizes them into all, gen (generator-level),
 sim (created in the simulation), calorimeter and tracker (decaying in the calorimeter / tracker), and produces per-category histograms of energy, p<sub>T</sub>, eta, phi and PDG ID,
 plus the production vertex (r, z, phi, x-y, z-r, z-phi) of the particles created in the simulation.
@@ -147,7 +147,7 @@ Results are saved to a ROOT file (one folder per category, plus `sim_vertex`) an
 
 It can also be run on generator-level files, to inspect the BIB particles before the simulation, e.g. for the incoherent pair creation edm4hep files:
 ```sh
-drawmcparticles.py -i <path_to_generator_file.root> --mcCollection Pairs -e 100 --sample pairs
+drawMCparticles.py -i <path_to_generator_file.root> --mcCollection Pairs -e 100 --sample pairs
 ```
 
 Key input arguments are:

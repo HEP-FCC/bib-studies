@@ -32,9 +32,9 @@ ROOT.gErrorIgnoreLevel = ROOT.kWarning
 ######################################
 # option parser
 
-parser = argparse.ArgumentParser(description='drawmcparticles.py',
-        epilog='Example:\ndrawmcparticles.py -i <sim_file.root> -e 100 --sample myparticles\n'
-               'drawmcparticles.py -i <generator_level_file.root> --mcCollection Pairs -e 100',
+parser = argparse.ArgumentParser(description='drawMCparticles.py',
+        epilog='Example:\ndrawMCparticles.py -i <sim_file.root> -e 100 --sample myparticles\n'
+               'drawMCparticles.py -i <generator_level_file.root> --mcCollection Pairs -e 100',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-i', '--infilePath',
                   type=str, required=True,
