@@ -164,6 +164,13 @@ class DetFilePath:
             self.version = re.search("v[0-9]{2}", self.name).group(0)       # Get version only
 
 
+##simple function to print a warning in YELLOW
+def print_warning(msg):
+    YELLOW = '\033[93m'
+    END = '\033[0m'
+    print(f"{YELLOW}WARNING: {msg}{END}")
+
+
 ##simple function to print "header" with CYAN color
 def print_header(msg,oneline=False):
     CYAN = '\033[96m'
