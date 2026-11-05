@@ -582,7 +582,7 @@ if not skip_plot_per_layer:
         )
         h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(
             f"h_hit_rateDensity_layer{l}_VS_eta_{collection}",
-            f"#splitline{{h_hit_rateDensity_layer{l}_VS_eta_{collection}}}{{Per-layer hit-rate density vs #eta from all hits (1/area weighted), normalized per event}}; #eta; hit-rate density [a.u.]",
+            f"#splitline{{h_hit_rateDensity_layer{l}_VS_eta_{collection}}}{{all hits (1/area weighted), normalized per event; rate example: #times52 MHz (BX) #times5 pix/cl}}; #eta; hit-rate density [a.u.]",
             eta_bins,
             0,
             eta_range,
@@ -649,6 +649,7 @@ hits_without_mc = 0
 integrating_channels = defaultdict(int)
 pile_up_counter = defaultdict(int)
 progress_step = max(1, n_events // 20) if n_events > 0 else 1
+progress_colors = [196, 202, 208, 214, 220, 190, 154, 118, 82, 46]  # red -> green
 
 for i,event in enumerate(podio_reader.get(tree_name)):
 
@@ -658,7 +659,9 @@ for i,event in enumerate(podio_reader.get(tree_name)):
     if (i % progress_step == 0) or (i + 1 == n_events):
         processed_for_display = min(i + 1, n_events)
         percent = int(100 * processed_for_display / n_events) if n_events > 0 else 100
-        print(f"\rprocessing event {processed_for_display}/{n_events} ({percent:3d}%)", end="", flush=True)
+        color_idx = min(percent // 10, len(progress_colors) - 1)
+        percent_colored = f"\033[38;5;{progress_colors[color_idx]}m{percent:3d}%\033[0m"
+        print(f"\rprocessing event {processed_for_display}/{n_events} ({percent_colored})", end="", flush=True)
 
     fired_cells = []
     fired_cells_x_layer = {l: 0 for l in layer_cells.keys()}  # Initialize to 0 for all the layers to ensure that also events with 0 occupancy are correctly counted
