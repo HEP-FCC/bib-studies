@@ -66,6 +66,59 @@ def draw_map(hist, titlex, titley, plot_title, message='', log_x = False, log_y=
     #cm1.Print(plot_title+".png")
 
 
+def _axis_ticks(lo, hi, log):
+    """Values of the major and minor ticks of an axis between lo and hi"""
+    if log:
+        major, minor = [], []
+        for n in range(math.floor(math.log10(lo)), math.ceil(math.log10(hi)) + 1):
+            if lo <= 10**n <= hi:
+                major.append(10**n)
+            minor += [m * 10**n for m in range(2, 10) if lo <= m * 10**n <= hi]
+        return major, minor
+    raw = (hi - lo) / 5
+    magnitude = 10**math.floor(math.log10(raw))
+    step = next(f * magnitude for f in (1, 2, 5, 10) if f * magnitude >= raw)
+    k_lo, k_hi = math.ceil(lo / (step / 5) - 1e-9), math.floor(hi / (step / 5) + 1e-9)
+    major = [k * step / 5 for k in range(k_lo, k_hi + 1) if k % 5 == 0]
+    minor = [k * step / 5 for k in range(k_lo, k_hi + 1) if k % 5 != 0]
+    return major, minor
+
+
+def draw_axis_ndc(x, y_bottom, y_top, lo, hi, log, title, label_size=0.04, title_size=0.045):
+    """
+    Draw a vertical axis (ticks and labels on its right) at the NDC position x, between y_bottom and y_top, for the values lo to hi.
+    It is made of plain lines and text in the pad (no TGaxis, no sub-pad), so that it does not depend on how a viewer (e.g. JSROOT) handles those.
+    """
+    def position(v):
+        fraction = (math.log10(v) - math.log10(lo)) / (math.log10(hi) - math.log10(lo)) if log else (v - lo) / (hi - lo)
+        return y_bottom + fraction * (y_top - y_bottom)
+
+    def label(v):
+        if not log:
+            return f"{v:g}"
+        n = round(math.log10(v))
+        return "1" if n == 0 else "10" if n == 1 else f"10^{{{n}}}"
+
+    line = ROOT.TLine()
+    line.SetLineColor(ROOT.kBlack)
+    line.DrawLineNDC(x, y_bottom, x, y_top)
+    major, minor = _axis_ticks(lo, hi, log)
+    for v in minor:
+        line.DrawLineNDC(x, position(v), x + 0.006, position(v))
+    latex = ROOT.TLatex()
+    latex.SetNDC()
+    latex.SetTextFont(42)
+    latex.SetTextSize(label_size)
+    latex.SetTextAlign(12)  # left, vertically centered
+    for v in major:
+        line.DrawLineNDC(x, position(v), x + 0.012, position(v))
+        latex.DrawLatex(x + 0.018, position(v), label(v))
+    latex.SetTextSize(title_size)
+    latex.SetTextAngle(90)
+    latex.SetTextAlign(22)  # centered
+    latex.DrawLatex(x + 0.105, (y_bottom + y_top) / 2, title)
+
+
 def draw_overlay(hists, titlex, titley, plot_title, message='', log_x=False, log_y=False, legend_title='', save_pdf=True, right_axes=None, title=''):
     """
     Overlay several 1D histograms (dict {legend label: histogram}) on one canvas, e.g. one per layer.
@@ -156,34 +209,14 @@ def draw_overlay(hists, titlex, titley, plot_title, message='', log_x=False, log
         text(0.20, 0.9, message, 0.04)
         note_y = 0.86
 
-    # axes on the right: the main y axis times a scale factor
+    # axes on the right: the main y axis times a scale factor, with the same range and position as the frame of the main pad
     if right_axes and (y_lo > 0 or not log_y):
-        # The axes are drawn in a transparent pad covering the canvas, in NDC coordinates (a TGaxis drawn directly in a log pad
-        # gets its coordinates wrong), between the bottom and the top of the frame of the main pad, with the same range as the main y axis
-        x_frame = 1 - right_margin
         y_bottom, y_top = cm1.GetBottomMargin(), 1 - cm1.GetTopMargin()
-        axes_pad = ROOT.TPad("pad_right_axes_"+plot_title, "", 0, 0, 1, 1)
-        axes_pad.SetFillStyle(4000)  # transparent
-        axes_pad.SetFrameFillStyle(0)
-        axes_pad.Draw()
-        axes_pad.cd()
-        axes_pad.Range(0, 0, 1, 1)
-        ROOT.SetOwnership(axes_pad, False)
         for i, (scale, axis_title, *note) in enumerate(right_axes):
-            x = x_frame + i * 0.12  # next axes further to the right
-            axis = ROOT.TGaxis(x, y_bottom, x, y_top, y_lo * scale, y_hi * scale, 510, "+LG" if log_y else "+L")
-            axis.SetTitle(axis_title)
-            axis.SetLabelFont(42)
-            axis.SetTitleFont(42)
-            axis.SetLabelSize(ROOT.gStyle.GetLabelSize("Y"))
-            axis.SetTitleSize(ROOT.gStyle.GetTitleSize("Y"))
-            axis.SetTitleOffset(1.6)
-            ROOT.SetOwnership(axis, False)
-            axis.Draw()
+            draw_axis_ndc(1 - right_margin + i * 0.12, y_bottom, y_top, y_lo * scale, y_hi * scale, log_y, axis_title,
+                          label_size=ROOT.gStyle.GetLabelSize("Y"), title_size=ROOT.gStyle.GetTitleSize("Y"))
             if note and note[0]:
-                axes_pad.cd()
                 text(0.20, note_y - 0.04 * i, note[0], 0.03)
-        cm1.cd()
 
     if save_pdf:
         cm1.Print(plot_title+".pdf")
