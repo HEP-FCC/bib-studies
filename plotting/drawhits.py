@@ -13,7 +13,7 @@ import ROOT
 from particle import Particle
 
 from constants import C_MM_NS
-from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict, is_calo, is_endcap, DetFilePath, print_header
+from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict, is_calo, is_endcap, DetFilePath, print_warning, print_header
 from visualization import setup_root_style, draw_hist, draw_map
 
 
@@ -79,6 +79,9 @@ def parse_args():
     parser.add_argument('--integration_time',
                     type=int, default=1,
                     help='Integration window in number of events (1 event = 1 BX), opened by the first hit in a cell. Used to estimate pile-up: extra events with a hit in the same cell within the window. 1 disables it.')
+    parser.add_argument('--bc_window',
+                    type=int, default=0,
+                    help="Number of events (1 event = 1 BX) for the distribution of the time since the previous hit in the same module (in the same cell for sub-detectors without a module field, e.g. the drift chamber). 0 disables it.")
     parser.add_argument('--energy_per_layer',
                     action="store_true",
                     help='Save histograms of hit energy per layer.')
@@ -116,6 +119,7 @@ bw_phi = options.bin_width_phi
 stat_box = options.stat_box
 skip_plot_per_layer = options.skip_layers
 integration_time = options.integration_time
+bc_window = options.bc_window
 energy_per_layer = options.energy_per_layer
 digi = options.digi
 e_cut = options.e_cut
@@ -641,6 +645,35 @@ h_avg_pu_x_layer = ROOT.TH1D(
 if integration_time > 1:
     histograms += [h_tot_pu, h_avg_pu_x_layer]
 
+# BC-window histograms: events (= BX) since the previous hit in the same module, or in the same cell if the sub-detector has no module field
+bc_window_max_modules = 20000  # skip the per-layer module histograms above this number of module bins (e.g. calorimeters)
+bc_window_key_is_module = "module" in [field.split(":")[0].strip() for field in id_encoding.split(",")]
+bc_window_last_event = {}
+h_bc_window_x_module = {}
+if bc_window > 0:
+    bc_what = "module" if bc_window_key_is_module else "cell"
+    bc_bins = [bc_window + 1, 0.5, bc_window + 1.5]  # y = 1..W: events since the previous hit, W+1: more than W (first hits of the run are not filled)
+    bc_note = f"Events since the previous hit in the same {bc_what} (1 event = 1 BX), y = {bc_window + 1}: more than {bc_window}, first hit of each {bc_what} in the run not counted"
+    h_bc_window_x_layer = ROOT.TH2D(
+        f"h_bc_window_x_layer_{collection}",
+        f"#splitline{{h_bc_window_x_layer_{collection}}}{{{bc_note}}}; layer index; events since previous hit; hits / event",
+        *layer_binning,
+        *bc_bins,
+    )
+    histograms += [h_bc_window_x_layer]
+    if bc_window_key_is_module and not skip_plot_per_layer:
+        for l in layer_cells.keys():
+            if cell_binning[l][0] > bc_window_max_modules:
+                print_warning(f"BC window: no per-module histogram for layer {l} ({cell_binning[l][0]} modules > {bc_window_max_modules}), only the per-layer summary is filled")
+                continue
+            h_bc_window_x_module[l] = ROOT.TH2D(
+                f"h_bc_window_layer{l}_{collection}",
+                f"#splitline{{h_bc_window_layer{l}_{collection}}}{{{bc_note}}}; module ID; events since previous hit; hits / event",
+                *cell_binning[l],
+                *bc_bins,
+            )
+            histograms += [h_bc_window_x_module[l]]
+
 
 n_events = nEvents_fullFileList  # already the total over all input files
 if events_per_file != -1:
@@ -681,6 +714,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         print(f"\rprocessing event {processed_for_display}/{n_events} ({percent_colored})", end="", flush=True)
 
     fired_cells = []
+    bc_window_seen = set()  # modules (cells) already counted in this event for the BC window
     fired_cells_x_layer = {l: 0 for l in layer_cells.keys()}  # Initialize to 0 for all the layers to ensure that also events with 0 occupancy are correctly counted
     hits_x_layer = {l: 0 for l in layer_cells.keys()}  # Count all hits in layer, including repeated hits in the same cell in the same event
     module_hits_x_layer = defaultdict(int)  # Count all hits per (layer, module) in this event
@@ -879,6 +913,18 @@ for i,event in enumerate(podio_reader.get(tree_name)):
                 h_hit_particle_eta.Fill(particle_p4.eta(), fill_weight)
                 h_hit_particle_ID_E_GeV.Fill(Particle.from_pdgid(pdg).name, particle_p4.E(), fill_weight)
 
+            # BC window: events since the previous hit in the same module (cell), counted once per event
+            if bc_window > 0:
+                bc_key = (layer_n, module_n) if bc_window_key_is_module else (layer_n, cell_id)
+                if bc_key not in bc_window_seen:
+                    bc_window_seen.add(bc_key)
+                    if bc_key in bc_window_last_event:
+                        bc_dt = min(processed_events - bc_window_last_event[bc_key], bc_window + 1)
+                        h_bc_window_x_layer.Fill(layer_n, bc_dt, fill_weight)
+                        if layer_n in h_bc_window_x_module:
+                            h_bc_window_x_module[layer_n].Fill(module_n, bc_dt, fill_weight)
+                    bc_window_last_event[bc_key] = processed_events
+
             # Monitor in channels that are integrating signal
             if integration_time > 1:
                 # a channel still in integrating_channels has at least one event left in its window
@@ -1071,6 +1117,9 @@ if draw_hists:
         draw_hist(h_tot_pu, "Pile-up events per window", "Windows / event", f"{sample_name}_tot_pu_{n_events}evt_{sub_detector}", collection)
         draw_hist(h_avg_pu_x_layer, "Layer", "Avg pile-up events / window", f"{sample_name}_avg_pu_x_layer_{n_events}evt_{sub_detector}", collection)
 
+    if bc_window > 0:
+        draw_hist(h_bc_window_x_layer, "Layer", "Events since previous hit", f"{sample_name}_bc_window_x_layer_{n_events}evt_{sub_detector}", collection, draw_opt="colz")
+
     if not skip_plot_per_layer:
         for l, h in h_occ_anyhit_x_layer.items():
             draw_hist(h, "Occupancy [%]", "Entries / events", f"{sample_name}_occ_anyhit_layer{l}_{n_events}evt_{sub_detector}", collection, log_x=True)
@@ -1078,6 +1127,9 @@ if draw_hists:
             draw_hist(h, "Occupancy [%]", "Entries / events", f"{sample_name}_occ_allhits_layer{l}_{n_events}evt_{sub_detector}", collection, log_x=True)
         for l, h in h_hits_x_layer_x_module_dist.items():
             draw_hist(h, "Module ID", "Hits per event in module", f"{sample_name}_hits_x_layer{l}_x_module_dist_{n_events}evt_{sub_detector}", collection, draw_opt="colz")
+
+        for l, h in h_bc_window_x_module.items():
+            draw_hist(h, "Module ID", "Events since previous hit", f"{sample_name}_bc_window_layer{l}_{n_events}evt_{sub_detector}", collection, draw_opt="colz")
 
         for l in h_z_density_vs_layer_mm.keys():
             draw_hist(h_z_density_vs_layer_mm[l], "z [mm]","Hits/event", f"{sample_name}_zDensity_layer{l}_{n_events}evt_{sub_detector}", collection)
@@ -1109,6 +1161,8 @@ per_layer_subdirs = {
     "density_zphi": dir_per_layer.mkdir("density_zphi"),
     "rate_vs_eta": dir_per_layer.mkdir("rate_vs_eta"),
 }
+if h_bc_window_x_module:
+    per_layer_subdirs["bc_window"] = dir_per_layer.mkdir("bc_window")
 if plot_primary:
     dir_primary = output_file.mkdir("mc_primary")
     dir_parent = output_file.mkdir("mc_parent")
@@ -1138,6 +1192,8 @@ def get_per_layer_subdir(hname):
         return per_layer_subdirs["density_xy"]
     if "hist_zphi_vs_layer" in hname:
         return per_layer_subdirs["density_zphi"]
+    if "h_bc_window_layer" in hname:
+        return per_layer_subdirs["bc_window"]
     if "h_hit_rateDensity_layer" in hname:
         return per_layer_subdirs["rate_vs_eta"]
     return dir_per_layer
