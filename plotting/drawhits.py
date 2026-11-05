@@ -664,7 +664,7 @@ hits_without_mc = 0
 
 integrating_channels = defaultdict(int)
 pile_up_counter = defaultdict(int)
-progress_step = max(1, n_events // 20) if n_events > 0 else 1
+progress_step = max(1, n_events // 50) if n_events > 0 else 1  # update the progress every 2%
 progress_colors = [196, 202, 208, 214, 220, 190, 154, 118, 82, 46]  # red -> green
 
 print_header("Processing events", oneline=True)
