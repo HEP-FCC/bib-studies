@@ -411,34 +411,52 @@ histograms += [
     ),
     h_avg_firing_cells_x_layer := ROOT.TH1D(
         f"h_avg_firing_cells_x_layer_{collection}",
-        f"#splitline{{h_avg_firing_cells_x_layer_{collection}}}{{Average unique firing cells per layer; repeated hits in the same cell/event count once}};layer index;avg unique cells/evt",
+        f"#splitline{{h_avg_firing_cells_x_layer_{collection}}}{{Average unique firing cells per layer, repeated hits in the same cell/event count once}};layer index;avg unique cells/evt",
         *layer_binning,
     ),
-    h_avg_occ_x_layer := ROOT.TH1D(
-        f"h_avg_occ_x_layer_{collection}",
-        f"#splitline{{h_avg_occ_x_layer_{collection}}}{{Average layer occupancy from unique firing cells only; repeated hits in the same cell/event count once}};layer index;avg occupancy/evt [%]",
+    h_avg_occ_anyhit_x_layer := ROOT.TH1D(
+        f"h_avg_occ_anyhit_x_layer_{collection}",
+        f"#splitline{{h_avg_occ_anyhit_x_layer_{collection}}}{{Average layer occupancy from any-hit cells only, a cell counts once per event if it fires at least once}};layer index;avg occupancy/evt [%]",
+        *layer_binning,
+    ),
+    h_avg_occ_allhits_x_layer := ROOT.TH1D(
+        f"h_avg_occ_allhits_x_layer_{collection}",
+        f"#splitline{{h_avg_occ_allhits_x_layer_{collection}}}{{Average layer occupancy from all hit counts, every hit in a cell/event is counted}};layer index;avg occupancy/evt [%]",
         *layer_binning,
     ),
 ]
 
 # Occupancy histograms, defined as fraction of cells that fired
 # Requires that the total cells are correctly computed and stored in detector_dict
-h_occ_x_layer = {}
+h_occ_anyhit_x_layer = {}
+h_occ_allhits_x_layer = {}
 log_bins = np.hstack([0,np.logspace(-2,2,50)]) #add 0 value to log bins (to avoid underflow in some histos)
 for l in layer_cells.keys():
-    h_occ_x_layer[l] = ROOT.TH1D(
-        f"h_occ_x_layer{l}_{collection}",
-        f"#splitline{{h_occ_x_layer{l}_{collection}}}{{Layer occupancy from unique firing cells only; repeated hits in the same cell/event count once}}; fired unique cells / total layer cells [%]; entries / events",
+    h_occ_anyhit_x_layer[l] = ROOT.TH1D(
+        f"h_occ_anyhit_x_layer{l}_{collection}",
+        f"#splitline{{h_occ_anyhit_x_layer{l}_{collection}}}{{Layer occupancy from any-hit cells only, a cell counts once per event if it fires at least once}}; fired any-hit cells / total layer cells [%]; entries / events",
         len(log_bins)-1,
         log_bins,
     )
-    histograms += [h_occ_x_layer[l]]
+    h_occ_allhits_x_layer[l] = ROOT.TH1D(
+        f"h_occ_allhits_x_layer{l}_{collection}",
+        f"#splitline{{h_occ_allhits_x_layer{l}_{collection}}}{{Layer occupancy from all hit counts, every hit in a cell/event is counted}}; total hits in layer / total layer cells [%]; entries / events",
+        len(log_bins)-1,
+        log_bins,
+    )
+    histograms += [h_occ_anyhit_x_layer[l], h_occ_allhits_x_layer[l]]
 low_edges = np.array([0, 1, 2, 4, 6]) / n_tot_cells * 100              # bins: 0 | 1 | 2-3 | 4-5 fired cells
 occ_bins = np.hstack([low_edges, log_bins[log_bins > low_edges[-1]]])  # then the usual log bins
 histograms += [
-    h_occ := ROOT.TH1D(
-        f"h_occ_tot_{collection}",
-        f"#splitline{{h_occ_tot_{collection}}}{{Total occupancy from unique firing cells only; repeated hits in the same cell/event count once}}; total fired unique cells / total detector cells [%]; entries / events",
+    h_occ_anyhit := ROOT.TH1D(
+        f"h_occ_anyhit_tot_{collection}",
+        f"#splitline{{h_occ_anyhit_tot_{collection}}}{{Total any-hit occupancy, a cell counts once per event if it fires at least once}}; total fired any-hit cells / total detector cells [%]; entries / events",
+        len(occ_bins)-1,
+        occ_bins,
+    ),
+    h_occ_allhits := ROOT.TH1D(
+        f"h_occ_allhits_tot_{collection}",
+        f"#splitline{{h_occ_allhits_tot_{collection}}}{{Total all-hit occupancy, every hit in a cell/event is counted}}; total hits / total detector cells [%]; entries / events",
         len(occ_bins)-1,
         occ_bins,
     )
@@ -581,6 +599,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
     fired_cells = []
     fired_cells_x_layer = {l: 0 for l in layer_cells.keys()}  # Initialize to 0 for all the layers to ensure that also events with 0 occupancy are correctly counted
+    hits_x_layer = {l: 0 for l in layer_cells.keys()}  # Count all hits in layer, including repeated hits in the same cell in the same event
 
     # Loop over the hits
     for hit in event.get(collection):
@@ -652,6 +671,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             # For layer percentage occupancy, count cells only once
             if not cell_fired:
                 fired_cells_x_layer[layer_n] += 1
+            hits_x_layer[layer_n] += 1
 
             if(debug>1): print(" cell_id:", cell_id, " layer_n:", layer_n, " x_mm:", x_mm, " y_mm:", y_mm, " z_mm:", z_mm, " r_mm:", r_mm, " phi:", phi)
 
@@ -791,17 +811,27 @@ for i,event in enumerate(podio_reader.get(tree_name)):
     # <--- end of the hits loop
 
     # Compute the per-event occupancy
-    tot_occupancy = 0
+    tot_anyhit_occupancy = 0
+    tot_allhits_occupancy = 0
 
     for l, fc in fired_cells_x_layer.items():
-        tot_occupancy += fc
+        tot_anyhit_occupancy += fc
         if layer_cells:
-            layer_occupancy = fc / layer_cells[l] * 100
-            h_avg_occ_x_layer.Fill(l, layer_occupancy * fill_weight)
-            h_occ_x_layer[l].Fill(layer_occupancy, fill_weight)
+            layer_anyhit_occupancy = fc / layer_cells[l] * 100
+            h_avg_occ_anyhit_x_layer.Fill(l, layer_anyhit_occupancy * fill_weight)
+            h_occ_anyhit_x_layer[l].Fill(layer_anyhit_occupancy, fill_weight)
 
-    tot_occupancy = tot_occupancy / n_tot_cells * 100
-    h_occ.Fill(tot_occupancy, fill_weight)
+    for l, nh in hits_x_layer.items():
+        tot_allhits_occupancy += nh
+        if layer_cells:
+            layer_allhits_occupancy = nh / layer_cells[l] * 100
+            h_avg_occ_allhits_x_layer.Fill(l, layer_allhits_occupancy * fill_weight)
+            h_occ_allhits_x_layer[l].Fill(layer_allhits_occupancy, fill_weight)
+
+    tot_anyhit_occupancy = tot_anyhit_occupancy / n_tot_cells * 100
+    tot_allhits_occupancy = tot_allhits_occupancy / n_tot_cells * 100
+    h_occ_anyhit.Fill(tot_anyhit_occupancy, fill_weight)
+    h_occ_allhits.Fill(tot_allhits_occupancy, fill_weight)
 
     if integration_time > 1:
         # Update the integration and pileup counters
@@ -923,7 +953,8 @@ if draw_hists:
     draw_hist(h_hit_t_corr, "Timing - TOF [ns]", "Hits / events",  sample_name+"_hit_t_corr_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_avg_hits_x_layer, "Layer number", "Hits / events",  sample_name+"_avg_hits_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_avg_firing_cells_x_layer, "Layer number", "Firing cells / events",  sample_name+"_avg_firing_cells_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_occ, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
+    draw_hist(h_occ_anyhit, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_anyhit_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
+    draw_hist(h_occ_allhits, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_allhits_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
     if has_mc_truth:  # MC-truth histograms, skipped if the input has no MCParticles
         draw_hist(h_hit_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_hit_particle_E_"+str(n_events)+"evt_"+sub_detector, collection)
         draw_hist(h_hit_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_hit_particle_pt_"+str(n_events)+"evt_"+sub_detector, collection)
@@ -941,8 +972,10 @@ if draw_hists:
         draw_hist(h_avg_pu_x_layer, "Layer", "Average pileup hits", f"{sample_name}_avg_pu_x_layer_{n_events}evt_{sub_detector}", collection)
 
     if not skip_plot_per_layer:
-        for l, h in h_occ_x_layer.items():
-            draw_hist(h, "Occupancy [%]", "Entries / events", f"{sample_name}_occ_x_layer{l}_{n_events}evt_{sub_detector}", collection, log_x=True)
+        for l, h in h_occ_anyhit_x_layer.items():
+            draw_hist(h, "Occupancy [%]", "Entries / events", f"{sample_name}_occ_anyhit_layer{l}_{n_events}evt_{sub_detector}", collection, log_x=True)
+        for l, h in h_occ_allhits_x_layer.items():
+            draw_hist(h, "Occupancy [%]", "Entries / events", f"{sample_name}_occ_allhits_layer{l}_{n_events}evt_{sub_detector}", collection, log_x=True)
 
         for l in h_z_density_vs_layer_mm.keys():
             draw_hist(h_z_density_vs_layer_mm[l], "z [mm]","Hits/event", f"{sample_name}_zDensity_layer{l}_{n_events}evt_{sub_detector}", collection)
@@ -959,7 +992,8 @@ dir_maps = output_file.mkdir("maps")
 dir_per_layer = output_file.mkdir("per_layer")
 per_layer_subdirs = {
     "energy": dir_per_layer.mkdir("energy"),
-    "occupancy": dir_per_layer.mkdir("occupancy"),
+    "occupancy_anyhit": dir_per_layer.mkdir("occupancy_anyhit"),
+    "occupancy_allhits": dir_per_layer.mkdir("occupancy_allhits"),
     "module_hits": dir_per_layer.mkdir("module_hits"),
     "pileup": dir_per_layer.mkdir("pileup"),
     "density_z": dir_per_layer.mkdir("density_z"),
@@ -975,8 +1009,14 @@ if plot_primary:
 def get_per_layer_subdir(hname):
     if "h_hit_E_MeV_layer" in hname:
         return per_layer_subdirs["energy"]
-    if "h_occ_x_layer" in hname:
-        return per_layer_subdirs["occupancy"]
+    if "h_occ_anyhit_x_layer" in hname:
+        return per_layer_subdirs["occupancy_anyhit"]
+    if "h_occ_allhits_x_layer" in hname:
+        return per_layer_subdirs["occupancy_allhits"]
+    if "h_avg_occ_anyhit_x_layer" in hname:
+        return per_layer_subdirs["occupancy_anyhit"]
+    if "h_avg_occ_allhits_x_layer" in hname:
+        return per_layer_subdirs["occupancy_allhits"]
     if "h_avg_hits_x_layer" in hname and "_x_module_" in hname:
         return per_layer_subdirs["module_hits"]
     if "h_pu_x_layer" in hname:
