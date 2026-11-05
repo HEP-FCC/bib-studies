@@ -90,7 +90,10 @@ def parse_args():
                     help='run on digitized hits (requires to pass also the assumptions dict with info on the digitized collection).')
     parser.add_argument('--e_cut',
                     action='store_true',
-                    help='apply energy cut (requires to pass also the assumptions dict with energy threshold).')
+                    help='apply an energy threshold on the hits: hits with an energy below E_thr_MeV are skipped in all the histograms. '
+                         'It is the energy of the hit itself (deposited energy EDep for tracker hits, energy for calorimeter hits), '
+                         'not the energy of the MC particle. E_thr_MeV is taken from the assumptions dict (requires to pass it too), '
+                         'per sub-detector or per layer (with --digi, from its "digitized_hits" entry).')
     parser.add_argument('--plot_primary',
                     action='store_true',
                     help='plot the primary particle and parent of the particle creating a hit/cluster '
