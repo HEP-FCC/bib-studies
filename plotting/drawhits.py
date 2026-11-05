@@ -717,7 +717,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         percent_colored = f"\033[38;5;{progress_colors[color_idx]}m{percent:3d}%\033[0m"
         print(f"\rprocessing event {processed_for_display}/{n_events} ({percent_colored})", end="", flush=True)
 
-    fired_cells = []
+    fired_cells = set()
     bc_window_seen = set()  # modules (cells) already counted in this event for the BC window
     fired_cells_x_layer = {l: 0 for l in layer_cells.keys()}  # Initialize to 0 for all the layers to ensure that also events with 0 occupancy are correctly counted
     hits_x_layer = {l: 0 for l in layer_cells.keys()}  # Count all hits in layer, including repeated hits in the same cell in the same event
@@ -741,7 +741,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             # print(cell_id,"has already fired in this event!")
             cell_fired = True
         else:
-            fired_cells.append(cell_id)
+            fired_cells.add(cell_id)
             # count cellIDs that fired in the run
             fullRun_fired_cellIDs.add(cell_id)
 
@@ -1020,26 +1020,6 @@ if integration_time > 1:
         b = h_avg_pu_x_layer.FindBin(l)
         h_avg_pu_x_layer.SetBinContent(b, h.GetMean())
         h_avg_pu_x_layer.SetBinError(b, h.GetMeanError())
-
-# # Draw TEST histos
-# cm1 = ROOT.TCanvas("cm1_", "cm1_", 800, 600)
-# #draw_eta_line(1)
-# cm1.SetLogy()
-# cm1.Print("test.pdf")
-cm2 = ROOT.TCanvas("cm2_", "cm2_", 800, 600)
-hit_zr.Draw("COLZ")
-#draw_eta_line(1)
-graph = ROOT.TGraph(4)
-graph.SetPoint(0, -z_range, -z_range* 0.851)
-graph.SetPoint(1,  z_range,  z_range* 0.851)
-graph.SetPoint(2,  z_range, -z_range* 0.851)
-graph.SetPoint(3, -z_range,  z_range* 0.851)
-
-graph.SetLineColor(ROOT.kBlue)
-graph.SetLineStyle(ROOT.kDashed)
-graph.SetLineWidth(2)
-graph.Draw("Lsame")
-cm2.Print(f"testEta_{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.pdf")
 
 if draw_maps:
     draw_map(hit_zr, "z [mm]", "r [mm]", f"{sample_name}_map_zr_{n_events}evt_{sub_detector}", collection)
