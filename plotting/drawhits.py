@@ -13,7 +13,7 @@ import ROOT
 from particle import Particle
 
 from constants import C_MM_NS
-from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict, is_calo, is_endcap, DetFilePath
+from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict, is_calo, is_endcap, DetFilePath, print_header
 from visualization import setup_root_style, draw_hist, draw_map
 
 
@@ -191,6 +191,7 @@ else:
 #last protection: replace any space or special char in suffix_from_input with underscore
 suffix_from_input = "".join([c if c.isalnum() else "_" for c in suffix_from_input])
 
+print_header("Importing and reading files", oneline=True)
 list_files = path_to_list(input_path)
 list_input_files = sorted_n_files(list_files, n_files)
 
@@ -666,6 +667,7 @@ pile_up_counter = defaultdict(int)
 progress_step = max(1, n_events // 20) if n_events > 0 else 1
 progress_colors = [196, 202, 208, 214, 220, 190, 154, 118, 82, 46]  # red -> green
 
+print_header("Processing events", oneline=True)
 for i,event in enumerate(podio_reader.get(tree_name)):
 
     if i >= n_events and events_per_file > 0:
@@ -945,6 +947,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 if n_events > 0:
     print()
 
+print_header("Done: statistics", oneline=True)
 print(" - Processed events:", processed_events)
 print(" - Processed hits:", processed_hits,
       f"(avg. per event: {processed_hits/processed_events:.1f})")
