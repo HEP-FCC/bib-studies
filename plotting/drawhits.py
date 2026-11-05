@@ -319,15 +319,51 @@ histograms += [
     h_hit_z_mm               := ROOT.TH1D(f"h_hit_z_mm_{collection}", f"h_hit_z_mm_{collection}; [mm] ; hits;", 10000, -z_range, z_range),
     h_hit_r_mm               := ROOT.TH1D(f"h_hit_r_mm_{collection}", f"h_hit_r_mm_{collection}; [mm] ; hits;",10000, -r_range, r_range),
     h_hit_eta                := ROOT.TH1D(f"h_hit_eta_{collection}", f"h_hit_eta_{collection}; [eta]; hits;", eta_bins*2, -eta_range, eta_range),
-    h_hit_E_MeV    := ROOT.TH1D(f"h_hit_E_MeV_{collection}", f"h_hit_E_MeV_{collection}; [MeV]; hits;", 500, 0, 50),
-    h_hit_E_keV    := ROOT.TH1D(f"h_hit_E_keV_{collection}", f"h_hit_E_keV_{collection}; [keV]; hits;", 500, 0, 500),
-    h_hit_E_eV     := ROOT.TH1D(f"h_hit_E_eV_{collection}", f"h_hit_E_eV_{collection}; [eV]; hits;", 500, 0, 1000),
+    h_hit_E_MeV    := ROOT.TH1D(
+        f"h_hit_E_MeV_{collection}",
+        f"#splitline{{h_hit_E_MeV_{collection}}}{{Energy deposited by the hit in the active detector material}}; [MeV]; hits;",
+        500,
+        0,
+        50,
+    ),
+    h_hit_E_keV    := ROOT.TH1D(
+        f"h_hit_E_keV_{collection}",
+        f"#splitline{{h_hit_E_keV_{collection}}}{{Energy deposited by the hit in the active detector material}}; [keV]; hits;",
+        500,
+        0,
+        500,
+    ),
+    h_hit_E_eV     := ROOT.TH1D(
+        f"h_hit_E_eV_{collection}",
+        f"#splitline{{h_hit_E_eV_{collection}}}{{Energy deposited by the hit in the active detector material}}; [eV]; hits;",
+        500,
+        0,
+        1000,
+    ),
     h_hit_E_MeV_map := ROOT.TH2D(f"h_hit_E_MeV_map_{collection}", f"h_hit_E_MeV_map_{collection}; deposited energy [MeV]; layer number; hits / events", 500, 0, 50, *layer_binning),
     h_hit_E_keV_map := ROOT.TH2D(f"h_hit_E_keV_map_{collection}", f"h_hit_E_keV_map_{collection}; deposited energy [keV]; layer number; hits / events", 500, 0, 500, *layer_binning),
     h_hit_E_eV_map := ROOT.TH2D(f"h_hit_E_eV_map_{collection}", f"h_hit_E_eV_map_{collection}; deposited energy [eV]; layer number; hits / events", 500, 0, 1000, *layer_binning),
-    h_hit_particle_E   := ROOT.TH1D(f"h_hit_particle_E_{collection}", f"h_hit_particle_E_{collection}; [E] ; hits;", 500, 0, 50),
-    h_hit_particle_pt  := ROOT.TH1D(f"h_hit_particle_pt_{collection}", f"h_hit_particle_pt_{collection}; [E/c] ; hits;", 500, 0, 50),
-    h_hit_particle_eta := ROOT.TH1D(f"h_hit_particle_eta_{collection}", f"h_hit_particle_eta_{collection}; [eta] ; hits;", 100, -5, 5)
+    h_hit_particle_E   := ROOT.TH1D(
+        f"h_hit_particle_E_{collection}",
+        f"#splitline{{h_hit_particle_E_{collection}}}{{Energy of the particle creating the hit}}; [GeV]; hits;",
+        500,
+        0,
+        50,
+    ),
+    h_hit_particle_pt  := ROOT.TH1D(
+        f"h_hit_particle_pt_{collection}",
+        f"#splitline{{h_hit_particle_pt_{collection}}}{{Transverse momentum of the particle creating the hit}}; [GeV]; hits;",
+        500,
+        0,
+        50,
+    ),
+    h_hit_particle_eta := ROOT.TH1D(
+        f"h_hit_particle_eta_{collection}",
+        f"#splitline{{h_hit_particle_eta_{collection}}}{{Pseudorapidity of the particle creating the hit}}; [eta]; hits;",
+        100,
+        -5,
+        5,
+    )
 ]
 
 # ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
@@ -368,9 +404,21 @@ histograms += [
 ]
 
 histograms += [
-    h_avg_hits_x_layer := ROOT.TH1D(f"h_avg_hits_x_layer_{collection}", f"h_avg_hits_x_layer_{collection};layer index;avg hits/evt", *layer_binning),
-    h_avg_firing_cells_x_layer := ROOT.TH1D(f"h_avg_firing_cells_x_layer_{collection}", f"h_avg_firing_cells_x_layer_{collection};layer index;avg cellsFired/evt", *layer_binning),
-    h_avg_occ_x_layer := ROOT.TH1D(f"h_avg_occ_x_layer_{collection}", f"h_avg_occ_x_layer_{collection};layer index;avg occupancy/evt [%]", *layer_binning),
+    h_avg_hits_x_layer := ROOT.TH1D(
+        f"h_avg_hits_x_layer_{collection}",
+        f"#splitline{{h_avg_hits_x_layer_{collection}}}{{Average hit count per layer, including repeated hits in the same cell/event}};layer index;avg hits/evt",
+        *layer_binning,
+    ),
+    h_avg_firing_cells_x_layer := ROOT.TH1D(
+        f"h_avg_firing_cells_x_layer_{collection}",
+        f"#splitline{{h_avg_firing_cells_x_layer_{collection}}}{{Average unique firing cells per layer; repeated hits in the same cell/event count once}};layer index;avg unique cells/evt",
+        *layer_binning,
+    ),
+    h_avg_occ_x_layer := ROOT.TH1D(
+        f"h_avg_occ_x_layer_{collection}",
+        f"#splitline{{h_avg_occ_x_layer_{collection}}}{{Average layer occupancy from unique firing cells only; repeated hits in the same cell/event count once}};layer index;avg occupancy/evt [%]",
+        *layer_binning,
+    ),
 ]
 
 # Occupancy histograms, defined as fraction of cells that fired
@@ -378,11 +426,23 @@ histograms += [
 h_occ_x_layer = {}
 log_bins = np.hstack([0,np.logspace(-2,2,50)]) #add 0 value to log bins (to avoid underflow in some histos)
 for l in layer_cells.keys():
-    h_occ_x_layer[l] = ROOT.TH1D(f"h_occ_x_layer{l}_{collection}", f"h_occ_x_layer{l}_{collection} ; fired cells / total layer cells [%];;", len(log_bins)-1, log_bins)
+    h_occ_x_layer[l] = ROOT.TH1D(
+        f"h_occ_x_layer{l}_{collection}",
+        f"#splitline{{h_occ_x_layer{l}_{collection}}}{{Layer occupancy from unique firing cells only; repeated hits in the same cell/event count once}}; fired unique cells / total layer cells [%]; entries / events",
+        len(log_bins)-1,
+        log_bins,
+    )
     histograms += [h_occ_x_layer[l]]
 low_edges = np.array([0, 1, 2, 4, 6]) / n_tot_cells * 100              # bins: 0 | 1 | 2-3 | 4-5 fired cells
 occ_bins = np.hstack([low_edges, log_bins[log_bins > low_edges[-1]]])  # then the usual log bins
-histograms += [ h_occ := ROOT.TH1D(f"h_occ_tot_{collection}", f"h_occ_tot_{collection} ; total fired cells / total layer cells [%]", len(occ_bins)-1, occ_bins) ]
+histograms += [
+    h_occ := ROOT.TH1D(
+        f"h_occ_tot_{collection}",
+        f"#splitline{{h_occ_tot_{collection}}}{{Total occupancy from unique firing cells only; repeated hits in the same cell/event count once}}; total fired unique cells / total detector cells [%]; entries / events",
+        len(occ_bins)-1,
+        occ_bins,
+    )
+]
 
 if plot_primary:
     # Special binning for primary particle plots (zoom in to MDI region)
