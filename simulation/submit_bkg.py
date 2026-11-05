@@ -4,13 +4,16 @@
   Script for submitting condor jobs to process .pairs, .root and .hepevt files
   through a `ddsim` simulation step.
 
-  Generalized from submit_pairs.py
+  Replaces the former submit_pairs.py (originally from Brieuc:
+  https://github.com/BrieucF/FCC_scripts/blob/main/background_studies/launch_bkg_simulation_v23.py)
 """
 
 import argparse
 import os
 import re
+import shutil
 import stat
+import subprocess
 import sys
 from pathlib import Path
 
@@ -49,13 +52,23 @@ parser.add_argument('--crossingAngleBoost', default=0.015, type=str,
 parser.add_argument('--mcCollection', default="MCParticles", type=str,
                     help='MCParticle collection name inside edm4hep .root inputs. '
                          '"MCParticles" for the SR samples, "Pairs" for guinea-pig IPC.')
-# A 100-event edm4hep file takes ~4-5 h (measured: IDEA ~4.8 h, ALLEGRO 3.7-5.2 h, CAD beampipe),
-# so espresso (20 min) and longlunch (2 h) get killed by the wall-time limit. workday is 8 h.
-parser.add_argument('-j', '--job_flavor', default="workday", type=str,
+# A 100-event edm4hep file takes 3.3-7.5 h (measured: IDEA ~4.8 h, ALLEGRO 3.7-5.2 h mean, CAD beampipe),
+# so espresso (20 min) and longlunch (2 h) get killed by the wall-time limit, and workday (8 h) leaves
+# almost no margin for the slowest jobs. tomorrow is 24 h.
+parser.add_argument('-j', '--job_flavor', default="tomorrow", type=str,
                     help='Job flavor for Condor submission.')
+# ddsim with the CAD beampipe reaches ~7.3 GB (v03) to ~8.1 GB (v04) at the end of a 100-event job,
+# and condor sees peaks up to ~9.8 GB, so 8GB gets the job evicted.
+parser.add_argument('--request_memory', default="12GB", type=str,
+                    help='Memory requested from Condor for each job.')
+parser.add_argument('--nevents', default=-1, type=int,
+                    help='Maximum number of events to simulate per job (default: all the events in each file). '
+                         'Useful for quick tests, as a full 100-event file takes hours.')
 parser.add_argument('--seed', default=42, type=int,
                     help='Random seed passed to ddsim (--random.seed). Fixed by default '
                          'so re-running a file reproduces the same result.')
+parser.add_argument('--skip_space_check', action='store_true',
+                    help='Do not check that the submission directory has room for the job logs.')
 
 
 # Condor command content with custom JobFlavor
@@ -71,7 +84,7 @@ Error          = $(ClusterId).$(ProcId).err
 requirements    = ( (OpSysAndVer =?= "AlmaLinux9") && (Machine =!= LastRemoteHost) && (TARGET.has_avx2 =?= True) )
 max_retries    = 3
 +JobFlavour    = "{1}" 
-request_memory = 8GB 
+request_memory = {3}
 RequestCpus = 1
 queue filename matching files {2}{0}
 """
@@ -126,6 +139,38 @@ cd "$JOBDIR"
 """
 
 
+# Space taken in the submission directory by the Log/Output/Error files of one job: the ddsim stdout
+# is ~11 MB for a 100-event job (measured), the .err and .log are small.
+LOG_MB_PER_JOB = 15
+
+
+def free_space_mb(path):
+    """
+    Free space in MB for files written in `path`: the AFS quota if `path` is on AFS
+    (where the job logs are returned to when submitting from lxplus), else the filesystem.
+    """
+    try:
+        # last line: <volume> <quota> <used> <%used> <partition>, quota and used in kB
+        fields = subprocess.run(["fs", "lq", path], capture_output=True, text=True,
+                                timeout=60, check=True).stdout.strip().splitlines()[-1].split()
+        return (int(fields[1]) - int(fields[2])) / 1024
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+        return shutil.disk_usage(path).free / 1024**2
+
+
+def check_log_space(n_jobs):
+    """
+    Stop if the logs of `n_jobs` jobs would not fit in the current directory. When the transfer of
+    the logs fails at the end of a job, condor re-runs the WHOLE job (up to max_retries times).
+    """
+    needed = n_jobs * LOG_MB_PER_JOB
+    free = free_space_mb(".")
+    print(f"Space for the job logs in {os.getcwd()}: {free:.0f} MB free, ~{needed} MB needed ({n_jobs} jobs x {LOG_MB_PER_JOB} MB)")
+    if needed > free:
+        sys.exit("ERROR: not enough space for the job logs. Free some space (or submit from a directory with "
+                 "more room), submit fewer jobs with -n, or pass --skip_space_check.")
+
+
 # Path to steering files (skipped if -s option set)
 steering_dict = {
     "IDEA_o1_v03":  "$FCCCONFIG/share/FCC-config/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py"
@@ -145,7 +190,7 @@ def run(args):
 
 
     # Get the short name of geometry file
-    geo = compact.split("/")[-1].strip(".xml")
+    geo = Path(compact).stem
     #detector = re.sub("(_o[0-9]+)?_v[0-9]{2}.*", "", geo)
 
     # Define output storage path
@@ -193,6 +238,8 @@ def run(args):
         root_files = root_files[:n_max]
     if len(root_files) > 0:
         root_events = edm4hep_helper.count_events(root_files[0])   # WARNING COMMENT
+        if args.nevents > 0:
+            root_events = min(root_events, args.nevents)
 
 
     for item in items:
@@ -208,7 +255,7 @@ def run(args):
         input_filename = None
         # -1 means "all events in the file", understood by the .pairs and
         # .hepevt readers but not by the edm4hep one, which needs the count.
-        n_events = -1
+        n_events = args.nevents    # -1 if not set
         reader_opt = ""
         
         # 1. Check for older folder-based IPC samples
@@ -278,6 +325,9 @@ def run(args):
     if submitted_root_files:
         edm4hep_helper.print_normalisation(submitted_root_files, root_events)
 
+    if not args.skip_space_check:
+        check_log_space(n_jobs)
+
     # Condor caps one submission at 20000 jobs: queue disjoint slices of the
     # same glob, one .cmd per slice
     max_per_submit = 20000
@@ -291,7 +341,7 @@ def run(args):
             condor_submit_path = f"{tag}_part{i_part + 1}.cmd"
             queue_slice = f"[{start}:{start + max_per_submit}] "
         with open(condor_submit_path, "w") as f:
-            f.write(condor_cmd_content.format(exec_pattern, job_flavor, queue_slice))
+            f.write(condor_cmd_content.format(exec_pattern, job_flavor, queue_slice, args.request_memory))
         print("To submit the condor job: ", f"condor_submit {condor_submit_path}")
 
     # Local run script
