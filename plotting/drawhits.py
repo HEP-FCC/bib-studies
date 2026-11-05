@@ -13,7 +13,7 @@ import ROOT
 from particle import Particle
 
 from constants import C_MM_NS
-from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict, is_calo, is_endcap, DetFilePath, print_warning, print_header
+from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict, is_calo, is_endcap, DetFilePath, print_warning, print_header, is_pixel
 from visualization import setup_root_style, draw_hist, draw_map
 
 
@@ -618,12 +618,13 @@ if not skip_plot_per_layer:
         # if(sub_detector=="VertexBarrel" or sub_detector=="SiWrB"):
         #     bin_start += layer_cells[l]/sensors_per_module_map[l]
 
+pu_cell_what = "pixel" if is_pixel(detector_type) else "cell"  # what a cell ID is: pixel-level for the silicon pixel detectors
 # Pile-up histograms (the per-layer ones are always needed to fill the average, but only written if the per-layer output is enabled)
 h_pu_x_layer = {}
 for l in layer_cells.keys():
     h_pu_x_layer[l] = ROOT.TH1D(
         f"h_pu_x_layer{l}_{collection}",
-        f"#splitline{{h_pu_x_layer{l}_{collection}}}{{Pile-up per integration window: extra events with a hit in the same cell within {integration_time} events (1 event = 1 BX) from its first hit}}; pile-up events per window; windows / event",
+        f"#splitline{{h_pu_x_layer{l}_{collection}}}{{Pile-up per integration window: extra events with a hit in the same {pu_cell_what} within {integration_time} events (1 event = 1 BX) from its first hit}}; pile-up events per window; windows / event",
         integration_time,
         -0.5,
         integration_time-0.5,
@@ -632,14 +633,14 @@ for l in layer_cells.keys():
         histograms += [h_pu_x_layer[l]]
 h_tot_pu = ROOT.TH1D(
     f"h_tot_pu_{collection}",
-    f"#splitline{{h_tot_pu_{collection}}}{{Pile-up per integration window: extra events with a hit in the same cell within {integration_time} events (1 event = 1 BX) from its first hit}}; pile-up events per window; windows / event",
+    f"#splitline{{h_tot_pu_{collection}}}{{Pile-up per integration window: extra events with a hit in the same {pu_cell_what} within {integration_time} events (1 event = 1 BX) from its first hit}}; pile-up events per window; windows / event",
     integration_time,
     -0.5,
     integration_time-0.5,
 )
 h_avg_pu_x_layer = ROOT.TH1D(
     f"h_avg_pu_x_layer_{collection}",
-    f"#splitline{{h_avg_pu_x_layer_{collection}}}{{Mean pile-up events per window, windows without pile-up included, window = {integration_time} events (1 event = 1 BX)}}; layer index; avg pile-up events / window",
+    f"#splitline{{h_avg_pu_x_layer_{collection}}}{{Mean pile-up events per window (window opened by a hit in a {pu_cell_what}), windows without pile-up included, window = {integration_time} events (1 event = 1 BX)}}; layer index; avg pile-up events / window",
     *layer_binning,
 )
 if integration_time > 1:
@@ -1154,7 +1155,7 @@ per_layer_subdirs = {
     "occupancy_allhits": dir_per_layer.mkdir("occupancy_allhits"),
     "module_hits": dir_per_layer.mkdir("module_hits"),
     "module_hits_dist": dir_per_layer.mkdir("module_hits_dist"),
-    "pileup": dir_per_layer.mkdir("pileup"),
+    "pileup": dir_per_layer.mkdir(f"pileup_{pu_cell_what}"),
     "density_z": dir_per_layer.mkdir("density_z"),
     "density_phi": dir_per_layer.mkdir("density_phi"),
     "density_xy": dir_per_layer.mkdir("density_xy"),
@@ -1162,7 +1163,7 @@ per_layer_subdirs = {
     "rate_vs_eta": dir_per_layer.mkdir("rate_vs_eta"),
 }
 if h_bc_window_x_module:
-    per_layer_subdirs["bc_window"] = dir_per_layer.mkdir("bc_window")
+    per_layer_subdirs["bc_window"] = dir_per_layer.mkdir("bc_window_module")
 if plot_primary:
     dir_primary = output_file.mkdir("mc_primary")
     dir_parent = output_file.mkdir("mc_parent")
