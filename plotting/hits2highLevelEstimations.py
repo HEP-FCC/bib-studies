@@ -7,7 +7,7 @@ import array
 
 import ROOT
 
-from helpers import load_json, simplify_dict, layer_number_from_string, is_endcap, is_pixel
+from helpers import load_json, simplify_dict, layer_number_from_string, is_endcap, is_pixel, write_command_line
 from constants import b_to_GB, MHz_to_Hz, cm2_to_mm2
 from visualization import setup_root_style, draw_hist
 
@@ -323,6 +323,7 @@ draw_hist(h_bw, "Layer", "Bandwidth [GB/s]", f"{input_file_name}_bw_per_layer", 
 # Write the histograms to the output file
 output_file_name = f"{input_file_name}_{output_file_name}.root"
 with ROOT.TFile(output_file_name,"RECREATE") as f:
+    write_command_line()
     h_bw.Write()
     hist_n_cells.Write()
     if do_hitRateOcc_plots:

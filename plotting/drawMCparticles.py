@@ -16,7 +16,7 @@ import numpy as np
 from podio import root_io
 import ROOT
 
-from helpers import path_to_list, sorted_n_files, print_header
+from helpers import path_to_list, sorted_n_files, print_header, write_command_line
 from visualization import setup_root_style, draw_hist, draw_map
 
 
@@ -327,6 +327,8 @@ with ROOT.TFile(output_file_name, "RECREATE") as f:
         d.cd()
         for h in hists:
             h.Write()
+    f.cd()
+    write_command_line()
 
 print("Histograms saved in:", output_file_name)
 

@@ -13,7 +13,7 @@ import ROOT
 from particle import Particle
 
 from constants import C_MM_NS, IPC_BX_RATE_MHZ, IPC_PIXELS_PER_CLUSTER
-from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict, is_calo, is_endcap, DetFilePath, print_warning, print_header, is_pixel
+from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict, is_calo, is_endcap, DetFilePath, print_warning, print_header, is_pixel, write_command_line
 from visualization import setup_root_style, draw_hist, draw_map, draw_overlay
 
 
@@ -1241,6 +1241,8 @@ if not skip_plot_per_layer:
         per_layer_subdirs["rate_vs_eta"].cd()
         overlay_canvas.Write()
 
+output_file.cd()
+write_command_line()
 output_file.Close()
 print("Histograms saved in:", output_file_name)
 

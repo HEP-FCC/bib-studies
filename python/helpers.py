@@ -2,12 +2,23 @@ import glob
 import json
 import os
 import re
+import shlex
+import sys
 
 import dd4hep as dd4hepModule
+import ROOT
 from ROOT import dd4hep
 
 ######################################
 # Functions
+
+def write_command_line():
+    """
+    Write the command line of the running script as a TNamed ("command_line") in the current
+    ROOT directory, so that an output file can be traced back to the command that produced it.
+    """
+    ROOT.TNamed("command_line", " ".join(shlex.quote(a) for a in sys.argv)).Write()
+
 
 def path_to_list(path, ext=".root"):
     """
