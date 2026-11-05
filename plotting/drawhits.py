@@ -194,7 +194,7 @@ suffix_from_input = "".join([c if c.isalnum() else "_" for c in suffix_from_inpu
 list_files = path_to_list(input_path)
 list_input_files = sorted_n_files(list_files, n_files)
 
-print("Initializing the PODIO reader...")
+print("# Initializing the PODIO reader...")
 podio_reader = root_io.Reader(list_input_files)
 
 # Check if collection is valid and setup a cell ID decoder
@@ -582,7 +582,7 @@ if not skip_plot_per_layer:
         )
         h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(
             f"h_hit_rateDensity_layer{l}_VS_eta_{collection}",
-            f"#splitline{{h_hit_rateDensity_layer{l}_VS_eta_{collection}}}{{all hits weighted by 1/area of the |#eta| bin ring in cm^{{2}}, normalized per event, rate example: #times52 MHz (BX) #times5 pix/cl}}; #eta; hits / cm^{{2}} / event",
+            f"#splitline{{h_hit_rateDensity_layer{l}_VS_eta_{collection}}}{{all hits weighted by 1/area of the |#eta| bin ring in cm^{{2}}, normalized per event, rate example: #times52 MHz (BX) #times5 pix/cl}}; |#eta|; hits / cm^{{2}} / event",
             eta_bins,
             0,
             eta_range,
@@ -1064,13 +1064,17 @@ if draw_hists:
             draw_hist(h_xy_density_vs_layer[l], "x [mm]", "y [mm]", f"{sample_name}_xyDensity_layer{l}_{n_events}evt_{sub_detector}", collection, draw_opt="colz")
 
         for l in h_z_density_vs_layer_mm.keys():
-            draw_hist(h_hit_rateDensity_VS_eta[l], "#eta", "Hits / cm^{2} / event", f"{sample_name}_hitRateDensity_VS_eta_layer{l}_{n_events}evt_{sub_detector}", collection)
+            draw_hist(h_hit_rateDensity_VS_eta[l], "|#eta|", "Hits / cm^{2} / event", f"{sample_name}_hitRateDensity_VS_eta_layer{l}_{n_events}evt_{sub_detector}", collection)
             
 # Open ROOT file and create directory structure for organized output
 output_file_name = f"{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.root"
 output_file = ROOT.TFile(output_file_name, "RECREATE")
 dir_maps = output_file.mkdir("maps")
+dir_global = output_file.mkdir("global")  # hit position / energy distributions, integrated over all layers
+dir_mc_particles = output_file.mkdir("mc_particles")  # kinematics of the particles creating the hits
 dir_per_layer = output_file.mkdir("per_layer")
+global_hist_names = {h.GetName() for h in (h_hit_x_mm, h_hit_y_mm, h_hit_z_mm, h_hit_r_mm, h_hit_eta, h_hit_E_MeV, h_hit_E_keV, h_hit_E_eV)}
+mc_particle_hist_names = {h.GetName() for h in (h_hit_particle_E, h_hit_particle_pt, h_hit_particle_eta, h_hit_particle_ID, h_hit_particle_ID_E_GeV)}
 per_layer_subdirs = {
     "energy": dir_per_layer.mkdir("energy"),
     "occupancy_anyhit": dir_per_layer.mkdir("occupancy_anyhit"),
@@ -1131,6 +1135,10 @@ for h in histograms:
         dir_parent.cd()
     elif "map" in hname or "hit_xy" in hname or "hit_zr" in hname or "hit_zphi" in hname:
         dir_maps.cd()
+    elif hname in global_hist_names:
+        dir_global.cd()
+    elif hname in mc_particle_hist_names:
+        dir_mc_particles.cd()
     elif ("_layer" in hname) or ("_x_layer" in hname):
         get_per_layer_subdir(hname).cd()
     else:
