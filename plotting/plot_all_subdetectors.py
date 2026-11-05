@@ -1,187 +1,180 @@
 #!/usr/bin/env python
 
-import dd4hep as dd4hepModule
-from ROOT import dd4hep
-from podio import root_io
-import argparse
-import subprocess
-from glob import glob
-import os
-import time
+"""
+Run drawhits.py (and optionally hits2highLevelEstimations.py) for all the sub-detectors of an assumptions file,
+several sub-detectors in parallel. One log file per sub-detector, and a summary table at the end.
 
-from helpers import DetFilePath, print_header
+Options not known to this script are forwarded to drawhits.py, e.g. -p -m --integration_time 10.
+"""
+
+import argparse
+import glob
+import json
+import os
+import re
+import subprocess
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from helpers import print_header, print_warning
+
 
 ######################################
 # option parser
 
-def parse_args():
-    parser = argparse.ArgumentParser(description='plot_all_subdetectors.py', 
-        epilog='Example:\ndrawhits.py -s MuonTaggerBarrel -d $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json -e -1 -D 0',
+parser = argparse.ArgumentParser(description='plot_all_subdetectors.py',
+        epilog='Example:\nplot_all_subdetectors.py -i <sim_file.root> -e 100 -j 4 --hits2high --skip_layers_for DCH_v2 -p -m',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('-i', '--inputFile', required=True,
+                    help='input file or directory, simulated with the **same** geometry as the detector dictionary')
+parser.add_argument('-d', '--detDictFile', default='$BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json',
+                    help='JSON dictionary with the key detector parameters (see xml2json.py)')
+parser.add_argument('-a', '--assumptions', default='$BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_assumptions.json',
+                    help='JSON dictionary with the assumptions, its keys define the sub-detectors to run over')
+parser.add_argument('-n', '--numberOfFiles', type=int, default=None,
+                    help='number of input files, passed to drawhits.py (its default if not set)')
+parser.add_argument('-e', '--numberOfEvents', type=int, default=None,
+                    help='number of events per file, passed to drawhits.py (its default if not set)')
+parser.add_argument('--sample', default='ipc',
+                    help='sample name, used as prefix of the output files')
+parser.add_argument('-D', '--debugLevel', type=int, default=0,
+                    help='debug level of drawhits.py (0:quiet, 1:default, 2:verbose)')
+parser.add_argument('-j', '--jobs', type=int, default=4,
+                    help='number of sub-detectors processed in parallel')
+parser.add_argument('--only', default='',
+                    help='comma-separated list of sub-detectors, to run only on these')
+parser.add_argument('--exclude', default='',
+                    help='comma-separated list of sub-detectors to skip')
+parser.add_argument('--skip_layers_for', default='',
+                    help='comma-separated list of sub-detectors for which to add --skip_layers (e.g. DCH_v2, too many layers)')
+parser.add_argument('--hits2high', action='store_true',
+                    help='also run hits2highLevelEstimations.py on the output of each sub-detector')
+parser.add_argument('--logdir', default='.',
+                    help='directory for the log files')
+parser.add_argument('--dry_run', action='store_true',
+                    help='only print the commands')
 
-    parser.add_argument('-D', '--debugLevel',
-                    type=int, default=1,
-                    help='debug level (0:quiet, 1:default, 2:verbose)')
-    parser.add_argument('-d', '--detGeoFile',
-                      type=str, default='$K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml',
-                      help='compact XML detector geometry file')
-    parser.add_argument('-i', '--inputFile',
-                      type=str, default='/eos/home-s/sfranche/FCC/BIB/data/aciarma_4IP_2024may29/Z/DDSim_output/bib_v1/ALLEGRO_o1_v03_1_r2025-05-29.root',
-                      help='input file simulated with the **same** geo as detGeoFile')
-    parser.add_argument('-n', '--numberOfFiles',
-                      type=int, default=100,
-                      help='number of input files to be considered in drawhits.py called by this script')
-    parser.add_argument('-e', '--numberOfEvents',
-                    type=int, default=1,
-                    help='number of events per file to consider, put -1 to take all events')
-    # parser.add_argument('--nBinsR',
-    #                   type=int, default=200,
-    #                   help='binning in radial direction')
-    # parser.add_argument('--nBinsZ',
-    #                   type=int, default=200,
-    #                   help='binning in z direction')
-    parser.add_argument('-s', '--sample',
-                      type=str, default='ipc',
-                      help='sample name to save plots')
+options, drawhits_extra_args = parser.parse_known_args()
 
-    return (parser.parse_args())
-
-options = parse_args()
-
-debug_level = options.debugLevel
-geo_file_name = options.detGeoFile
-det_file =  DetFilePath(options.detGeoFile)
-input_file_path = options.inputFile
-nfiles = options.numberOfFiles
-nevts_per_file = options.numberOfEvents
-# nbins_r = options.nBinsR
-# nbins_z = options.nBinsZ
+split = lambda s: [x.strip() for x in s.split(',') if x.strip()]
+det_dict_path = os.path.expandvars(options.detDictFile)
+assumptions_path = os.path.expandvars(options.assumptions)
 sample_name = options.sample
-
-detector = det_file.name #includes version
-assumptions_file_name = "$BIB_STUDIES/detectors_dicts/"+detector+"_assumptions.json"
-#read assumptions file
-import json
-with open(os.path.expandvars(assumptions_file_name)) as f:
-    assumptions = json.load(f)
+os.makedirs(options.logdir, exist_ok=True)
 
 
-# # Prepare input
-# input_path = glob(input_file_path)
+######################################
+# sub-detectors to run over: the ones of the assumptions file, that are also in the detector dictionary
 
-# input_files = []
-# if os.path.isdir(input_path[0]):
-#     for p in input_path:
-#         input_files += glob(p+"/*.root")
-# elif isinstance(input_path, str):
-#     print("Input is a single file: ", input_path)
-#     input_files = [input_path]
-# else:
-#     input_files = input_path
+with open(assumptions_path) as f:
+    assumptions_subdets = list(json.load(f).keys())
+with open(det_dict_path) as f:
+    dict_subdets = set(json.load(f).keys())
 
+subdetectors = []
+for sd in assumptions_subdets:
+    if sd not in dict_subdets:
+        print_warning(f"{sd} is in the assumptions but not in {os.path.basename(det_dict_path)}, skipped")
+        continue
+    if options.only and sd not in split(options.only):
+        continue
+    if sd in split(options.exclude):
+        continue
+    subdetectors.append(sd)
 
-##################################################
-# Geometry part
-
-# useful doxy:
-# https://dd4hep.web.cern.ch/dd4hep/reference/classdd4hep_1_1Detector.html
-# https://dd4hep.web.cern.ch/dd4hep/reference/classdd4hep_1_1DetElement.html
-# https://dd4hep.web.cern.ch/dd4hep/reference/classdd4hep_1_1Volume.html
-# https://dd4hep.web.cern.ch/dd4hep/reference/classdd4hep_1_1Box.html
-# https://dd4hep.web.cern.ch/dd4hep/reference/DD4hep_2Detector_8h_source.html
-
-# Get detector name
-# detector = geo_file_name.split("/")[-1].strip(".xml")
-
-# # Load geometry
-# det = dd4hep.Detector.getInstance()
-# det.fromXML(geo_file_name)
-
-# # Get subdetectors
-# dict_sub = {}
-# #subdet = det.detector("VertexBarrel")
-# #subdets = det.detectors();
-# subdets = det.sensitiveDetectors();
-# for subdet_name in subdets:
-#     print("==== name = ", subdet_name[0]) 
-#     subdet = det.detector(subdet_name[0])
-#     print("        ID = ", subdet.id())
-#     print("        type = ", subdet.type())
-
-#     # Get max dimensions for the subdetector in x,y,z (half-length form 0)
-#     volume = subdet.volume()
-#     box = volume.boundingBox()
-#     print("        dimensions = ", [box.x(), box.y(), box.z()])
-#     # dimensions seem off (ask Brieuc) - for the moment multiply the max by a factor 10
-#     max_z = 10*math.ceil(box.z()) #max z rounded up
-#     max_r = 10*math.ceil(math.sqrt(math.pow(box.x(),2)+math.pow(box.y(),2))) #max r rounded up
-
-#     # Fill a dictionary to match via ID subdetectors (togheter with its max dimensions)to the SimHits collections
-#     if subdet.id()>0.:
-#         binning_string = str(nbins_z)+','+str(-max_z)+'.,'+str(max_z)+'.,'+str(nbins_r)+','+str(-max_r)+'.,'+str(max_r)+'.'
-#         print("        binning = ", binning_string)
-#         dict_sub[str(subdet.id())] ={"binning":  binning_string}
+if not subdetectors:
+    raise SystemExit("ERROR: no sub-detector to run over")
 
 
-##################################################
-# Simulation part
+######################################
+# commands
 
-# print("input file = ", input_files[0])
-# podio_reader = root_io.Reader(input_files[0])
-# dict_collection = {}
-
-# # Get collections from sim file metadata
-# metadata = podio_reader.get("metadata")[0]
-# collections_list = metadata.parameters
-# for collection_encoding in collections_list:
-#     collection = collection_encoding.replace("__CellIDEncoding", "")
-#     cellid_encoding = metadata.get_parameter(collection_encoding)
-#     decoder = dd4hep.BitFieldCoder(cellid_encoding)
-#     dict_collection[collection] = {"decoder": decoder}
-
-# black_list = ["DRcaloSiPMreadout"]
-# for event in podio_reader.get("events"):
-#     for collection_name, collection_decoder in dict_collection.items():
-
-#         # Skip collections that are (temporary) blacklisted
-#         if collection_name in black_list:
-#             print(f"NOTE: {collection_name} is blacklisted, skipping...")
-#             continue
-
-#         # get first hit of collection to extract the detector ID and then stop
-#         for hit in event.get(collection_name):
-#             cellID = hit.getCellID()
-#             subdetID = collection_decoder["decoder"].get(cellID, "system")
-#             #print ("-- collection = ", collection_name)
-#             #print ("-- subdetID = ", subdetID)
-#             if str(subdetID) in dict_sub:
-#                 dict_sub[str(subdetID)]["collection"] = collection_name
-#             break
+def drawhits_command(sd):
+    cmd = ["drawhits.py",
+           "--infilePath", options.inputFile,
+           "--subDetector", sd,
+           "--detDictFile", det_dict_path,
+           "--assumptions", assumptions_path,
+           "--sample", sample_name,
+           "--debugLevel", str(options.debugLevel)]
+    if options.numberOfFiles is not None:
+        cmd += ["--numberOfFiles", str(options.numberOfFiles)]
+    if options.numberOfEvents is not None:
+        cmd += ["--numberOfEvents", str(options.numberOfEvents)]
+    if sd in split(options.skip_layers_for):
+        cmd += ["--skip_layers"]
+    return cmd + drawhits_extra_args
 
 
-#print(dict_sub)
+def find_drawhits_output(sd, since):
+    """Newest drawhits output file of this sub-detector, written after 'since' (hits2highLevelEstimations outputs excluded)"""
+    files = [f for f in glob.glob(f"{sample_name}_*evt_{sd}_*.root")
+             if "high-level" not in f and os.path.getmtime(f) >= since - 1]
+    return max(files, key=os.path.getmtime) if files else None
 
-# run python script to create the hit maps for each subdetector
-for subdet_id,dummy_values in assumptions.items():
-        # if (dict_sub[subdet_id]["collection"] == "VertexBarrelCollection"):
-        print_header(f"Plotting subdetector ID: {subdet_id}")
-        
-        # Start timing for this subdetector
-        start_time = time.time()
-        
-        subprocess.run([
-            "drawhits.py",
-            "--debugLevel="+str(debug_level),
-            "--infilePath="+input_file_path,
-            "--subDetector="+subdet_id,
-            #"--collection="+dict_sub[subdet_id]["collection"],
-            "--numberOfFiles="+str(nfiles),
-            "--numberOfEvents="+str(nevts_per_file),
-            "--sample="+sample_name,
-            #"-m",
-            #"--map_binning="+dict_sub[subdet_id]["binning"],
-        ])
-        
-        # Calculate and print elapsed time for this subdetector
-        elapsed_time = time.time() - start_time
-        print(f"Time for {subdet_id}: {elapsed_time:.2f} seconds")
+
+def run_subdetector(sd):
+    """Run drawhits.py (and hits2highLevelEstimations.py) for one sub-detector, return a summary dictionary"""
+    result = {"sub_detector": sd, "ok": False, "time": 0., "bandwidth": None, "log": os.path.join(options.logdir, f"log_{sample_name}_{sd}.txt")}
+    start = time.time()
+    with open(result["log"], "w") as log:
+        rc = subprocess.run(drawhits_command(sd), stdout=log, stderr=subprocess.STDOUT).returncode
+        result["ok"] = (rc == 0)
+
+        if rc == 0 and options.hits2high:
+            root_file = find_drawhits_output(sd, start)
+            if root_file is None:
+                log.write("\nERROR: drawhits output file not found, hits2highLevelEstimations.py not run\n")
+                result["ok"] = False
+            else:
+                log.write(f"\n########## hits2highLevelEstimations.py on {root_file}\n")
+                log.flush()
+                h2h = subprocess.run(["hits2highLevelEstimations.py", "-i", root_file, "-d", det_dict_path, "-a", assumptions_path],
+                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                log.write(h2h.stdout)
+                result["ok"] = (h2h.returncode == 0)
+                match = re.search(r"Total bandwidth = ([0-9.eE+-]+) GB/s", h2h.stdout)
+                if match:
+                    result["bandwidth"] = float(match.group(1))
+    result["time"] = time.time() - start
+    return result
+
+
+######################################
+# run
+
+if options.dry_run:
+    for sd in subdetectors:
+        print(" ".join(drawhits_command(sd)))
+    raise SystemExit(0)
+
+print_header(f"Running over {len(subdetectors)} sub-detectors, {options.jobs} in parallel", oneline=True)
+print("Sub-detectors:", ", ".join(subdetectors))
+
+results = []
+with ThreadPoolExecutor(max_workers=max(1, options.jobs)) as pool:
+    futures = {pool.submit(run_subdetector, sd): sd for sd in subdetectors}
+    for future in as_completed(futures):
+        r = future.result()
+        results.append(r)
+        print(f"  {'done  ' if r['ok'] else 'FAILED'} {r['sub_detector']:<24s} {r['time']:7.1f} s   ({len(results)}/{len(subdetectors)})")
+
+
+######################################
+# summary
+
+print_header("Summary", oneline=True)
+bandwidth_col = options.hits2high
+print(f"{'sub-detector':<24s} {'status':<7s} {'time [s]':>9s}" + (f" {'bandwidth [GB/s]':>17s}" if bandwidth_col else "") + "  log")
+for r in sorted(results, key=lambda r: subdetectors.index(r["sub_detector"])):
+    bw = ""
+    if bandwidth_col:
+        bw = f" {r['bandwidth']:>17.2f}" if r["bandwidth"] is not None else f" {'-':>17s}"
+    print(f"{r['sub_detector']:<24s} {'OK' if r['ok'] else 'FAILED':<7s} {r['time']:>9.1f}{bw}  {r['log']}")
+
+failed = [r for r in results if not r["ok"]]
+for r in failed:
+    print_warning(f"{r['sub_detector']} failed, last lines of {r['log']}:")
+    with open(r["log"]) as f:
+        print("".join("    " + line for line in f.readlines()[-5:]))
+raise SystemExit(1 if failed else 0)

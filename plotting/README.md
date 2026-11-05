@@ -7,7 +7,7 @@ Collections of scripts for making plots from BIB simulated files.
 There are 3 scripts in this directory for drawing the hit maps
 - `drawhits.py`: it plots the hit maps and some profile histograms for a given sub-detector.
 - `hits2highLevelEstimations.py`: converts the results from `drawhits` into bandwidth, hit rate, pixel occupancy and other high-level estimations.
-- **[TO BE FIXED]** `plot_all_subdetectors.py`: it automatically loops over all the sub-detectors and the hit collections, matching them. For each collection/sub-detector it calls the drawhits.py script to plot the hit map.
+- `plot_all_subdetectors.py`: runs `drawhits.py` (and optionally `hits2highLevelEstimations.py`) for all the sub-detectors of an assumptions file, several in parallel, with one log per sub-detector and a summary table at the end (see below).
 
 ### drawhits.py
 
@@ -112,6 +112,26 @@ drawhits.py -e 100 -s VertexDisks --sample myhits
 
 # then use the its output root file to estimate bandwidths
 hits2highLevelEstimations.py -i myhits_hits_100evt_VertexDisks.root -d $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json -a $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_assumptions.json
+```
+
+### plot_all_subdetectors.py
+
+Loops over the sub-detectors listed in the assumptions JSON (those that are also in the detector dictionary) and runs `drawhits.py` on each of them,
+`-j` sub-detectors at a time. The output of each run goes to `log_<sample>_<sub-detector>.txt`, and a summary with the status and the time of each sub-detector is printed at the end.
+Options not known to this script are forwarded to `drawhits.py`.
+
+Key input arguments:
+- `-i` / `--inputFile` input file or directory (required), `-n`, `-e` number of files and of events per file
+- `-d` / `--detDictFile`, `-a` / `--assumptions` the detector dimensions and assumptions JSON dictionaries (default: ALLEGRO_o1_v03)
+- `-j` / `--jobs` number of sub-detectors processed in parallel
+- `--only`, `--exclude` comma-separated lists of sub-detectors to run over / skip
+- `--skip_layers_for` comma-separated list of sub-detectors for which `--skip_layers` is added (e.g. `DCH_v2`, which has too many layers)
+- `--hits2high` also run `hits2highLevelEstimations.py` on each output, the total bandwidth is added to the summary
+- `--dry_run` only print the `drawhits.py` commands
+
+Example:
+```sh
+plot_all_subdetectors.py -i myfile.root -e 100 -j 4 --hits2high --skip_layers_for DCH_v2 -p -m
 ```
 
 ## Draw MC particles info
