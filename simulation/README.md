@@ -26,7 +26,7 @@ Here is a **full recipe to run the simulation** in the appropriate conditions fo
 # connect to an Alma9 machine with cvmfs mounted
 source /cvmfs/sw.hsf.org/key4hep/setup.sh
 #important note: this fccsetup version should be
-# the same with the later one used to submit_pairs, otherwise MIGHT get ROOT or other mismatch errors
+# the same with the later one used to submit_bkg.py, otherwise MIGHT get ROOT or other mismatch errors (see 'Matching the software stack' below)
 git clone https://github.com/key4hep/k4geo
 cd k4geo
 mkdir build install
@@ -38,10 +38,21 @@ k4_local_repo
 ```
 
 Now let's switch to the CAD beampipe, and set vacuum everywhere (ALLEGRO is taken as an example but it works the same way for other detectors):
-- comment out [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml#L34-L35)
-- and un-comment [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml#L40-L41)
-- IFF running CLD:
-  - also need to comment out [these lines](https://github.com/key4hep/k4geo/blob/main/FCCee/CLD/compact/CLD_o2_v08/CLD_o2_v08.xml#L401-L415) to remove the analytical compensating solenoid field which is taken from a map in the above MDI import.
+- in the compact file of the detector (e.g. `ALLEGRO_o1_v03.xml` or `IDEA_o1_v03.xml`), swap the shape-based beampipe for the CAD one. The lines are given by the name of the include, as their position changes between k4geo versions:
+  - comment out the includes of `MDI_o1_v00/Beampipe_o4_v05.xml` **and** `MDI_o1_v00/BeamInstrumentation_o1_v01.xml` (the CAD collection brings its own beam instrumentation, keeping both gives a `CompSol` "already existing object" error)
+  - un-comment the include of `MDI_o1_CADBased_v01/MDI_o1_CADBased_v01_collection.xml` and the line `<world material="Vacuum"/>` below it
+  ```diff
+  -  <include ref="../../../MDI/compact/MDI_o1_v00/Beampipe_o4_v05.xml" />
+  -  <include ref="../../../MDI/compact/MDI_o1_v00/BeamInstrumentation_o1_v01.xml" />
+  +  <!-- <include ref="../../../MDI/compact/MDI_o1_v00/Beampipe_o4_v05.xml" /> -->
+  +  <!-- <include ref="../../../MDI/compact/MDI_o1_v00/BeamInstrumentation_o1_v01.xml" /> -->
+  -  <!-- <include ref="../../../MDI/compact/MDI_o1_CADBased_v01/MDI_o1_CADBased_v01_collection.xml" />
+  -  <world material="Vacuum"/> -->
+  +  <include ref="../../../MDI/compact/MDI_o1_CADBased_v01/MDI_o1_CADBased_v01_collection.xml" />
+  +  <world material="Vacuum"/>
+  ```
+- IFF running CLD (not re-checked with recent versions, see the CLD compact file of your release):
+  - also remove the analytical compensating solenoid `<field>` blocks (the ones using `CompSol_min_z`), as the field is taken from a map in the above MDI import.
   - You also need to add some material to the detector list of materials (see e.g. [here](https://github.com/key4hep/k4geo/pull/534/commits/2a2ea2591db1473d294af5c432f99aac74b8dea7#diff-f42d88422d9f50cb0863b6f08f2640a9e5cbcb9ac2ae01145642105d9fe9387d)).
 - **enable detailed EM treatment in Geant4** by applying the following changes to the `ddsim` steering file
   - (if you do not already use a `ddsim` steering file, you can create the default one with `ddsim --dumpSteeringFile > mySteeringFile.py`):
@@ -82,10 +93,11 @@ ddsim -N -1 \
  --outputFile sim_IPC_test.root
 ```
 
-simulation/submit_bkg.py serves as a generalization of the previous submit_pairs.py, which submits an HTCondor job for every background file submitted, each containing N events. 
-The generalized script allows the processing of .root IPC and SR files in the new format, and leverages embedded metadata for weight calculations etc.
+`simulation/submit_bkg.py` submits an HTCondor job for every background file, each simulating the N events of the file with `ddsim`.
+It processes the edm4hep `.root` files (IPC from guinea-pig, SR halo) and the older `.pairs` / `.hepevt` text files (it replaces the former `submit_pairs.py`),
+and leverages the metadata embedded in the `.root` files for the weight calculations.
 
-Example usage:
+Example usage, SR halo:
 ```sh
 # lxplus!! , and NOT on EOS directory (condor submit will complain)
 python3 $BIB_STUDIES/simulation/submit_bkg.py \
@@ -96,28 +108,55 @@ python3 $BIB_STUDIES/simulation/submit_bkg.py \
 -n 10
 ```
 
+Example usage, IPC from guinea-pig in edm4hep format (Jan's files, 100 events = 100 BX per file):
+```sh
+# lxplus!! , and NOT on EOS directory (condor submit will complain)
+python3 $BIB_STUDIES/simulation/submit_bkg.py \
+-i /eos/experiment/fcc/users/j/jaeyserm/guineapig/FCCee_Z_LCC_V105_Z_2T_grids8_W100 \
+-t IDEA_grids8_W100 \
+-o <output/folder> \
+-c $K4GEO/FCCee/IDEA/compact/IDEA_o1_v03/IDEA_o1_v03.xml \
+-s /absolute/path/to/my_BIB_steering_file.py \
+-k /eos/user/<u>/<user>/k4geo \
+--mcCollection Pairs \
+-n 10
+```
+
 Key input arguments are:
 - `-i` / `--input` input folder with the background files (`.pairs`, `.hepevt` or edm4hep `.root`)
 - `-o` / `--output` output folder for the simulated files
 - `-t` / `--tag` tag of the dataset, used to name the submission folder and the `.cmd` / `.sh` files
 - `-c` / `--compactFile` detector geometry
-- `-s` / `--steering_file` path to the steering file (if not given, a default is looked up from `$FCCCONFIG`)
+- `-s` / `--steering_file` path to the steering file (if not given, a default is looked up from `$FCCCONFIG`). For BIB studies pass your own steering file with the detailed EM settings (see above), **with an absolute path**: a relative path breaks in the condor scratch directory
 
 Other useful options are:
 - `-n` / `--n_max_jobs` the maximum number of jobs to create (`-1` for all)
+- `--nevents` the maximum number of events to simulate per job (default: all the events of each file), useful for quick tests since a full 100-event file takes hours
 - `-k` / `--k4geo` path to a local k4geo build, set up in the job with `k4_local_repo` + `thisk4geo.sh`
 - `-d` / `--dd4hep` path to a local DD4hep build, set up in the job before k4geo (e.g. for DD4hep changes not yet in the release)
 - `--crossingAngleBoost` crossing angle boost passed to `ddsim` (default `0.015`, required for the SR samples that are given in the beamline frame)
-- `--mcCollection` name of the `MCParticle` collection in the edm4hep `.root` inputs (`MCParticles` for SR, `Pairs` for IPC from guinea-pig)
-- `-j` / `--job_flavor` condor job flavour (default `workday` => 8h; a 100-event edm4hep file takes ~4-5 h with the CAD beampipe, `espresso`/`longlunch` are too short)
+- `--mcCollection` name of the `MCParticle` collection in the edm4hep `.root` inputs (`MCParticles` for SR, `Pairs` for IPC from guinea-pig; `Pairs0` is not simulated)
+- `-j` / `--job_flavor` condor job flavour (default `tomorrow` => 24 h; a 100-event edm4hep file takes about 3-8 h with the CAD beampipe, so `espresso`/`longlunch` are too short and `workday` (8 h) leaves little margin)
+- `--request_memory` condor memory request (default `12GB`; `ddsim` with the CAD beampipe reaches 7-8 GB resident and condor sees peaks up to ~10 GB)
 - `--seed` random seed passed to `ddsim` (default `42`, so re-running a file reproduces the same result)
+- `--skip_space_check` do not check the space for the job logs (see below)
 
 Notes:
 - `ddsim` writes its output in the condor scratch directory and the file is moved to the output folder at the end of the job. The output is always written in EDM4hep format and keeps all the particles (`--part.keepAllParticles`).
 - Condor accepts at most 20000 jobs per submission: for larger samples one `<tag>_part<N>.cmd` file is written per slice of 20000 files, and each of them has to be submitted.
 - For `.root` inputs, the number of background events per file is read and a summary of the normalisation (events, files, bunch crossings covered) is printed at submission time.
 - A `<tag>.sh` script to run the same jobs locally is also created.
+- The job logs (`<ClusterId>.<ProcId>.{log,out,err}`, ~11 MB of `ddsim` stdout per 100-event job) are returned to the submission directory. If that directory runs out of space (e.g. an AFS home near its quota), the transfer fails after the job has finished and condor re-runs the whole job (up to 3 times), overwriting its output. The script therefore checks the free space (AFS quota with `fs lq`, or the filesystem) before writing the condor files and stops if the logs of all the jobs do not fit.
+- The edm4hep inputs need a `ddsim` with the `--edm4hep.mcParticleCollectionName` option: it does not exist in the stable release 2025-05-29, but it is in the stable release 2026-02-01 and in the recent nightlies.
+- Known limitation for the guinea-pig edm4hep files: the DD4hep edm4hep reader builds the primary vertex from the `endpoint` of the generator particles and not from their `vertex`. In these files the `endpoint` is 0, so all the primaries start at the origin and the vertex spread of the `Pairs` collection (z about +-33 mm, r < 10 mm) is not used. Momenta and times are kept.
 
+#### Matching the software stack
+
+The k4geo build, the local `ddsim` tests and the condor jobs must use the **same** key4hep release, otherwise ROOT or other version mismatches can appear.
+1. Pick a release and source it, e.g. `source $BIB_STUDIES/setup.sh -n 2026-10-02` (a dated release does not change, so it is reproducible).
+2. Build k4geo with this stack (recipe above) and `k4_local_repo` it. After a change of release, rebuild in a fresh build directory.
+3. Run `submit_bkg.py` from the same shell and pass the build with `-k`. The script writes the release in the job scripts: a dated release as `setup.sh --spack -r <date>`, while for the LCG nightlies it writes `setup.sh --lcg`, which picks the newest LCG nightly **at the start of the job**. LCG nightlies are selected by weekday (Mon-Sat) and overwritten every week, so they are not suitable for production.
+4. Check the header of one `<tag>/run_ddsim_*.sh` before submitting.
 
 ### Running the overlay
 Before the digitization step, it is important to overlay the ddsim simulation output for which we are running our BIB studies to have a comprehensive picture of the detected occupancy for a physics
@@ -211,51 +250,11 @@ but only a `.dat` version of it. In that case, the `--do_dat` flag might be need
 </details>
 
 
-### submit_pairs.py
+### `.pairs` / `.hepevt` inputs
 
-How to set up the condor (or local) submission of simulation jobs of 
-IPC background files:
-
-At the moment, `.pairs` files contain a single event
-and `ddsim` can process only one of them at the time.
-The  `submit_pairs.py` script generates at list of bash scripts
-to automatize the submission of many single event jobs.
-After the preparation is done, the command to launch the jobs
-(condor or locally) is printed in the terminal.
-
-Example usage command:
-```sh
-#important note: this fccsetup version should be the same with the earlier one used to compile k4geo, otherwise MIGHT get ROOT or other mismatch errors
-# lxplus!! , and NOT on EOS directory (condor submit will complain)
-# make sure the setup cmd matches the k4_local_repo you use (eg fccsetupnightly -r 2026-03-23)
-submit_pairs.py --tag IDEA_my_test --compactFile $K4GEO/FCCee/IDEA/compact/IDEA_o1_v03/IDEA_o1_v03.xml -n 10
-```
-
-All the available geometries are stored in the
-[`k4geo`](https://github.com/key4hep/k4geo/tree/main)
-repository.
-
-If a custom variation of the standard geometry 
-tha requires recompiling k4geo is needed,
-specify the path to the local build with the `--k4geo` flag.
-
-Example running on Jan's recent files 
-```sh
-# lxplus!! , and NOT on EOS directory (condor submit will complain)
-# make sure the setup cmd matches the k4_local_repo you use (eg fccsetupnightly -r 2026-03-23)
-submit_pairs.py \
--i /eos/experiment/fcc/users/j/jaeyserm/guineapig/guineapig_samples_CERN_oct25/FCCee_Z_4IP_FSR_FCCee_Z256_2T_grids8 \
--t ALLEGRO_FSR_FCCee_Z256_2T_grids8 \
--n 10 \
--c $K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml \
--o /eos/home-s/sfranche/FCC/samples/bib/ipc/jaeyserm_Z_4IP_FSR_FCCee_Z256_2T_grids8 \
--s /eos/home-a/aikoulou/fcc_workdir/bib-studies/plotting/mySteeringFile.py \
---k4geo /eos/user/a/aikoulou/fcc_workdir/k4geo/
-```
-
-All the available options can be seen using the `-h` flag.
-Input path `--input <your/path>` is expected to contain files with the naming format: `your/path/*_XYZ.pairs`,
-where `XYZ` is an event number.
+The `.pairs` files (GuineaPig text files, one event each) and the `.hepevt` files are deprecated in favour of the edm4hep `.root` files, but `submit_bkg.py` still handles them:
+it passes `-N -1` to `ddsim` and takes the file number from the file name (`<name>_XYZ.pairs`, `output_XYZ.hepevt`) or, for the older layout, from the `dataXYZ/pairs.pairs` folders.
+The former `submit_pairs.py` script is superseded by `submit_bkg.py`.
 
 ----
 
@@ -284,21 +283,22 @@ The per-job log (`<ClusterId>.<ProcId>.log`, in the submit directory) shows the 
 Full example, without explanations, just to see the full recipe.
 
 ```
-source .../bib-studies/setup.sh -n 2026-03-23 #or the appropriate date when you compiled your local k4 repo
+source .../bib-studies/setup.sh -n 2026-10-02 #or the appropriate date when you compiled your local k4 repo
 cd my/k4geo/at/eos
 k4_local_repo
 cd back/to/afs
 
-submit_pairs.py \
--i /eos/project/f/fcc-ee-mdi/BIB/GHC/V25.3-4/IPC/Z/ \
--t IDEA_SIM.enableDetailedShowerMode_GHC_V25.3-4_Z \
+submit_bkg.py \
+-i /eos/experiment/fcc/users/j/jaeyserm/guineapig/FCCee_Z_LCC_V105_Z_2T_grids8_W100 \
+-t IDEA_grids8_W100 \
 -n 4000 \
 -c $K4GEO/FCCee/IDEA/compact/IDEA_o1_v03/IDEA_o1_v03.xml \
--o /eos/user/a/aikoulou/fcc_workdir/samples/bib/ipc/jaeyserm_Z_4IP_GHC_V25.3-4_Z \
--s $FCCCONFIG/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py \
+-o /eos/user/a/aikoulou/fcc_workdir/samples/bib/ipc/jaeyserm_Z_4IP_grids8_W100 \
+-s /absolute/path/to/my_BIB_steering_file.py \
+--mcCollection Pairs \
 --k4geo /eos/user/a/aikoulou/fcc_workdir/k4geo/
 
-condor_submit IDEA_SIM.enableDetailedShowerMode_GHC_V25.3-4_Z.cmd
+condor_submit IDEA_grids8_W100.cmd
 ```
 
 ### Merge sim output files
@@ -343,6 +343,9 @@ Example usage:
 # inside the Key4hep nightly environment
 python3 $BIB_STUDIES/python/merge_edm4hep_files.py --input-dir <path/to/files> --files-per-output 100 --no-mcparticles
 ```
+
+Note: a single file cannot exceed 50 GB on `/eos/user` (`sys.forced.maxsize`), and both `merge_edm4hep_files.py` and `podio-merge-files` fail there when the merged file gets that large.
+Use `--files-per-output` so that every merged file stays below it (e.g. 50 ALLEGRO files of 0.84 GB each), or merge on a local disk.
 
 ## Calorimeter calibration
 
