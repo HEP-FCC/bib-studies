@@ -78,7 +78,7 @@ def parse_args():
                     help='Skip plots per single layer, useful for sub-detectors with many layers (e.g. drift chamber)')
     parser.add_argument('--integration_time',
                     type=int, default=1,
-                    help='Integration time in  number of events, to estimate hits pile-up.')
+                    help='Integration window in number of events (1 event = 1 BX), opened by the first hit in a cell. Used to estimate pile-up: extra events with a hit in the same cell within the window. 1 disables it.')
     parser.add_argument('--energy_per_layer',
                     action="store_true",
                     help='Save histograms of hit energy per layer.')
@@ -452,8 +452,7 @@ histograms += [
         f"h_occ_anyhit_x_layer_dist_{collection}",
         f"#splitline{{h_occ_anyhit_x_layer_dist_{collection}}}{{Per-event occupancy distribution from any-hit cells only, a cell counts once per event if it fires at least once}}; layer index; occupancy [%]; entries / events",
         *layer_binning,
-        len(log_bins)-1,
-        log_bins,
+        *allhits_occ_linear_bins
     ),
     h_occ_allhits_x_layer_dist := ROOT.TH2D(
         f"h_occ_allhits_x_layer_dist_{collection}",
@@ -614,16 +613,32 @@ if not skip_plot_per_layer:
         # if(sub_detector=="VertexBarrel" or sub_detector=="SiWrB"):
         #     bin_start += layer_cells[l]/sensors_per_module_map[l]
 
-    h_pu_x_layer = {}
-    for l in layer_cells.keys():
-        h_pu_x_layer[l] = ROOT.TH1D(f"h_pu_x_layer{l}_{collection}", f"h_pu_x_layer{l}_{collection}", integration_time+1, -0.5, integration_time+0.5)
+# Pile-up histograms (the per-layer ones are always needed to fill the average, but only written if the per-layer output is enabled)
+h_pu_x_layer = {}
+for l in layer_cells.keys():
+    h_pu_x_layer[l] = ROOT.TH1D(
+        f"h_pu_x_layer{l}_{collection}",
+        f"#splitline{{h_pu_x_layer{l}_{collection}}}{{Pile-up per integration window: extra events with a hit in the same cell within {integration_time} events (1 event = 1 BX) from its first hit}}; pile-up events per window; windows / event",
+        integration_time,
+        -0.5,
+        integration_time-0.5,
+    )
+    if integration_time > 1 and not skip_plot_per_layer:
         histograms += [h_pu_x_layer[l]]
-        
-# Pile-up histograms
-histograms += [
-    h_tot_pu := ROOT.TH1D(f"h_tot_pu_{collection}", f"h_tot_pu_{collection}", integration_time+1, -0.5, integration_time+0.5),
-    h_avg_pu_x_layer := ROOT.TH1D(f"h_avg_pu_x_layer_{collection}", f"h_avg_pu_x_layer_{collection}", *layer_binning)
-]
+h_tot_pu = ROOT.TH1D(
+    f"h_tot_pu_{collection}",
+    f"#splitline{{h_tot_pu_{collection}}}{{Pile-up per integration window: extra events with a hit in the same cell within {integration_time} events (1 event = 1 BX) from its first hit}}; pile-up events per window; windows / event",
+    integration_time,
+    -0.5,
+    integration_time-0.5,
+)
+h_avg_pu_x_layer = ROOT.TH1D(
+    f"h_avg_pu_x_layer_{collection}",
+    f"#splitline{{h_avg_pu_x_layer_{collection}}}{{Mean pile-up events per window, windows without pile-up included, window = {integration_time} events (1 event = 1 BX)}}; layer index; avg pile-up events / window",
+    *layer_binning,
+)
+if integration_time > 1:
+    histograms += [h_tot_pu, h_avg_pu_x_layer]
 
 
 n_events = nEvents_fullFileList  # already the total over all input files
@@ -864,7 +879,9 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
             # Monitor in channels that are integrating signal
             if integration_time > 1:
-                if ((layer_n, cell_id) in integrating_channels) and (integrating_channels[layer_n, cell_id] > 1):
+                # a channel still in integrating_channels has at least one event left in its window
+                # (it is removed, and its pile-up filled, at the end of the last event of the window)
+                if (layer_n, cell_id) in integrating_channels:
 
                     # count one hit per event during integration time as pileup
                     if not cell_fired:
@@ -920,8 +937,8 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         for c in reset_channels:
             integrating_channels.pop(c)
             pu = pile_up_counter.pop(c)
-            h_tot_pu.Fill(pu)
-            h_pu_x_layer[c[0]].Fill(pu)
+            h_tot_pu.Fill(pu, fill_weight)
+            h_pu_x_layer[c[0]].Fill(pu, fill_weight)
 
     processed_events +=1
 # <--- end of the event loop
@@ -929,10 +946,10 @@ if n_events > 0:
     print()
 
 print(" - Processed events:", processed_events)
-print(" - Processed hits:", processed_hits, 
-      f"(avg. per event: {processed_hits/processed_events})")
+print(" - Processed hits:", processed_hits,
+      f"(avg. per event: {processed_hits/processed_events:.1f})")
 print(" - Number of unique cells fired:", len(fullRun_fired_cellIDs),
-      f"(avg. per event: {len(fullRun_fired_cellIDs)/processed_events})")
+      f"(avg. per event: {len(fullRun_fired_cellIDs)/processed_events:.1f})")
 
 # If no hit had an MC truth link (MCParticles dropped), skip drawing/writing the MC-truth
 # histograms (h_hit_particle_*, primary/parent) instead of producing empty ones
@@ -947,8 +964,9 @@ if not has_mc_truth:
 # Compute the average pile up hits
 if integration_time > 1:
     for l, h in h_pu_x_layer.items():
-        h_avg_pu_x_layer.Fill(l, h.GetMean())
-        #h_avg_pu_x_layer.SetBinError(l, h.GetMeanError()) #TODO: set the right error
+        b = h_avg_pu_x_layer.FindBin(l)
+        h_avg_pu_x_layer.SetBinContent(b, h.GetMean())
+        h_avg_pu_x_layer.SetBinError(b, h.GetMeanError())
 
 # # Draw TEST histos
 # cm1 = ROOT.TCanvas("cm1_", "cm1_", 800, 600)
@@ -1047,8 +1065,8 @@ if draw_hists:
         draw_hist(h_hit_particle_ID_E_GeV, "MC particle type", "MC particle energy [GeV]",  sample_name+"_hit_particle_ID_E_GeV_"+str(n_events)+"evt_"+sub_detector, collection)
 
     if integration_time > 1:
-        draw_hist(h_tot_pu, "Number of pileup hits", "Entries", f"{sample_name}_tot_pu_{n_events}evt_{sub_detector}", collection)
-        draw_hist(h_avg_pu_x_layer, "Layer", "Average pileup hits", f"{sample_name}_avg_pu_x_layer_{n_events}evt_{sub_detector}", collection)
+        draw_hist(h_tot_pu, "Pile-up events per window", "Windows / event", f"{sample_name}_tot_pu_{n_events}evt_{sub_detector}", collection)
+        draw_hist(h_avg_pu_x_layer, "Layer", "Avg pile-up events / window", f"{sample_name}_avg_pu_x_layer_{n_events}evt_{sub_detector}", collection)
 
     if not skip_plot_per_layer:
         for l, h in h_occ_anyhit_x_layer.items():
