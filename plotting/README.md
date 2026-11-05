@@ -54,8 +54,8 @@ If no hit has a link, those histograms are neither drawn nor written to the outp
 (`-e` times the number of input files), capped to the total number of events available in the input files,
 so asking for more events than exist no longer dilutes the results. With `-e -1` all events of all the input files are used.
 
-**Total occupancy binning**: `h_occ_tot_<collection>` has fine bins at low occupancy, in units of fired cells
-(0, 1, 2-3 and 4-5 fired cells), followed by the usual logarithmic bins, so the sparse-occupancy regime (e.g. the drift chamber) can be resolved.
+**Total occupancy binning**: `h_occ_anyhit_tot_<collection>` and `h_occ_allhits_tot_<collection>` have fine bins at low occupancy, in units of fired cells or hits
+(0, 1, 2-3 and 4-5), followed by the usual logarithmic bins, so the sparse-occupancy regime (e.g. the drift chamber) can be resolved.
 
 #### Examples
 ```sh
@@ -96,9 +96,12 @@ Key input arguments:
 - `-a` / `--assumptions` JSON with the bandwidth estimation assumptions: strategy (`hit_counts` or `occupancy`), `hit_size` (number or per-layer dict), and `multipliers` (multiplicative factors).
 - `-r` / `--rate` hit rate in MHz used to scale counts to bandwidth.
 - `--hitRateOccPlots` Use to also plot hit rate and occupancies per module in each layer (for vertex detector or silicon wrapper for example)
+- `--hitRateOccStats` Print mean, standard deviation and 95th percentile of the per-layer occupancy.
 
 Notes:
 - The assumptions JSON must define the chosen `strategy` and `hit_size`. If strategy is `occupancy`, number of cells per layer from the detector JSON are used to convert occupancy to absolute counts before applying hit size and rate.
+- The input file must come from the current `drawhits.py` folder layout, the histograms are read from `per_layer/`, `per_layer/module_hits/` and `per_layer/occupancy_allhits/`. Older files are not supported, regenerate them with `drawhits.py`.
+- The `occupancy` strategy and the `--hitRateOccStats` printout use the all-hits occupancy (`h_avg_occ_allhits_x_layer`, `h_occ_allhits_x_layer<N>`), i.e. every hit counts, also repeated hits in the same cell and event. With that choice, the `occupancy` strategy gives the same bandwidth as `hit_counts` with the same hit size.
 - Use `-h` / `--help` to print all options.
 
 Example:
