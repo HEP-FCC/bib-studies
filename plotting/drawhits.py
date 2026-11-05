@@ -582,7 +582,7 @@ if not skip_plot_per_layer:
         )
         h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(
             f"h_hit_rateDensity_layer{l}_VS_eta_{collection}",
-            f"#splitline{{h_hit_rateDensity_layer{l}_VS_eta_{collection}}}{{all hits (1/area weighted), normalized per event, rate example: #times52 MHz (BX) #times5 pix/cl}}; #eta; hit-rate density [a.u.]",
+            f"#splitline{{h_hit_rateDensity_layer{l}_VS_eta_{collection}}}{{all hits weighted by 1/area of the |#eta| bin ring in cm^{{2}}, normalized per event, rate example: #times52 MHz (BX) #times5 pix/cl}}; #eta; hits / cm^{{2}} / event",
             eta_bins,
             0,
             eta_range,
@@ -1064,7 +1064,7 @@ if draw_hists:
             draw_hist(h_xy_density_vs_layer[l], "x [mm]", "y [mm]", f"{sample_name}_xyDensity_layer{l}_{n_events}evt_{sub_detector}", collection, draw_opt="colz")
 
         for l in h_z_density_vs_layer_mm.keys():
-            draw_hist(h_hit_rateDensity_VS_eta[l], "#eta", "Hit-rate density [a.u.]", f"{sample_name}_hitRateDensity_VS_eta_layer{l}_{n_events}evt_{sub_detector}", collection)
+            draw_hist(h_hit_rateDensity_VS_eta[l], "#eta", "Hits / cm^{2} / event", f"{sample_name}_hitRateDensity_VS_eta_layer{l}_{n_events}evt_{sub_detector}", collection)
             
 # Open ROOT file and create directory structure for organized output
 output_file_name = f"{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.root"
