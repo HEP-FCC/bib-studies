@@ -14,7 +14,7 @@ from particle import Particle
 
 from constants import C_MM_NS
 from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict, is_calo, is_endcap, DetFilePath, print_warning, print_header, is_pixel
-from visualization import setup_root_style, draw_hist, draw_map
+from visualization import setup_root_style, draw_hist, draw_map, draw_overlay
 
 
 ######################################
@@ -1139,7 +1139,7 @@ if draw_hists:
 
         for l in h_z_density_vs_layer_mm.keys():
             draw_hist(h_hit_rateDensity_VS_eta[l], "|#eta|", "Hits / cm^{2} / event", f"{sample_name}_hitRateDensity_VS_eta_layer{l}_{n_events}evt_{sub_detector}", collection)
-            
+
 # Open ROOT file and create directory structure for organized output
 output_file_name = f"{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.root"
 output_file = ROOT.TFile(output_file_name, "RECREATE")
@@ -1222,6 +1222,15 @@ for h in histograms:
     else:
         output_file.cd()  # root directory for general histograms
     h.Write()
+
+# Hit-rate density vs |eta| of all the layers on the same canvas, saved in the ROOT file next to the per-layer histograms (and as pdf with the plots enabled)
+if not skip_plot_per_layer:
+    overlay_canvas = draw_overlay({f"layer {l}": h for l, h in h_hit_rateDensity_VS_eta.items()}, "|#eta|", "Hits / cm^{2} / event",
+                                  f"{sample_name}_hitRateDensity_VS_eta_allLayers_{n_events}evt_{sub_detector}", collection,
+                                  log_y=True, save_pdf=draw_hists)
+    if overlay_canvas:
+        per_layer_subdirs["rate_vs_eta"].cd()
+        overlay_canvas.Write()
 
 output_file.Close()
 print("Histograms saved in:", output_file_name)

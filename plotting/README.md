@@ -18,6 +18,8 @@ The script produces per-event and per-layer quantities such as zr/xy/zphi maps,
 timing distributions (including TOF-corrected), energy spectra, 
 occupancy and pile-up estimators hits, plus basic MC particle kinematics; 
 results are saved to a ROOT file and can also be exported as plots.
+With the per-layer histograms enabled (no `--skip_layers`), the hit-rate density vs |eta| of all the layers is also overlaid on one canvas,
+saved in `per_layer/rate_vs_eta/` of the ROOT file (and as `<sample>_hitRateDensity_VS_eta_allLayers_<N>evt_<sub-detector>.pdf` with `-p`), to compare the layers.
 
 To decode the cell ID info, a detector specific `get_layer` function is used
 (see for example in [`ALLEGRO.py`](../python/ALLEGRO.py)).
