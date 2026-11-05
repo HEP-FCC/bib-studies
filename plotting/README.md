@@ -114,14 +114,24 @@ drawhits.py -e 100 -s VertexDisks --sample myhits
 hits2highLevelEstimations.py -i myhits_hits_100evt_VertexDisks.root -d $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json -a $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_assumptions.json
 ```
 
-## Draw particles info
+## Draw MC particles info
 
-The `drawparticles.py` script reads simulated events from PODIO/ROOT files and loops over all `MCParticles` to produce kinematic distributions and vertex origin maps. It categorizes particles into different collections (all, gen, sim, calorimeter, tracker) and produces per-collection histograms of key quantities like momentum, energy, eta, phi, and vertex positions. Results are saved to a ROOT file and can optionally be exported as plots.
+The `drawmcparticles.py` script reads the MC particles of the events (`MCParticles` of simulated files, or another collection with `--mcCollection`) and produces kinematic distributions and production vertex maps.
+It is independent of the hits: `drawhits.py` only histograms the particles that created a hit, while this script looks at all the particles. It categorizes them into all, gen (generator-level),
+sim (created in the simulation), calorimeter and tracker (decaying in the calorimeter / tracker), and produces per-category histograms of energy, p<sub>T</sub>, eta, phi and PDG ID,
+plus the production vertex (r, z, phi, x-y, z-r, z-phi) of the particles created in the simulation.
+Results are saved to a ROOT file (one folder per category, plus `sim_vertex`) and as plots.
+
+It can also be run on generator-level files, to inspect the BIB particles before the simulation, e.g. for the incoherent pair creation edm4hep files:
+```sh
+drawmcparticles.py -i <path_to_generator_file.root> --mcCollection Pairs -e 100 --sample pairs
+```
 
 Key input arguments are:
-- `-i` / `--infilePath` input file or directory path
+- `-i` / `--infilePath` input file or directory path (required)
 - `-n` / `--numberOfFiles` number of files to process
-- `-e` / `--numberOfEvents` number of events per file
+- `-e` / `--numberOfEvents` number of events per file, -1 for all
+- `--mcCollection` name of the MC particle collection (default `MCParticles`)
 - `--sample` name of the sample, used as prefix for output files
 - `-o` / `--outputFile` base name for the output ROOT file
 
