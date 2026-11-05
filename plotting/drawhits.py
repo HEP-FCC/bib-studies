@@ -446,6 +446,7 @@ histograms += [
 h_occ_anyhit_x_layer = {}
 h_occ_allhits_x_layer = {}
 log_bins = np.hstack([0,np.logspace(-2,2,50)]) #add 0 value to log bins (to avoid underflow in some histos)
+allhits_occ_linear_bins = [100, 0, 100]
 histograms += [
     h_occ_anyhit_x_layer_dist := ROOT.TH2D(
         f"h_occ_anyhit_x_layer_dist_{collection}",
@@ -458,8 +459,7 @@ histograms += [
         f"h_occ_allhits_x_layer_dist_{collection}",
         f"#splitline{{h_occ_allhits_x_layer_dist_{collection}}}{{Per-event occupancy distribution from all hit counts, every hit in a cell/event is counted}}; layer index; occupancy [%]; entries / events",
         *layer_binning,
-        len(log_bins)-1,
-        log_bins,
+        *allhits_occ_linear_bins,
     ),
 ]
 for l in layer_cells.keys():
@@ -582,7 +582,7 @@ if not skip_plot_per_layer:
         )
         h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(
             f"h_hit_rateDensity_layer{l}_VS_eta_{collection}",
-            f"#splitline{{h_hit_rateDensity_layer{l}_VS_eta_{collection}}}{{Per-layer hit-rate density vs #eta from all hits; scale example: #times52 MHz (BX) #times5 pix/cl}}; #eta; hit-rate density [a.u.]",
+            f"#splitline{{h_hit_rateDensity_layer{l}_VS_eta_{collection}}}{{Per-layer hit-rate density vs #eta from all hits (1/area weighted), normalized per event}}; #eta; hit-rate density [a.u.]",
             eta_bins,
             0,
             eta_range,
@@ -921,11 +921,10 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             h_pu_x_layer[c[0]].Fill(pu)
 
     processed_events +=1
-    # <--- end of the event loop
-    if n_events > 0:
-        print()
+# <--- end of the event loop
+if n_events > 0:
+    print()
 
-    print("Loop done!")
 print(" - Processed events:", processed_events)
 print(" - Processed hits:", processed_hits, 
       f"(avg. per event: {processed_hits/processed_events})")
@@ -1062,7 +1061,7 @@ if draw_hists:
             draw_hist(h_xy_density_vs_layer[l], "x [mm]", "y [mm]", f"{sample_name}_xyDensity_layer{l}_{n_events}evt_{sub_detector}", collection, draw_opt="colz")
 
         for l in h_z_density_vs_layer_mm.keys():
-            draw_hist(h_hit_rateDensity_VS_eta[l], "eta", "Hit rate density [a.u.]", f"{sample_name}_hitRateDensity_VS_eta_layer{l}_{n_events}evt_{sub_detector}", collection)
+            draw_hist(h_hit_rateDensity_VS_eta[l], "#eta", "Hit-rate density [a.u.]", f"{sample_name}_hitRateDensity_VS_eta_layer{l}_{n_events}evt_{sub_detector}", collection)
             
 # Open ROOT file and create directory structure for organized output
 output_file_name = f"{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.root"
