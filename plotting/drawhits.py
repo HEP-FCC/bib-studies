@@ -582,7 +582,7 @@ if not skip_plot_per_layer:
         )
         h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(
             f"h_hit_rateDensity_layer{l}_VS_eta_{collection}",
-            f"#splitline{{h_hit_rateDensity_layer{l}_VS_eta_{collection}}}{{all hits (1/area weighted), normalized per event; rate example: #times52 MHz (BX) #times5 pix/cl}}; #eta; hit-rate density [a.u.]",
+            f"#splitline{{h_hit_rateDensity_layer{l}_VS_eta_{collection}}}{{all hits (1/area weighted), normalized per event, rate example: #times52 MHz (BX) #times5 pix/cl}}; #eta; hit-rate density [a.u.]",
             eta_bins,
             0,
             eta_range,
