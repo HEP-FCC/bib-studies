@@ -32,9 +32,16 @@ source setup.sh
 source setup.sh -n
 # for a given release:
 source setup.sh 2025-05-29
-# or for given nightly
-source setup.sh -n 2025-07-22
+# or for a given (dated) nightly, which does not change, so it is reproducible:
+source setup.sh -n 2026-10-02
+# list the available dated nightlies:
+source setup.sh -n -l
 ```
+
+A nightly given as a date is a *spack* nightly (the `--spack` option of the key4hep setup is added automatically),
+while `-n` alone or with a weekday (`-n Tue`) uses the default nightly stack of key4hep (LCG on AlmaLinux 9),
+which is overwritten every week. `--spack` and `--lcg` can also be given explicitly, see `source setup.sh -h`.
+Note that the spack nightlies are no longer built upstream (the last one is 2026-10-20) and the `--spack` option of key4hep will soon fail.
 
 ## Repo structure
 

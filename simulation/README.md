@@ -284,7 +284,7 @@ The per-job log (`<ClusterId>.<ProcId>.log`, in the submit directory) shows the 
 Full example, without explanations, just to see the full recipe.
 
 ```
-source .../bib-studies/setup.sh -r 2026-03-23 #or the appropriate date when you compiled your local k4 repo
+source .../bib-studies/setup.sh -n 2026-03-23 #or the appropriate date when you compiled your local k4 repo
 cd my/k4geo/at/eos
 k4_local_repo
 cd back/to/afs
