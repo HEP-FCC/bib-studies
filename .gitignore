@@ -7,6 +7,7 @@ ide/*
 
 *pdf
 *png
+!docs/img/*.png
 #*json
 *root
 #symlinks
