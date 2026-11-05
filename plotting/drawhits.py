@@ -648,14 +648,17 @@ hits_without_mc = 0
 
 integrating_channels = defaultdict(int)
 pile_up_counter = defaultdict(int)
+progress_step = max(1, n_events // 20) if n_events > 0 else 1
 
 for i,event in enumerate(podio_reader.get(tree_name)):
 
     if i >= n_events and events_per_file > 0:
         break
 
-    if i % 100 == 0: # print a message every 100 processed files
-        print(f'processing event number = {i} / {n_events}')
+    if (i % progress_step == 0) or (i + 1 == n_events):
+        processed_for_display = min(i + 1, n_events)
+        percent = int(100 * processed_for_display / n_events) if n_events > 0 else 100
+        print(f"\rprocessing event {processed_for_display}/{n_events} ({percent:3d}%)", end="", flush=True)
 
     fired_cells = []
     fired_cells_x_layer = {l: 0 for l in layer_cells.keys()}  # Initialize to 0 for all the layers to ensure that also events with 0 occupancy are correctly counted
@@ -919,6 +922,8 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
     processed_events +=1
     # <--- end of the event loop
+    if n_events > 0:
+        print()
 
     print("Loop done!")
 print(" - Processed events:", processed_events)
