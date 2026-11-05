@@ -77,11 +77,11 @@ def parse_args():
                     action="store_true",
                     help='Skip plots per single layer, useful for sub-detectors with many layers (e.g. drift chamber)')
     parser.add_argument('--integration_time',
-                    type=int, default=1,
+                    type=int, default=4,
                     help='Integration window in number of events (1 event = 1 BX), opened by the first hit in a cell. Used to estimate pile-up: extra events with a hit in the same cell within the window. 1 disables it.')
     parser.add_argument('--bc_window',
-                    type=int, default=0,
-                    help="Number of events (1 event = 1 BX) for the distribution of the time since the previous hit in the same module (in the same cell for sub-detectors without a module field, e.g. the drift chamber). 0 disables it.")
+                    type=int, default=40,
+                    help="Number of events (1 event = 1 BX) for the distribution of the time since the previous hit in the same module (in the same cell for sub-detectors without a module field, e.g. the drift chamber). -1 disables it.")
     parser.add_argument('--energy_per_layer',
                     action="store_true",
                     help='Save histograms of hit energy per layer.')
