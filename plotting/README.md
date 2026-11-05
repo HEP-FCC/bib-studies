@@ -20,6 +20,7 @@ occupancy and pile-up estimators hits, plus basic MC particle kinematics;
 results are saved to a ROOT file and can also be exported as plots.
 With the per-layer histograms enabled (no `--skip_layers`), the hit-rate density vs |eta| of all the layers is also overlaid on one canvas,
 saved in `per_layer/rate_vs_eta/` of the ROOT file (and as `<sample>_hitRateDensity_VS_eta_allLayers_<N>evt_<sub-detector>.pdf` with `-p`), to compare the layers.
+A second y axis on the right shows the density scaled by the example rate assumptions (52 MHz bunch crossing rate, 5 pixels per cluster for the pixel detectors, see [`constants.py`](../python/constants.py)).
 
 To decode the cell ID info, a detector specific `get_layer` function is used
 (see for example in [`ALLEGRO.py`](../python/ALLEGRO.py)).

@@ -12,7 +12,7 @@ import ROOT
 
 from particle import Particle
 
-from constants import C_MM_NS
+from constants import C_MM_NS, IPC_BX_RATE_MHZ, IPC_PIXELS_PER_CLUSTER
 from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict, is_calo, is_endcap, DetFilePath, print_warning, print_header, is_pixel
 from visualization import setup_root_style, draw_hist, draw_map, draw_overlay
 
@@ -586,7 +586,7 @@ if not skip_plot_per_layer:
         )
         h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(
             f"h_hit_rateDensity_layer{l}_VS_eta_{collection}",
-            f"#splitline{{h_hit_rateDensity_layer{l}_VS_eta_{collection}}}{{all hits weighted by 1/area of the |#eta| bin ring in cm^{{2}}, normalized per event, rate example: #times52 MHz (BX) #times5 pix/cl}}; |#eta|; hits / cm^{{2}} / event",
+            f"#splitline{{h_hit_rateDensity_layer{l}_VS_eta_{collection}}}{{all hits weighted by 1/area of the |#eta| bin ring in cm^{{2}}, normalized per event, rate example: #times{IPC_BX_RATE_MHZ:g} MHz (BX) #times{IPC_PIXELS_PER_CLUSTER:g} pix/cl}}; |#eta|; hits / cm^{{2}} / event",
             eta_bins,
             0,
             eta_range,
@@ -1225,9 +1225,15 @@ for h in histograms:
 
 # Hit-rate density vs |eta| of all the layers on the same canvas, saved in the ROOT file next to the per-layer histograms (and as pdf with the plots enabled)
 if not skip_plot_per_layer:
+    # axis on the right with the density scaled by the example rate assumptions (the cluster size only applies to pixels)
+    if is_pixel(detector_type):
+        rate_axis = (IPC_BX_RATE_MHZ * IPC_PIXELS_PER_CLUSTER, "Pixel rate [MHz/cm^{2}]",
+                     f"Rate assumption: {IPC_BX_RATE_MHZ:g} MHz BX rate, {IPC_PIXELS_PER_CLUSTER:g} pixels/cluster")
+    else:
+        rate_axis = (IPC_BX_RATE_MHZ, "Hit rate [MHz/cm^{2}]", f"Rate assumption: {IPC_BX_RATE_MHZ:g} MHz BX rate")
     overlay_canvas = draw_overlay({f"layer {l}": h for l, h in h_hit_rateDensity_VS_eta.items()}, "|#eta|", "Hits / cm^{2} / event",
-                                  f"{sample_name}_hitRateDensity_VS_eta_allLayers_{n_events}evt_{sub_detector}", collection,
-                                  log_y=True, save_pdf=draw_hists)
+                                  f"{sample_name}_hitRateDensity_VS_eta_allLayers_{n_events}evt_{sub_detector}", f"{collection}, {n_events} events",
+                                  log_y=True, save_pdf=draw_hists, right_axes=[rate_axis], title="Hit-rate density vs |#eta|, all layers")
     if overlay_canvas:
         per_layer_subdirs["rate_vs_eta"].cd()
         overlay_canvas.Write()
