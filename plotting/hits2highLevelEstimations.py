@@ -75,11 +75,17 @@ ROOT.gErrorIgnoreLevel = ROOT.kWarning
 #######################################
 # functions
 
+def get_hist(path):
+    """Get a histogram from the input file, with a clear error if it is missing (e.g. file made with an older drawhits.py)."""
+    h = input_file.Get(path)
+    if not h:
+        raise RuntimeError(f"Histogram '{path}' not found in '{input_file_path}'. This script expects the folder layout of the current drawhits.py, regenerate the file with it.")
+    return h
 
 #######################################
 # parse the input path and/or files
 
-input_file_name = input_file_path.split("/")[-1].strip(".root")
+input_file_name = input_file_path.split("/")[-1].removesuffix(".root")
 #example filename
 #ipc_hits_100evt_VertexDisks_ALLEGRO_FSR_FCCee_Z256_2T_grids8.root
 #keeping the string after **evt_, until next underscore
@@ -169,18 +175,18 @@ match strategy:
     case "hit_counts":
         h_name = f"per_layer/h_avg_hits_x_layer_{hits_collection}"
     case "occupancy":
-        h_name = f"per_layer/h_avg_occ_x_layer_{hits_collection}"
+        h_name = f"per_layer/occupancy_allhits/h_avg_occ_allhits_x_layer_{hits_collection}"
     case _:
         raise AttributeError(f"Unknown strategy defined to compute the bandwidth ({strategy})")
 
 input_file.cd("per_layer")
-h_bw = input_file.Get(h_name).Clone()
+h_bw = get_hist(h_name).Clone()
 h_bw.SetNameTitle(f"{input_file_name}_bw_per_layer",f"{input_file_name}_bw_per_layer")
-h_avg_hit_rate = input_file.Get(h_name).Clone()
-h_max_hit_rate = input_file.Get(h_name).Clone() 
+h_avg_hit_rate = get_hist(h_name).Clone()
+h_max_hit_rate = get_hist(h_name).Clone() 
 h_max_hit_rate.Reset()
-h_avg_occ_cell_per_layer = input_file.Get(h_name).Clone()
-h_max_cell_occ = input_file.Get(h_name).Clone() 
+h_avg_occ_cell_per_layer = get_hist(h_name).Clone()
+h_max_cell_occ = get_hist(h_name).Clone() 
 h_max_cell_occ.Reset()
 
 
@@ -234,7 +240,7 @@ if do_hitRateOcc_stats:
             i_layer_bin = ln + 1
 
         # per layer occupancy printouts
-        h_occ_layer = input_file.Get(f"h_occ_x_layer{ln}_{hits_collection}").Clone()
+        h_occ_layer = get_hist(f"per_layer/occupancy_allhits/h_occ_allhits_x_layer{ln}_{hits_collection}").Clone()
         #print layer and histogram's mean value, std, and 95th percentile
         q = array.array('d', [0.0])
         p = array.array('d', [0.95])
@@ -269,7 +275,7 @@ if do_hitRateOcc_plots:
             i_layer_bin = ln + 1
             
         # Hit rate per module
-        h_avg_hit_rate_per_cell[ln] = input_file.Get(f"per_layer/h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
+        h_avg_hit_rate_per_cell[ln] = get_hist(f"per_layer/module_hits/h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
         h_avg_hit_rate_per_cell[ln].Scale(rate*cm2_to_mm2*scale_factor/hist_module_size.GetBinContent(i_layer_bin))
         h_avg_hit_rate_per_cell[ln].SetNameTitle(f"{input_file_name}_hitRate_layer{ln}_per_cell", f"{input_file_name}_hitRate_layer{ln}_per_cell;Module;Average {str_hit_rate} per module [MHz/cm^{2}]" )
         draw_hist(h_avg_hit_rate_per_cell[ln], "Module", f"Average {str_hit_rate} [MHz/cm^{2}]", f"{input_file_name}_hitRate_layer{ln}_per_cell")
@@ -279,13 +285,13 @@ if do_hitRateOcc_plots:
         h_max_hit_rate.SetBinError(i_layer_bin, h_avg_hit_rate_per_cell[ln].GetBinError(h_avg_hit_rate_per_cell[ln].GetMaximumBin()))
 
         # Occupancy per module (i.e. pixel occupancy in semiconductor detector). This will not be needed anymore once pixel/strip segmentation is added to these detectors in the DD4hep description. Then each pixel has its own cellID.
-        h_occ_per_cell[ln] = input_file.Get(f"per_layer/h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
+        h_occ_per_cell[ln] = get_hist(f"per_layer/module_hits/h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
         h_occ_per_cell[ln].Scale(scale_factor/(hist_module_size.GetBinContent(i_layer_bin)/hist_pixel_area.GetBinContent(i_layer_bin)))
         h_occ_per_cell[ln].SetNameTitle(f"{input_file_name}_occ_x_module_layer{ln}", f"{input_file_name}_occ_x_module_layer{ln};Module;Pixel occupancy per event" )
         draw_hist(h_occ_per_cell[ln], "Module", "Pixel occupancy per event", f"{input_file_name}_occ_x_module_layer{ln}")
 
         # Bandwidth per module
-        h_bandwidth_per_cell[ln] = input_file.Get(f"per_layer/h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
+        h_bandwidth_per_cell[ln] = get_hist(f"per_layer/module_hits/h_avg_hits_x_layer{ln}_x_module_{hits_collection}").Clone()
         try:
             print(hit_size[ln])
             h_bandwidth_per_cell[ln].Scale(rate*MHz_to_Hz*scale_factor*hit_size[ln]*b_to_GB)
