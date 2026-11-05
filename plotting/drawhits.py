@@ -314,10 +314,10 @@ if is_endcap(detector_type):    # Binning from -negative to positive layer numbe
 
 # Profile histograms
 histograms += [
-    h_hit_x_mm               := ROOT.TH1D(f"h_hit_x_mm_{collection}", f"h_hit_x_mm_{collection}; [mm] ; hits;", 10000, -x_range, x_range),
-    h_hit_y_mm               := ROOT.TH1D(f"h_hit_y_mm_{collection}", f"h_hit_y_mm_{collection}; [mm] ; hits;", 10000, -y_range, y_range),
-    h_hit_z_mm               := ROOT.TH1D(f"h_hit_z_mm_{collection}", f"h_hit_z_mm_{collection}; [mm] ; hits;", 10000, -z_range, z_range),
-    h_hit_r_mm               := ROOT.TH1D(f"h_hit_r_mm_{collection}", f"h_hit_r_mm_{collection}; [mm] ; hits;",10000, -r_range, r_range),
+    h_hit_x_mm               := ROOT.TH1D(f"h_hit_x_mm_{collection}", f"h_hit_x_mm_{collection}; [mm] ; hits;", 1000, -x_range, x_range),
+    h_hit_y_mm               := ROOT.TH1D(f"h_hit_y_mm_{collection}", f"h_hit_y_mm_{collection}; [mm] ; hits;", 1000, -y_range, y_range),
+    h_hit_z_mm               := ROOT.TH1D(f"h_hit_z_mm_{collection}", f"h_hit_z_mm_{collection}; [mm] ; hits;", 1000, -z_range, z_range),
+    h_hit_r_mm               := ROOT.TH1D(f"h_hit_r_mm_{collection}", f"h_hit_r_mm_{collection}; [mm] ; hits;",1000, -r_range, r_range),
     h_hit_eta                := ROOT.TH1D(f"h_hit_eta_{collection}", f"h_hit_eta_{collection}; [eta]; hits;", eta_bins*2, -eta_range, eta_range),
     h_hit_E_MeV    := ROOT.TH1D(
         f"h_hit_E_MeV_{collection}",
@@ -344,7 +344,7 @@ histograms += [
     h_hit_E_keV_map := ROOT.TH2D(f"h_hit_E_keV_map_{collection}", f"h_hit_E_keV_map_{collection}; deposited energy [keV]; layer number; hits / events", 500, 0, 500, *layer_binning),
     h_hit_E_eV_map := ROOT.TH2D(f"h_hit_E_eV_map_{collection}", f"h_hit_E_eV_map_{collection}; deposited energy [eV]; layer number; hits / events", 500, 0, 1000, *layer_binning),
     h_hit_particle_E   := ROOT.TH1D(
-        f"h_hit_particle_E_{collection}",
+        f"h_{collection}",
         f"#splitline{{h_hit_particle_E_{collection}}}{{Energy of the particle creating the hit}}; [GeV]; hits;",
         500,
         0,
@@ -368,9 +368,24 @@ histograms += [
 
 # ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
 histograms += [ 
-    h_hit_particle_ID := ROOT.TH1D(f"h_hit_particle_ID_{collection}", f"h_hit_particle_ID_{collection}", 1, 0, 1),
+    h_hit_particle_ID := ROOT.TH1D(
+        f"h_hit_particle_ID_{collection}",
+        f"#splitline{{h_hit_particle_ID_{collection}}}{{MC particle composition of hits, normalized to hits per event (not percent)}}; particle ID; hits / events",
+        1,
+        0,
+        1,
+    ),
     h_hit_particle_ID_map := ROOT.TH2D(f"h_hit_particle_ID_map_{collection}", f"h_hit_particle_ID_map_{collection}; particle ID; layer number; hits / events", 1, 0, 1, *layer_binning),
-    h_hit_particle_ID_E_GeV := ROOT.TH2D(f"h_hit_particle_ID_E_GeV_{collection}", f"h_hit_particle_ID_E_GeV_{collection}; particle ID; MC particle energy [GeV]; hits / events", 1, 0, 1, 500, 0, 50)
+    h_hit_particle_ID_E_GeV := ROOT.TH2D(
+        f"h_hit_particle_ID_E_GeV_{collection}",
+        f"#splitline{{h_hit_particle_ID_E_GeV_{collection}}}{{MC particle type vs energy, normalized to hits per event (not percent)}}; particle ID; MC particle energy [GeV]; hits / events",
+        1,
+        0,
+        1,
+        500,
+        0,
+        50,
+    )
 ]
 
 h_hit_particle_ID.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
@@ -543,13 +558,31 @@ if not skip_plot_per_layer:
     h_xy_density_vs_layer = {}
     h_hit_rateDensity_VS_eta = {}
     for l in layer_cells.keys():
-        h_z_density_vs_layer_mm[l] = ROOT.TH1D(f"hist_z_density_vs_layer{l}_mm_{collection}", f"hist_z_density_vs_layer{l}_mm_{collection}", *z_binning)
-        h_phi_density_vs_layer[l] = ROOT.TH1D(f"hist_phi_density_vs_layer{l}_{collection}", f"hist_phi_density_vs_layer{l}_{collection}", *phi_binning)
-        h_zphi_density_vs_layer[l] = ROOT.TH2D(f"hist_zphi_vs_layer{l}_{collection}", f"hist_zphi_vs_layer{l}_{collection}; z [mm]; #phi [rad]; hits/({bw_phi:1.2f}#times{bw_z})rad#timesmm per event", *z_binning, *phi_binning)
-        h_xy_density_vs_layer[l] = ROOT.TH2D(f"hist_xy_vs_layer{l}_{collection}", f"hist_xy_vs_layer{l}_{collection};  x (bin={bw_r}mm) ;y (bin={bw_r}mm) ; hits/({bw_r}#times{bw_r}) mm^{{2}} per event", *r_binning, *r_binning)
+        h_z_density_vs_layer_mm[l] = ROOT.TH1D(
+            f"hist_z_density_vs_layer{l}_mm_{collection}",
+            f"#splitline{{hist_z_density_vs_layer{l}_mm_{collection}}}{{Per-layer hit distribution vs z, counting all hits including repeated hits in the same cell/event}}; z [mm]; hits / events",
+            *z_binning,
+        )
+        h_phi_density_vs_layer[l] = ROOT.TH1D(
+            f"hist_phi_density_vs_layer{l}_{collection}",
+            f"#splitline{{hist_phi_density_vs_layer{l}_{collection}}}{{Per-layer hit distribution vs #phi, counting all hits including repeated hits in the same cell/event}}; #phi [rad]; hits / events",
+            *phi_binning,
+        )
+        h_zphi_density_vs_layer[l] = ROOT.TH2D(
+            f"hist_zphi_vs_layer{l}_{collection}",
+            f"#splitline{{hist_zphi_vs_layer{l}_{collection}}}{{Per-layer z-#phi hit-density map, counting all hits including repeated hits in the same cell/event}}; z [mm]; #phi [rad]; hits/({bw_phi:1.2f}#times{bw_z})rad#timesmm per event",
+            *z_binning,
+            *phi_binning,
+        )
+        h_xy_density_vs_layer[l] = ROOT.TH2D(
+            f"hist_xy_vs_layer{l}_{collection}",
+            f"#splitline{{hist_xy_vs_layer{l}_{collection}}}{{Per-layer x-y hit-density map, counting all hits including repeated hits in the same cell/event}}; x (bin={bw_r}mm); y (bin={bw_r}mm); hits/({bw_r}#times{bw_r}) mm^{{2}} per event",
+            *r_binning,
+            *r_binning,
+        )
         h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(
             f"h_hit_rateDensity_layer{l}_VS_eta_{collection}",
-            f"#splitline{{h_hit_rateDensity_layer{l}_VS_eta_{collection}}}{{Scale example: #times52 MHz (BX) #times5 pix/cl}}; [eta]; [a.u];",
+            f"#splitline{{h_hit_rateDensity_layer{l}_VS_eta_{collection}}}{{Per-layer hit-rate density vs #eta from all hits; scale example: #times52 MHz (BX) #times5 pix/cl}}; #eta; hit-rate density [a.u.]",
             eta_bins,
             0,
             eta_range,
