@@ -431,6 +431,22 @@ histograms += [
 h_occ_anyhit_x_layer = {}
 h_occ_allhits_x_layer = {}
 log_bins = np.hstack([0,np.logspace(-2,2,50)]) #add 0 value to log bins (to avoid underflow in some histos)
+histograms += [
+    h_occ_anyhit_x_layer_dist := ROOT.TH2D(
+        f"h_occ_anyhit_x_layer_dist_{collection}",
+        f"#splitline{{h_occ_anyhit_x_layer_dist_{collection}}}{{Per-event occupancy distribution from any-hit cells only, a cell counts once per event if it fires at least once}}; layer index; occupancy [%]; entries / events",
+        *layer_binning,
+        len(log_bins)-1,
+        log_bins,
+    ),
+    h_occ_allhits_x_layer_dist := ROOT.TH2D(
+        f"h_occ_allhits_x_layer_dist_{collection}",
+        f"#splitline{{h_occ_allhits_x_layer_dist_{collection}}}{{Per-event occupancy distribution from all hit counts, every hit in a cell/event is counted}}; layer index; occupancy [%]; entries / events",
+        *layer_binning,
+        len(log_bins)-1,
+        log_bins,
+    ),
+]
 for l in layer_cells.keys():
     h_occ_anyhit_x_layer[l] = ROOT.TH1D(
         f"h_occ_anyhit_x_layer{l}_{collection}",
@@ -820,6 +836,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             layer_anyhit_occupancy = fc / layer_cells[l] * 100
             h_avg_occ_anyhit_x_layer.Fill(l, layer_anyhit_occupancy * fill_weight)
             h_occ_anyhit_x_layer[l].Fill(layer_anyhit_occupancy, fill_weight)
+            h_occ_anyhit_x_layer_dist.Fill(l, layer_anyhit_occupancy, fill_weight)
 
     for l, nh in hits_x_layer.items():
         tot_allhits_occupancy += nh
@@ -827,6 +844,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             layer_allhits_occupancy = nh / layer_cells[l] * 100
             h_avg_occ_allhits_x_layer.Fill(l, layer_allhits_occupancy * fill_weight)
             h_occ_allhits_x_layer[l].Fill(layer_allhits_occupancy, fill_weight)
+            h_occ_allhits_x_layer_dist.Fill(l, layer_allhits_occupancy, fill_weight)
 
     tot_anyhit_occupancy = tot_anyhit_occupancy / n_tot_cells * 100
     tot_allhits_occupancy = tot_allhits_occupancy / n_tot_cells * 100
@@ -955,6 +973,8 @@ if draw_hists:
     draw_hist(h_avg_firing_cells_x_layer, "Layer number", "Firing cells / events",  sample_name+"_avg_firing_cells_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_occ_anyhit, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_anyhit_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
     draw_hist(h_occ_allhits, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_allhits_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
+    draw_hist(h_occ_anyhit_x_layer_dist, "Layer number", "Occupancy [%]", sample_name+f"_occ_anyhit_x_layer_dist_"+str(n_events)+"evt_"+sub_detector, collection, draw_opt="colz")
+    draw_hist(h_occ_allhits_x_layer_dist, "Layer number", "Occupancy [%]", sample_name+f"_occ_allhits_x_layer_dist_"+str(n_events)+"evt_"+sub_detector, collection, draw_opt="colz")
     if has_mc_truth:  # MC-truth histograms, skipped if the input has no MCParticles
         draw_hist(h_hit_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_hit_particle_E_"+str(n_events)+"evt_"+sub_detector, collection)
         draw_hist(h_hit_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_hit_particle_pt_"+str(n_events)+"evt_"+sub_detector, collection)
