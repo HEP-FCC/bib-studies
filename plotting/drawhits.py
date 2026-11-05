@@ -344,7 +344,7 @@ histograms += [
     h_hit_E_keV_map := ROOT.TH2D(f"h_hit_E_keV_map_{collection}", f"h_hit_E_keV_map_{collection}; deposited energy [keV]; layer number; hits / events", 500, 0, 500, *layer_binning),
     h_hit_E_eV_map := ROOT.TH2D(f"h_hit_E_eV_map_{collection}", f"h_hit_E_eV_map_{collection}; deposited energy [eV]; layer number; hits / events", 500, 0, 1000, *layer_binning),
     h_hit_particle_E   := ROOT.TH1D(
-        f"h_{collection}",
+        f"h_hit_particle_E_{collection}",
         f"#splitline{{h_hit_particle_E_{collection}}}{{Energy of the particle creating the hit}}; [GeV]; hits;",
         500,
         0,
