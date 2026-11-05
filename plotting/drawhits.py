@@ -593,13 +593,24 @@ if not skip_plot_per_layer:
 
     # Per-module histograms
     h_avg_hits_x_layer_x_module = {}
+    h_hits_x_layer_x_module_dist = {}
     bin_start = 0
     cell_binning = {}
+    modules_per_layer = {}
     for l in layer_cells.keys():
-        cell_binning[l] = [int(layer_cells[l]/sensors_per_module_map[l]), -0.5 + bin_start, layer_cells[l]/sensors_per_module_map[l]-0.5  + bin_start]
+        modules_per_layer[l] = int(layer_cells[l] / sensors_per_module_map[l])
+        cell_binning[l] = [modules_per_layer[l], -0.5 + bin_start, modules_per_layer[l] - 0.5 + bin_start]
 
         h_avg_hits_x_layer_x_module[l] = ROOT.TH1D(f"h_avg_hits_x_layer{l}_x_module_{collection}", f"h_avg_hits_x_layer{l}_x_module_{collection};Module ID;Hits / event", *cell_binning[l])
-        histograms += [h_avg_hits_x_layer_x_module[l]]
+        h_hits_x_layer_x_module_dist[l] = ROOT.TH2D(
+            f"h_hits_x_layer{l}_x_module_dist_{collection}",
+            f"#splitline{{h_hits_x_layer{l}_x_module_dist_{collection}}}{{Per-event module hit-count distribution, including the zero-hit bin}};Module ID;Hits per event in module;Entries / events",
+            *cell_binning[l],
+            11,
+            -0.5,
+            10.5,
+        )
+        histograms += [h_avg_hits_x_layer_x_module[l], h_hits_x_layer_x_module_dist[l]]
         # if(sub_detector=="VertexBarrel" or sub_detector=="SiWrB"):
         #     bin_start += layer_cells[l]/sensors_per_module_map[l]
 
@@ -649,6 +660,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
     fired_cells = []
     fired_cells_x_layer = {l: 0 for l in layer_cells.keys()}  # Initialize to 0 for all the layers to ensure that also events with 0 occupancy are correctly counted
     hits_x_layer = {l: 0 for l in layer_cells.keys()}  # Count all hits in layer, including repeated hits in the same cell in the same event
+    module_hits_x_layer = defaultdict(int)  # Count all hits per (layer, module) in this event
 
     # Loop over the hits
     for hit in event.get(collection):
@@ -744,6 +756,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
             if not skip_plot_per_layer:
                 h_avg_hits_x_layer_x_module[layer_n].Fill(module_n, fill_weight)
+                module_hits_x_layer[layer_n, module_n] += 1
 
             hit_zr.Fill(z_mm, r_mm, fill_weight)
             hit_xy.Fill(x_mm, y_mm, fill_weight)
@@ -859,6 +872,12 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         processed_hits += 1
     # <--- end of the hits loop
 
+    if not skip_plot_per_layer:
+        for layer_idx, n_modules in modules_per_layer.items():
+            for module_idx in range(n_modules):
+                nhits = module_hits_x_layer[layer_idx, module_idx]
+                h_hits_x_layer_x_module_dist[layer_idx].Fill(module_idx, nhits, fill_weight)
+
     # Compute the per-event occupancy
     tot_anyhit_occupancy = 0
     tot_allhits_occupancy = 0
@@ -899,9 +918,9 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             h_pu_x_layer[c[0]].Fill(pu)
 
     processed_events +=1
-# <--- end of the event loop
+    # <--- end of the event loop
 
-print("Loop done!")
+    print("Loop done!")
 print(" - Processed events:", processed_events)
 print(" - Processed hits:", processed_hits, 
       f"(avg. per event: {processed_hits/processed_events})")
@@ -1029,6 +1048,8 @@ if draw_hists:
             draw_hist(h, "Occupancy [%]", "Entries / events", f"{sample_name}_occ_anyhit_layer{l}_{n_events}evt_{sub_detector}", collection, log_x=True)
         for l, h in h_occ_allhits_x_layer.items():
             draw_hist(h, "Occupancy [%]", "Entries / events", f"{sample_name}_occ_allhits_layer{l}_{n_events}evt_{sub_detector}", collection, log_x=True)
+        for l, h in h_hits_x_layer_x_module_dist.items():
+            draw_hist(h, "Module ID", "Hits per event in module", f"{sample_name}_hits_x_layer{l}_x_module_dist_{n_events}evt_{sub_detector}", collection, draw_opt="colz")
 
         for l in h_z_density_vs_layer_mm.keys():
             draw_hist(h_z_density_vs_layer_mm[l], "z [mm]","Hits/event", f"{sample_name}_zDensity_layer{l}_{n_events}evt_{sub_detector}", collection)
@@ -1048,6 +1069,7 @@ per_layer_subdirs = {
     "occupancy_anyhit": dir_per_layer.mkdir("occupancy_anyhit"),
     "occupancy_allhits": dir_per_layer.mkdir("occupancy_allhits"),
     "module_hits": dir_per_layer.mkdir("module_hits"),
+    "module_hits_dist": dir_per_layer.mkdir("module_hits_dist"),
     "pileup": dir_per_layer.mkdir("pileup"),
     "density_z": dir_per_layer.mkdir("density_z"),
     "density_phi": dir_per_layer.mkdir("density_phi"),
@@ -1072,6 +1094,8 @@ def get_per_layer_subdir(hname):
         return per_layer_subdirs["occupancy_allhits"]
     if "h_avg_hits_x_layer" in hname and "_x_module_" in hname:
         return per_layer_subdirs["module_hits"]
+    if "h_hits_x_layer" in hname and "_x_module_dist_" in hname:
+        return per_layer_subdirs["module_hits_dist"]
     if "h_pu_x_layer" in hname:
         return per_layer_subdirs["pileup"]
     if "hist_z_density_vs_layer" in hname:
