@@ -2,23 +2,44 @@
 """Trace subdetector hits back to their MDI origin, and skim MCParticles.
 
 Simple version of the traceback algorithm (pseudo-code revision of 2026-10-21):
-  1. for every hit of --collection (DCH) in the event, grow a family tree from
-     the hit particle up to the oldest parent (the root, the primary photon).
+  1. for every hit of every tracker hit collection of the VTX, DCH and SiWr in the
+     event (found automatically, or the list of --hit-collections), grow a family tree
+     from the hit particle up to the oldest parent (the root, the primary photon).
      For every photon ancestor, also note its daughters born before the chain
-     daughter (older siblings = earlier scatter points of that photon);
-  2. give every particle (vertex) of the trees a region label (injection / mdi /
-     dch / other) and a case (hit_ancestor_mdi, hit_sibling_mdi, hit_ancestor_other,
-     hit_sibling_other, unres_dropped, dch, injection);
-  3. plot the x-y, x-z and z-r maps of all mdi and other vertices;
+     daughter (older siblings = earlier scatter points of that photon).
+     The trees are built per collection (every tree has a "coll" field, e.g.
+     DCHCollection, SiWrBCollection). Only these subdetectors are traced: with the
+     user particle handler of the sample, particles born outside the tracker region
+     are not stored, so calorimeter / muon hits cannot be traced back;
+     Primary hits: if the hit particle is the SR primary photon itself and the hit is
+     real (producedBySecondary not set: the photon step deposited the energy, e.g. a
+     Compton or photoelectric electron that was not produced), its own daughters born
+     before the hit time are its kinks (scatter points before the hit, e.g. a Compton
+     recoil in the MDI). They are stored like older siblings (role sibling, cases
+     hit_sibling_mdi / hit_sibling_other), with primary_kink = true; the primary node
+     gets primary_hits (number of its real hits) and kinks_before_hit, the tree
+     n_primary_hits;
+  2. give every particle (vertex) of the trees a region (injection / mdi / vtx / dch /
+     siwr / other), a coarse label and a case. The label is relative to the
+     subdetector of the hit collection (its "own" region, from the collection name,
+     COLLECTION_REGIONS): injection / mdi / <own region> / other, so for DCHCollection
+     it is injection / mdi / dch / other, for SiWrBCollection injection / mdi / siwr /
+     other (a vertex in the DCH is then "other"). Cases:
+     hit_ancestor_mdi, hit_sibling_mdi, hit_ancestor_other, hit_sibling_other,
+     unres_dropped, <own region>, injection;
+  3. write the trees (trees_<tag>.jsonl, one tree per line, with the regions, labels
+     and cases) and a per-collection summary (collections_<tag>.json);
   4. skim MCParticles to the particles in the trees (storage) and write EDM4hep
-     files with only MCParticles, --collection and EventHeader (one per input
-     file, or one merged file). All other collections are dropped.
+     files with only MCParticles, EventHeader and the traced tracker hit collections,
+     one per input file or one merged file. All other collections are dropped.
+No plots: the vertex maps are made from the trees files by plot_merged_maps.py
+(any chunk, set of chunks or merged trees file).
 
 A truncated or corrupt input file (size != fEND, or any read error) is skipped as a
 whole, with nothing of it in the trees or the skim; skipped_<tag>.txt lists the files
 and reasons. The exit code is 0 unless no file at all could be processed.
 
-Input: ddsim EDM4hep outputs of option F
+Input: ddsim EDM4hep outputs:
 (--part.keepAllParticles True --part.minimalKineticEnergy 0, user handler on).
 The traceback reads with uproot (only the needed branches), the skim with podio
 (it has to rewrite every collection with a particle link, uproot cannot write
@@ -55,22 +76,25 @@ LEG_RMAX = 25.0               # separated pipes, SeparatedBeamPipe_rmax = 15 mm 
 LEG_ZMAX = 2350.0             # end of the legs (and of the cryostat cylinder) [mm]
 CRYO_RMAX = 225.0             # cryostat envelope, cryo_out_r [mm]
 CRYO_ZMIN = 1400.0            # cryostat nose start, cryo_nose_min_z [mm]
-# DCH region: envelope of ALLEGRO_o1_v03 DectDimensions.xml (DCH_*_total)
-DCH_RMIN, DCH_RMAX, DCH_ZMAX = 350.0, 2000.0, 3000.0
+# Subdetector regions: envelopes of ALLEGRO_o1_v03 (DectDimensions.xml), boxes (rmin, rmax, |z|min, |z|max) [mm]
+# symmetric in z. A vertex belongs to the first subdetector of this ordered table whose box contains it (the MDI
+# is checked before, in in_mdi). Barrel and endcaps are two boxes. To add a subdetector: one line.
+SUBDETECTOR_BOXES = {
+    "vtx":     [(13.0, 330.0, 0.0, 964.0)],                   # VTX_r_min, VTX_r_max, VTXD_z_max_total
+    "dch":     [(350.0, 2000.0, 0.0, 3000.0)],                # DCH gas volume radii, DCH_half_length_total (as in the DCH-only version)
+    "siwr":    [(2040.0, 2080.0, 0.0, 3150.0),                # barrel: SiWrB_*
+                (350.0, 2040.0, 3020.0, 3090.0)],             # disks: SiWrD_*
+}
+# own region of a hit collection (the subdetector its hits are in), by collection-name prefix (ddsim names of
+# ALLEGRO_o1_v03). The own region plays the part the DCH plays for DCHCollection: its vertices get the label/case
+# <own region> (and plot_merged_maps.py does not draw them); every other subdetector region is "other".
+# Only the tracker-region subdetectors whose hits can be traced back with the sample (VTX, DCH, SiWr); tracker
+# hit collections of other names are not traced.
+COLLECTION_REGIONS = (("DCH", "dch"), ("Vertex", "vtx"), ("SiWr", "siwr"))
 
-# vertex labels that go on the maps (dch and injection are stored, not plotted), colour by case
-PLOT_LABELS = ("mdi", "other")
-CASE_COLORS = {"hit_ancestor_mdi": "#000000", "hit_sibling_mdi": "#eb6834",
-               "hit_ancestor_other": "#0a2fff", "hit_sibling_other": "#1baf7a"}
-CASE_LEGEND = {"hit_ancestor_mdi": "Ancestor in MDI", "hit_sibling_mdi": "Ancestor kink in MDI",
-               "hit_ancestor_other": "Ancestor outside MDI and DCH", "hit_sibling_other": "Ancestor kink outside MDI and DCH"}
-HIT_CASES = tuple(CASE_COLORS)  # vertex cases on the path of a hit: chain (ancestor) or older sibling (kink), in the MDI or elsewhere
-# marker area (default 8) and drawing order (default 1, higher = on top) of single cases: the few
-# ancestor vertices are larger than the kinks and drawn last, so that they are not hidden by the kinks
-CASE_SIZE = {"hit_ancestor_mdi": 20, "hit_ancestor_other": 20}
-CASE_ZORDER = {"hit_ancestor_mdi": 3, "hit_ancestor_other": 3}
-# grid spacing [mm] of the maps, (horizontal, vertical) axis; the zoomed-out x-z map keeps the default grid
-GRID_STEPS = {("xy", False): (100, 100), ("xy", True): (25, 25), ("xz", True): (100, 25), ("zr", True): (100, 25)}
+# vertex cases on the path of a hit: chain (ancestor) or older sibling (kink), in the MDI or elsewhere
+# (the plotted cases of plot_merged_maps.py)
+HIT_CASES = ("hit_ancestor_mdi", "hit_sibling_mdi", "hit_ancestor_other", "hit_sibling_other")
 
 MC_FIELDS = {
     "pdg": "PDG", "gen": "generatorStatus", "sim": "simulatorStatus", "t": "time", "m": "mass",
@@ -88,7 +112,11 @@ def parse_args():
     ap.add_argument("input_dir", help="directory with the ddsim EDM4hep outputs (*.root)")
     ap.add_argument("output_dir", help="trees, plots and skimmed files go here (keep it on EOS)")
     ap.add_argument("--collection", default="DCHCollection",
-                    help="hit collection to trace and keep in the skim (DCH settings hardcoded)")
+                    help="hit collection of the detailed printed summary; always traced")
+    ap.add_argument("--hit-collections", default="all",
+                    help="tracker hit collections to trace and keep in the skim: 'all' (every SimTrackerHit "
+                         "collection of the VTX, DCH and SiWr in the file, COLLECTION_REGIONS) or a comma-separated "
+                         "list of names")
     ap.add_argument("--n-files", type=int, default=None, help="number of files to process (default: all)")
     ap.add_argument("--first-file", type=int, default=0, help="index of the first file in the sorted list (condor chunks)")
     ap.add_argument("--n-events", type=int, default=None, help="events per file (default: all)")
@@ -113,23 +141,42 @@ def check_complete(path):
         raise OSError(f"truncated: {size} bytes on disk, fEND {fend}")
 
 
-def read_events(path, n_events, coll):
+def find_hit_collections(tree, wanted="all"):
+    """tracker hit collections of the events tree to trace (sorted list of names), from the branch types:
+    SimTrackerHit collections with an own region (VTX, DCH, SiWr: COLLECTION_REGIONS).
+    wanted: "all" or a comma-separated list of collection names (an unknown or untraceable name raises).
+    """
+    found = sorted(name for name, typ in tree.typenames().items()
+                   if "/" not in name and "SimTrackerHitData" in typ and own_region(name) is not None)
+    if wanted != "all":
+        names = [w for w in wanted.split(",") if w]
+        missing = [w for w in names if w not in found]
+        if missing:
+            raise RuntimeError(f"no such VTX / DCH / SiWr tracker hit collection {missing}, the file has {found}")
+        found = names
+    return found
+
+
+def read_events(path, n_events, colls):
+    """colls: list of tracker hit collection names from find_hit_collections"""
     tree = uproot.open(path)["events"]
     branches = {key: f"MCParticles/MCParticles.{name}" for key, name in MC_FIELDS.items()}
     branches |= {
         "par_idx": "_MCParticles_parents/_MCParticles_parents.index",
         "dau_idx": "_MCParticles_daughters/_MCParticles_daughters.index",
     }
-    # hits of coll (SimTrackerHit): particle index, energy, quality
-    hit_branches = {
+    # hits of every collection: particle index, energy, quality, time (for the kinks of a primary before its hit)
+    hit_branches = {coll: {
         "p": f"_{coll}_particle/_{coll}_particle.index",
         "e": f"{coll}/{coll}.eDep",
         "q": f"{coll}/{coll}.quality",
-    }
-    arrays = tree.arrays(list(branches.values()) + list(hit_branches.values()), entry_stop=n_events, library="np")
+        "t": f"{coll}/{coll}.time",
+    } for coll in colls}
+    wanted = list(branches.values()) + [b for d in hit_branches.values() for b in d.values()]
+    arrays = tree.arrays(wanted, entry_stop=n_events, library="np")
     for e in range(len(arrays[branches["pdg"]])):
         ev = {key: arrays[b][e] for key, b in branches.items()}
-        ev["hits"] = {key: arrays[b][e] for key, b in hit_branches.items()}
+        ev["hits"] = {coll: {key: arrays[b][e] for key, b in d.items()} for coll, d in hit_branches.items()}
         yield ev
 
 
@@ -167,56 +214,99 @@ def in_mdi(x, y, z):
             return True
     return False
 
-def in_dch(x, y, z):
-    return DCH_RMIN <= math.hypot(x, y) <= DCH_RMAX and abs(z) <= DCH_ZMAX
+def in_boxes(x, y, z, boxes):
+    r = math.hypot(x, y)
+    return any(rmin <= r <= rmax and zmin <= abs(z) <= zmax for rmin, rmax, zmin, zmax in boxes)
 
-def region_label(ev, i):
+def region_of(ev, i):
+    """fine region of the vertex of particle i: injection, mdi, a key of SUBDETECTOR_BOXES (the first
+    in the table whose box contains it), or other"""
     if not created_in_sim(ev, i):
         return "injection"          # primary: its vertex is the SR source, not an interaction
     x, y, z = ev["x"][i], ev["y"][i], ev["z"][i]
     if in_mdi(x, y, z):
         return "mdi"
-    if in_dch(x, y, z):
-        return "dch"
+    for name, boxes in SUBDETECTOR_BOXES.items():
+        if in_boxes(x, y, z, boxes):
+            return name
     return "other"
+
+def own_region(coll):
+    """subdetector region of the hits of collection coll (COLLECTION_REGIONS), None if the name is not known"""
+    for prefix, region in COLLECTION_REGIONS:
+        if coll.startswith(prefix):
+            return region
+    return None
+
+def coarse_label(region, own):
+    """label relative to the hit collection: injection / mdi / own (the region of the hit collection, e.g. dch) / other
+    (every other subdetector, and outside all of them)"""
+    return region if region in ("injection", "mdi") or region == own else "other"
 
 
 # ---------------------------------------------------------------------------
 # Helper function: get older siblings
 # ---------------------------------------------------------------------------
+def daughters_before(ev, q, t):
+    """daughters of q born before time t [ns], sorted by time"""
+    d = daughters(ev, q)
+    d = d[ev["t"][d] < t]
+    return d[np.argsort(ev["t"][d], kind="stable")]
+
 def older_siblings(ev, i, q):
     """daughters of q born before particle i, sorted by time"""
-    d = daughters(ev, q)
-    d = d[ev["t"][d] < ev["t"][i]]
-    return d[np.argsort(ev["t"][d], kind="stable")]
+    return daughters_before(ev, q, ev["t"][i])
+
+def is_sr_primary(ev, i):
+    """the SR primary photon (generator particle, not created in the simulation)"""
+    return not created_in_sim(ev, i) and ev["gen"][i] == 1 and ev["pdg"][i] == 22
 
 
 # ---------------------------------------------------------------------------
 # Helper function: create trees
 # ---------------------------------------------------------------------------
-def make_node(ev, i, role):
+def make_node(ev, i, role, own):
+    """own: region of the hit collection of this tree (own_region)"""
+    region = region_of(ev, i)
     return dict(
-        idx=int(i), pdg=int(ev["pdg"][i]), role=role, label=region_label(ev, i), case=None,
+        idx=int(i), pdg=int(ev["pdg"][i]), role=role, region=region, label=coarse_label(region, own), case=None,
         x=float(ev["x"][i]), y=float(ev["y"][i]), z=float(ev["z"][i]), t=float(ev["t"][i]),
         ekin_kev=ekin_kev(ev, i),
         component=None,       # TODO: geometry component (MC vertices carry no volume name)
         parent=None, children=[], siblings_before=[], walked=False, root_status=None,
         n_hits=0, edep_kev=0.0, n_dropped=0,   # own hits (hit particles only)
+        primary_hits=0, kinks_before_hit=[],   # SR primary only: own real hits, own daughters born before them
+        primary_kink=False,                    # a kink of an SR primary before one of its own real hits
     )
 
-def grow_tree(ev, i, edep_kev, dropped, nodes):
+def grow_tree(ev, i, edep_kev, dropped, t_hit, nodes, own):
     """Walk from hit particle i up to the root (the while-loop).
 
-    nodes: {MCParticle index: node} of this event, shared by all hits. When the
+    own: region of the hit collection (own_region), for the labels.
+    t_hit: time of the hit [ns], for the kinks of a primary before its own hit.
+    nodes: {MCParticle index: node} of this event and collection, shared by all its hits. When the
     walk reaches a node that was already walked (an existing leg), it stops:
     the rest of the leg up to the root is already there.
     """
     if i not in nodes:
-        nodes[i] = make_node(ev, i, "chain")
+        nodes[i] = make_node(ev, i, "chain", own)
     leaf = nodes[i]
     leaf["n_hits"] += 1
     leaf["edep_kev"] += edep_kev
     leaf["n_dropped"] += dropped
+
+    # real hit of the SR primary itself: its own daughters born before the hit are its kinks on the way to the hit
+    # (an attributed hit, producedBySecondary, was made by a dropped secondary: no kinks, it stays unres_dropped)
+    if not dropped and is_sr_primary(ev, i):
+        leaf["primary_hits"] += 1
+        for s in daughters_before(ev, i, t_hit):
+            s = int(s)
+            if s not in nodes:
+                nodes[s] = make_node(ev, s, "sibling", own)
+                nodes[s]["parent"] = i
+            nodes[s]["primary_kink"] = True
+            if s not in leaf["kinks_before_hit"]:
+                leaf["kinks_before_hit"].append(s)
 
     while True:
         node = nodes[i]
@@ -235,11 +325,11 @@ def grow_tree(ev, i, edep_kev, dropped, nodes):
             for s in older_siblings(ev, i, q):
                 s = int(s)
                 if s not in nodes:
-                    nodes[s] = make_node(ev, s, "sibling")
+                    nodes[s] = make_node(ev, s, "sibling", own)
                     nodes[s]["parent"] = q
                 node["siblings_before"].append(s)
         if q not in nodes:
-            nodes[q] = make_node(ev, q, "chain")
+            nodes[q] = make_node(ev, q, "chain", own)
         if i not in nodes[q]["children"]:
             nodes[q]["children"].append(i)
         i = q
@@ -249,13 +339,13 @@ def vertex_case(node):
     """classification of one vertex (particle) of a tree"""
     if node["root_status"] == "broken":
         return "unres_dropped"      # born in the simulation, but its parent was not stored
-    if node["label"] in ("mdi", "other"):   # other = outside MDI and DCH (e.g. backscatter)
+    if node["label"] in ("mdi", "other"):   # other = outside MDI and the own subdetector (e.g. backscatter)
         return f"hit_{'ancestor' if node['role'] == 'chain' else 'sibling'}_{node['label']}"
-    return node["label"]                    # dch or injection
+    return node["label"]                    # own region (e.g. dch) or injection
 
 
-def split_trees(nodes, file_name, event):
-    """group the nodes of one event by the root of their tree (one tree per root photon)"""
+def split_trees(nodes, file_name, event, coll):
+    """group the nodes of one event (one hit collection) by the root of their tree (one tree per root photon)"""
     def root_of(i):
         while nodes[i]["parent"] is not None:
             i = nodes[i]["parent"]
@@ -265,21 +355,31 @@ def split_trees(nodes, file_name, event):
     for i, n in nodes.items():
         n["case"] = vertex_case(n)
         r = root_of(i)
-        t = trees.setdefault(r, dict(file=file_name, event=event, root=r, root_status=nodes[r]["root_status"],
-                                     nodes={}, cases=Counter()))
+        t = trees.setdefault(r, dict(file=file_name, event=event, coll=coll, root=r, root_status=nodes[r]["root_status"],
+                                     n_primary_hits=nodes[r]["primary_hits"], nodes={}, cases=Counter()))
         t["nodes"][i] = n
         t["cases"][n["case"]] += 1
     return list(trees.values())
 
 
 def hit_summary(trees):
-    """per hit: which vertex cases are on its path (chain + older siblings)"""
+    """per hit: which vertex cases are on its path (chain + older siblings).
+    Real hits of the SR primary itself: primary_hit+<cases of its kinks before the hit>, or primary_hit_nokink
+    (the kinks are those before any of its hits: for a primary with several hits, a kink between two
+    of them counts for all of them)"""
     out = Counter()
     for t in trees:
         nodes = t["nodes"]
         for leaf in nodes.values():
             n_hits = leaf["n_hits"]
             if n_hits == 0:
+                continue
+            real = leaf.get("primary_hits", 0)      # (trees written before 2026-11-06 have no primary fields)
+            if real:
+                if n_hits > real:
+                    out["unres_dropped"] += n_hits - real      # its attributed (producedBySecondary) hits
+                cases = {nodes[s]["case"] for s in leaf["kinks_before_hit"]} & set(HIT_CASES)
+                out["+".join(["primary_hit"] + sorted(cases)) if cases else "primary_hit_nokink"] += real
                 continue
             chain = [leaf["idx"]]
             while nodes[chain[-1]]["parent"] is not None:
@@ -288,7 +388,7 @@ def hit_summary(trees):
             if leaf["n_dropped"] or len(chain) == 1 or "unres_dropped" in cases:
                 key = "unres_dropped"
             elif not cases & set(HIT_CASES):
-                key = "unres_nomdi"     # path has only dch / injection vertices
+                key = "unres_nomdi"     # path has only own-region (e.g. dch) / injection vertices
             else:
                 key = "+".join(sorted(cases & set(HIT_CASES)))
             out[key] += n_hits
@@ -304,7 +404,7 @@ def copy_parameters(old, new):
             new.put_parameter(key, old.get_parameter(key, as_type=typ), as_type=typ)
 
 
-def skim_frame(frame, keep, coll):
+def skim_frame(frame, keep, colls):
     new = podio.Frame()
     copy_parameters(frame, new)
     old_mc = frame.get("MCParticles")
@@ -324,15 +424,19 @@ def skim_frame(frame, keep, coll):
             if q.getObjectID().index in remap:
                 muts[remap[old]].addToDaughters(muts[remap[q.getObjectID().index]])
 
-    # hits of coll: every linked particle is a tree node, so in keep
-    out = edm4hep.SimTrackerHitCollection()
-    for h in frame.get(coll):
-        m = h.clone(False)
-        p = h.getParticle()
-        if p.isAvailable():
-            m.setParticle(muts[remap[p.getObjectID().index]])
-        out.push_back(m)
-    new.put(out, coll)
+    def relink(src, dst):
+        """point dst (a new hit) to the new copy of the particle of src, if it has one"""
+        p = src.getParticle()
+        if p.isAvailable():                         # every linked particle is a tree node, so in keep
+            dst.setParticle(muts[remap[p.getObjectID().index]])
+
+    for coll in colls:
+        out = edm4hep.SimTrackerHitCollection()
+        for h in frame.get(coll):
+            m = h.clone(False)
+            relink(h, m)
+            out.push_back(m)
+        new.put(out, coll)
 
     if "EventHeader" in frame.getAvailableCollections():
         header = edm4hep.EventHeaderCollection()
@@ -343,7 +447,7 @@ def skim_frame(frame, keep, coll):
     return new
 
 
-def skim_file(path, keeps, coll, write_metadata):
+def skim_file(path, keeps, colls, write_metadata):
     """keeps: list of kept MCParticle indices, one per event (same order as uproot).
     Returns (reader, [(frame, category)]); nothing is written, so a file that fails
     half way leaves no partial events in the output. Keep the reader alive until written."""
@@ -351,7 +455,7 @@ def skim_file(path, keeps, coll, write_metadata):
     events = list(reader.get("events"))
     if len(events) != len(keeps):
         raise RuntimeError(f"podio reads {len(events)} events, uproot {len(keeps)}")
-    frames = [(skim_frame(frame, keep, coll), "events") for frame, keep in zip(events, keeps)]
+    frames = [(skim_frame(frame, keep, colls), "events") for frame, keep in zip(events, keeps)]
     for cat in ("runs", "metadata"):
         if cat in reader.categories and (cat == "runs" or write_metadata):
             frames += [(frame, cat) for frame in reader.get(cat)]
@@ -364,128 +468,38 @@ def write_frames(writer, frames):
 
 
 # ---------------------------------------------------------------------------
-# Plot the maps
-# ---------------------------------------------------------------------------
-def first_kinks_only(storage):
-    """The trees as the maps need them with --first-kink-only: per tree (one root photon of one event)
-    the kinks (older siblings) are cut to the first kink of any region and the first kink in the MDI
-    (the same vertex if the first kink is in the MDI); the ancestors (chain vertices) stay as they are.
-    "First" = smallest production time. If the first vertex in the MDI of a tree is an ancestor (a
-    black one, born at or before the first kink in the MDI), the tree has no kink in the MDI to plot.
-    Only a view for plotting: the trees of the storage are not changed.
-    """
-    out = []
-    for t in storage:
-        nodes = t["nodes"]
-        kinks = [n for n in nodes.values() if n["role"] == "sibling"]
-        keep = set()
-        if kinks:
-            keep.add(min(kinks, key=lambda n: n["t"])["idx"])           # first kink of any region
-        mdi = [n for n in nodes.values() if n["case"] in ("hit_ancestor_mdi", "hit_sibling_mdi")]
-        if mdi:
-            first_mdi = min(mdi, key=lambda n: (n["t"], n["case"] != "hit_ancestor_mdi"))   # a tie goes to the ancestor
-            if first_mdi["case"] == "hit_sibling_mdi":
-                keep.add(first_mdi["idx"])                              # first kink in the MDI
-            else:                                                       # first vertex in the MDI is an ancestor:
-                keep = {i for i in keep if nodes[i]["case"] != "hit_sibling_mdi"}   # no orange kink for this tree
-        out.append(dict(t, nodes={i: n for i, n in nodes.items() if n["role"] != "sibling" or i in keep}))
-    return out
-
-
-def plot_maps(storage, coll, output_dir, tag, first_kink_only=False):
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    from matplotlib.ticker import MultipleLocator
-
-    title_tag = tag
-    if first_kink_only:
-        storage = first_kinks_only(storage)
-        tag += "_first_kink"
-
-    pts = {case: [] for case in CASE_COLORS}
-    for t in storage:
-        for n in t["nodes"].values():
-            if n["label"] in PLOT_LABELS and n["case"] in pts:   # each vertex once, equal weight
-                pts[n["case"]].append((n["x"], n["y"], n["z"], math.hypot(n["x"], n["y"])))   # (unres_dropped is not plotted)
-
-    for view, (a, b) in {"xy": (0, 1), "xz": (2, 0), "zr": (2, 3)}.items():     # columns of pts: x, y, z, r
-        fig, axes = plt.subplots(1, 2, figsize=(12, 5.5))
-        for ax, zoom in zip(axes, (False, True)):
-            for case, color in CASE_COLORS.items():
-                v = np.array(pts[case]).reshape(-1, 4)
-                ax.scatter(v[:, a], v[:, b], s=CASE_SIZE.get(case, 8), color=color, edgecolors="none", alpha=0.7,
-                           zorder=CASE_ZORDER.get(case, 1), label=f"{CASE_LEGEND[case]} ({len(v)})")
-            if view == "xz":                        # MDI region outline
-                kw = dict(color="#888888", lw=0.8)
-                ax.plot([-IP_ZMAX, IP_ZMAX, IP_ZMAX, -IP_ZMAX, -IP_ZMAX], [IP_RMAX, IP_RMAX, -IP_RMAX, -IP_RMAX, IP_RMAX], **kw)
-                zz = np.array([-LEG_ZMAX, LEG_ZMAX])
-                for sign in (1, -1):
-                    for off in (LEG_RMAX, -LEG_RMAX):
-                        ax.plot(zz, sign * HALF_CROSSING * zz + off, **kw)
-                    zc = sign * np.array([CRYO_ZMIN, CRYO_ZMIN, LEG_ZMAX, LEG_ZMAX, CRYO_ZMIN])
-                    ax.plot(zc, [-CRYO_RMAX, CRYO_RMAX, CRYO_RMAX, -CRYO_RMAX, -CRYO_RMAX], **kw)
-            if view == "zr":                        # MDI region outline in (z, r): the two legs coincide
-                kw = dict(color="#888888", lw=0.8)
-                ax.plot([-IP_ZMAX, -IP_ZMAX, IP_ZMAX, IP_ZMAX], [0, IP_RMAX, IP_RMAX, 0], **kw)
-                zz = np.linspace(-LEG_ZMAX, LEG_ZMAX, 201)
-                ax.plot(zz, HALF_CROSSING * abs(zz) + LEG_RMAX, **kw)
-                ax.plot(zz, np.maximum(0, HALF_CROSSING * abs(zz) - LEG_RMAX), **kw)
-                for sign in (1, -1):
-                    zc = sign * np.array([CRYO_ZMIN, CRYO_ZMIN, LEG_ZMAX, LEG_ZMAX])
-                    ax.plot(zc, [0, CRYO_RMAX, CRYO_RMAX, 0], **kw)
-            if zoom:
-                if view == "xy":
-                    ax.set_xlim(-300, 300), ax.set_ylim(-300, 300)
-                else:
-                    ax.set_xlim(-LEG_ZMAX - 100, LEG_ZMAX + 100), ax.set_ylim(-250 if view == "xz" else 0, 250)
-                ax.set_title("zoom on the MDI region")
-            else:
-                ax.set_title("all plotted vertices")
-                ax.legend(loc="upper right", fontsize=9)
-            ax.set_xlabel("xyzr"[a] + " [mm]")
-            ax.set_ylabel("xyzr"[b] + " [mm]")
-            ax.grid(color="#e0e0e0", lw=0.5)
-            if (view, zoom) in GRID_STEPS:          # finer grid: a gridline every step, labels stay at the default ticks
-                for axis, step in zip((ax.xaxis, ax.yaxis), GRID_STEPS[view, zoom]):
-                    axis.set_minor_locator(MultipleLocator(step))
-                ax.grid(which="both", color="#e0e0e0", lw=0.5)
-                ax.tick_params(which="minor", length=0)
-        fig.suptitle(f"vertices relevant to {coll} hits, {view}, {title_tag}" + (", first kinks only" if first_kink_only else ""))
-        fig.tight_layout()
-        out = os.path.join(output_dir, f"vertex_map_{view}_{tag}.png")
-        fig.savefig(out, dpi=130)
-        plt.close(fig)
-        print("wrote", out)
-
-
-# ---------------------------------------------------------------------------
 # Process one file
 # ---------------------------------------------------------------------------
 def trace_file(f, args):
-    """Trees and kept MCParticle indices of one file; returns (trees, keeps, n_mc, n_no_particle)"""
+    """Trees and kept MCParticle indices of one file;
+    returns (colls, trees, keeps, n_mc, n_no_particle), colls = the traced collections of this file
+    and n_no_particle = Counter {collection: hits without particle link}"""
     name = os.path.basename(f)
     check_complete(f)
+    colls = find_hit_collections(uproot.open(f)["events"], args.hit_collections)
     storage, keeps = [], []
-    n_mc = n_no_particle = 0
-    for e, ev in enumerate(read_events(f, args.n_events, args.collection)):
-        # create the hit family tree for each hit
-        nodes = {}
-        d = ev["hits"]
-        for h in range(len(d["p"])):
-            i = int(d["p"][h])
-            if i < 0:
-                n_no_particle += 1
-                continue
-            dropped = bool((d["q"][h] >> BIT_PRODUCED_BY_SECONDARY) & 1)
-            grow_tree(ev, i, 1e6 * float(d["e"][h]), dropped, nodes)
-        trees = split_trees(nodes, name, e)
+    n_mc = 0
+    n_no_particle = Counter()
+    for e, ev in enumerate(read_events(f, args.n_events, colls)):
+        # create the hit family trees of each collection (own nodes: a particle with hits in two collections is in both)
+        trees = []
+        for coll, d in ev["hits"].items():
+            nodes = {}
+            own = own_region(coll)                  # the labels are relative to the subdetector of the collection
+            for h in range(len(d["p"])):
+                i = int(d["p"][h])
+                if i < 0:
+                    n_no_particle[coll] += 1
+                    continue
+                dropped = bool((d["q"][h] >> BIT_PRODUCED_BY_SECONDARY) & 1)
+                grow_tree(ev, i, 1e6 * float(d["e"][h]), dropped, float(d["t"][h]), nodes, own)
+            trees += split_trees(nodes, name, e, coll)
         storage += trees
 
-        # every particle in the trees of this event -> retained MCParticles
-        keeps.append(sorted(i for t in trees for i in t["nodes"]))
+        # every particle in the trees of this event (all collections) -> retained MCParticles
+        keeps.append(sorted({i for t in trees for i in t["nodes"]}))
         n_mc += len(ev["pdg"])
-    return storage, keeps, n_mc, n_no_particle
+    return colls, storage, keeps, n_mc, n_no_particle
 
 
 # ---------------------------------------------------------------------------
@@ -493,6 +507,11 @@ def trace_file(f, args):
 # ---------------------------------------------------------------------------
 def main():
     args = parse_args()
+    if args.hit_collections != "all":               # the plot collection is always traced
+        names = [w for w in args.hit_collections.split(",") if w]
+        if args.collection not in names:
+            names.append(args.collection)
+        args.hit_collections = ",".join(names)
     files = sorted(glob.glob(os.path.join(args.input_dir, "*.root")))
     last = None if args.n_files is None else args.first_file + args.n_files
     files = files[args.first_file:last]
@@ -508,7 +527,8 @@ def main():
 
     storage = []                                    # all hit-family trees of the input_dir
     n_mc = n_keep = 0
-    n_no_particle = 0
+    n_no_particle = Counter()                       # {collection: hits without particle link}
+    all_colls = set()                               # traced collections over the processed files
     n_done = 0
     skipped = []                                    # (file, reason): truncated or corrupt inputs
     for k, f in enumerate(files):
@@ -516,9 +536,9 @@ def main():
         # a file that fails anywhere is skipped as a whole: nothing of it enters storage or the skim
         out_file = None
         try:
-            trees, keeps, mc, no_part = trace_file(f, args)
+            colls, trees, keeps, mc, no_part = trace_file(f, args)
             if not args.no_skim:
-                reader, frames = skim_file(f, keeps, args.collection, write_metadata=(n_done == 0))
+                reader, frames = skim_file(f, keeps, colls, write_metadata=(n_done == 0))
                 if args.merge:
                     write_frames(writer, frames)
                 else:
@@ -538,6 +558,7 @@ def main():
         n_mc += mc
         n_keep += sum(len(keep) for keep in keeps)
         n_no_particle += no_part
+        all_colls |= set(colls)
         n_done += 1
         print(f"[{k + 1}/{len(files)}] {name}: {len(storage)} trees so far", flush=True)
     if writer is not None:
@@ -553,22 +574,47 @@ def main():
         raise SystemExit("no input file could be processed")
 
     # output: one tree per line
-    out = os.path.join(args.output_dir, f"trees_{tag}.jsonl")
+    out = out_trees = os.path.join(args.output_dir, f"trees_{tag}.jsonl")
     with open(out, "w") as fo:
         for t in storage:
             fo.write(json.dumps(t, default=sorted) + "\n")
     print("wrote", out)
 
     # summary
-    print(f"\ntrees {len(storage)}, {sum(len(t['nodes']) for t in storage)} vertices")
-    print(f"  vertex cases:", dict(sum((t["cases"] for t in storage), Counter())))
-    print(f"  {args.collection} hits by the cases on their path:", dict(hit_summary(storage)))
-    if n_no_particle:
-        print("  hits without particle link:", n_no_particle)
+    print(f"\ntrees {len(storage)}, {sum(len(t['nodes']) for t in storage)} vertices, {len(all_colls)} hit collections")
+    summary = {}                                    # per collection, also written to collections_<tag>.json
+    for coll in sorted(all_colls):
+        ct = [t for t in storage if t["coll"] == coll]
+        summary[coll] = dict(own_region=own_region(coll), trees=len(ct),
+                             vertices=sum(len(t["nodes"]) for t in ct),
+                             hits=sum(n["n_hits"] for t in ct for n in t["nodes"].values()),
+                             hits_without_particle=n_no_particle[coll],
+                             primary_hits=sum(t["n_primary_hits"] for t in ct),
+                             trees_with_primary_hits=sum(t["n_primary_hits"] > 0 for t in ct),
+                             primary_kinks=sum(n["primary_kink"] for t in ct for n in t["nodes"].values()),
+                             regions=dict(Counter(n["region"] for t in ct for n in t["nodes"].values())),
+                             cases=dict(sum((Counter(t["cases"]) for t in ct), Counter())),
+                             hit_paths=dict(hit_summary(ct)))
+        s = summary[coll]
+        print(f"  {coll} (own region {s['own_region']}): {s['trees']} trees, {s['vertices']} vertices, {s['hits']} hits"
+              + (f", {s['hits_without_particle']} hits without particle link" if s["hits_without_particle"] else "")
+              + f", {s['primary_hits']} real hits of SR primaries ({s['trees_with_primary_hits']} trees, "
+                f"{s['primary_kinks']} primary kinks)")
+        if s["trees"]:
+            print(f"    vertex cases: {s['cases']}\n    hits by the cases on their path: {s['hit_paths']}")
+    out = os.path.join(args.output_dir, f"collections_{tag}.json")
+    with open(out, "w") as fo:
+        json.dump(summary, fo, indent=1)
+    print("wrote", out)
+
+    # --collection (DCH) in detail
+    dch = [t for t in storage if t["coll"] == args.collection]
+    print(f"\n{args.collection}: {len(dch)} trees, {sum(len(t['nodes']) for t in dch)} vertices")
+    print(f"  vertex cases:", dict(sum((t["cases"] for t in dch), Counter())))
+    print(f"  {args.collection} hits by the cases on their path:", dict(hit_summary(dch)))
     print(f"files processed {n_done} of {len(files)}")
     print(f"MCParticles kept {n_keep} of {n_mc} ({100 * n_keep / max(n_mc, 1):.2f}%)")
-
-    plot_maps(storage, args.collection, args.output_dir, tag)
+    print(f"maps: python3 plot_merged_maps.py {out_trees} <plot dir>")
 
 
 if __name__ == "__main__":

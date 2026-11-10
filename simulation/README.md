@@ -73,31 +73,39 @@ ddsim --steeringFile $FCCCONFIG/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v0
 
 ### Run the simulation
 
-Example for processing through the ALLEGRO detector simulation an incoherent pair creation (IPC) file `pairs.pairs` (a text file with all particles' positions) generated with GuineaPig:
+Example recipe for the synchrotron radiation (SR) halo background (edm4hep `.root` files, 1 event per file, 1 file ~ 1/2020 BX) in the ALLEGRO detector, in three steps:
+simulate with `submit_bkg.py`, trace the tracker hits back to the MDI with `hit_traceback.py`, and compute the occupancy with `occupancy.py`.
 
 ```bash
-ddsim -N -1 \
- --inputFile /eos/experiment/fcc/users/a/aciarma/pairs/4IP_2024may29/Z/data1/pairs.pairs \
- --steeringFile mySteeringFile.py \
- --compactFile $K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml \
- --outputFile sim_IPC_test.root
-```
-
-simulation/submit_bkg.py serves as a generalization of the previous submit_pairs.py, which submits an HTCondor job for every background file submitted, each containing N events. 
-The generalized script allows the processing of .root IPC and SR files in the new edm4hep format, and leverages embedded metadata for weight calculations etc.
-
-Example usage:
-```sh
-# lxplus!! , and NOT on EOS directory (condor submit will complain)
+# 1. Simulation (lxplus!!, and NOT on an EOS directory: condor submit will complain)
 python3 $BIB_STUDIES/simulation/submit_bkg.py \
--i /eos/experiment/fcc/users/j/jaeyserm/bdsim/LCC_v2short_halo \
--t ALLEGRO_SR_halo \
--c $K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml \
--k /eos/user/<u>/<user>/k4geo \
--n 10
+ -i /eos/experiment/fcc/users/j/jaeyserm/bdsim/LCC_v2short_halo \
+ -t ALLEGRO_SR_halo \
+ -c $K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml \
+ -s mySteeringFile.py \
+ -k /eos/user/<u>/<user>/k4geo \
+ -o <path/to/sim/output> \
+ -n 10
+condor_submit <tag>.cmd   # the command is printed at the end of the submission
+
+# 2. Traceback of the VTX, DCH and SiWr hits to the origin in the MDI
+# (Key4hep nightly that wrote the files; in a condor/bash script, run `set --` before `source`)
+python3 $BIB_STUDIES/traceback/hit_traceback.py <path/to/sim/output> <path/to/traceback/output> --n-files 100 --merge
+
+# 3. Occupancy of the DCH: the whole input is one readout window (31 BX x 2020 files/BX)
+python3 $BIB_STUDIES/python/occupancy.py -i <path/to/sim/output> -n 62620 -s DCH --sample SR_halo \
+ -d $BIB_STUDIES/detectors_dicts/ALLEGRO_o1_v03_DetectorDimensions.json --bx_per_event 1/2020
 ```
 
-Key input arguments are:
+Notes on the recipe:
+- Step 1: `mySteeringFile.py` is the BIB steering file prepared above (detailed EM treatment, `edep0` tracker filter). The crossing angle boost is applied by default (`--crossingAngleBoost 0.015`), as the SR samples are given in the beamline frame. Use `-n -1` to simulate all the files.
+- Step 2: the traceback finds where in the MDI the background that hits the detector comes from. For every VTX, DCH or SiWr hit it follows the parent chain of the hit particle up to the primary SR photon, and records the earlier scatter points of the photon ancestors (the "kinks", where the photon was deflected or produced a shower). Every vertex is labelled by region (injection, MDI, the sub-detector itself or other), and a vertex-map plot of the MDI scatter points can then be drawn. The input has to be the ddsim output with all particles kept (the default of `submit_bkg.py`). Per run it writes `trees_<tag>.jsonl`, `collections_<tag>.json` and the skimmed EDM4hep file (MCParticles + traced tracker hits only), and skips truncated files (`skipped_<tag>.txt`). Process at most ~100 files per job (`--first-file` / `--n-files`), since the podio reader slows down with many files. The vertex maps are drawn from the trees with `traceback/plot_merged_maps.py`. See `traceback/NOTES.md`.
+- Step 3: use `-s SiWrB`/`SiWrD` or the vertex detector names of the dictionary for the other sub-detectors, and `--per_event` instead of the window logic for overlaid/digitized files (see [Computing the occupancy](#computing-the-occupancy)). The error is the leave-one-event-out jackknife.
+
+`submit_bkg.py` generalizes the previous `submit_pairs.py`: it submits an HTCondor job for every background file, each containing N events.
+It processes the `.root` IPC and SR files in the new edm4hep format (and the `.pairs`/`.hepevt` IPC files), and leverages the embedded metadata for the weight calculations etc.
+
+Key input arguments of `submit_bkg.py` are:
 - `-i` / `--input` input folder with the background files (`.pairs`, `.hepevt` or edm4hep `.root`)
 - `-o` / `--output` output folder for the simulated files
 - `-t` / `--tag` tag of the dataset, used to name the submission folder and the `.cmd` / `.sh` files
@@ -118,69 +126,6 @@ Notes:
 - Condor accepts at most 20000 jobs per submission: for larger samples one `<tag>_part<N>.cmd` file is written per slice of 20000 files, and each of them has to be submitted.
 - For `.root` inputs, the number of background events per file is read and a summary of the normalisation (events, files, bunch crossings covered) is printed at submission time.
 - A `<tag>.sh` script to run the same jobs locally is also created.
-
-
-### Running the overlay
-Before the digitization step, it is important to overlay the ddsim simulation output for which we are running our BIB studies to have a comprehensive picture of the detected occupancy for a physics event produced at BX 0 for different subdetectors with diffreent readout windows.
-
-The overlay is done with the `OverlayTiming` algorithm, configured in `overlay.py` and run with `k4run`.
-It overlays the background onto the tracker hits of the DCH, silicon wrapper (`SiWrD`, `SiWrB`) and vertex (barrel, endcap) collections, 
-with a different time window per sub-detector (`[-400, 400]` ns for the DCH, `[0, 25]` ns for the others).
-Calorimeter hits are not overlaid.
-The hits are saved in new `Overlay*` collections, together with the `OverlayMCParticles`.
-
-Key input arguments of `overlay.py` are:
-- `--inputFile` the physics simulation input
-- `--outputFile` the overlaid EDM4hep output
-- `--backgroundFilesPath` directory containing the background `.root` files (searched recursively)
-- `--numEvents` the number of physics events to overlay (`-1` for all)
-
-The bunch train (31 BX, 27 ns apart, `NBunchtrain` and `Delta_t`), the BX of the physics event (`PhysicsBX = 16`) and the number of background events per BX (`NumberBackground = [1]`) are set in `overlay.py`.
-The physics event is placed at `PhysicsBX`, and every other BX in the train gets `NumberBackground` background events.
-
-Note: `NumberBackground` is the number of background *events* per BX, which is not necessarily the number of BX that one background event represents.
-Check the normalisation printed by `submit_bkg.py` before interpreting the overlaid occupancy:
-- SR halo: one file is about 1/2020 BX (from the metadata `nPrimariesTotal` / `bunchIntensity`).
-- IPC: the number of BX per file depends on the sample. Check the file's `bw_scale` metadata and the number of events it holds (e.g. the `_10KBX` sample has 10 events per file, each ~1100 pairs = 1 BX, so 10 BX per file).
-
-Caveats:
-- If the physics input is itself a background-like event (e.g. an IPC event), `PhysicsBX` adds a second BX worth of particles on top of the 41 background slots. Use the `Overlay*` hits with `isOverlay()` to count background only.
-- If the physics input file is also in `--backgroundFilesPath`, its events can be drawn again as background (`AllowReusingBackgroundFiles = True`). Keep the physics input outside that directory.
-
-#### submit_overlay.py
-
-`submit_overlay.py` generates the executable and the HTCondor submit file for a single `overlay.py` run
-(the nightlies are used, since the `TimeWindows` property is not available in the stable releases),
-and prints the command to launch it.
-
-Example usage:
-```sh
-# lxplus!! , and NOT on EOS directory (condor submit will complain)
-python3 $BIB_STUDIES/simulation/submit_overlay.py \
---inputFile <path/to/physics_sim.root> \
---backgroundFilesPath <path/to/background/files> \
---outputFile <path/to/overlaid.root>
-```
-
-Other useful options are:
-- `--numEvents` the number of physics events to overlay (`-1` for all)
-- `--jobFlavour` condor job flavour (default `tomorrow`)
-- `--requestMemory` condor memory request (default `8GB`)
-- `--tag` base name of the generated `.sh` / `.cmd` files, written in the current directory (default: from `--outputFile`)
-
-
-### Running the digitization
-
-To run digitization, please refer always to the FCC-config instructions for a given detector.
-
-Currently available options:
-- [ALLEGRO_o1_v02](https://github.com/HEP-FCC/FCC-config/tree/main/FCCee/FullSim/ALLEGRO/ALLEGRO_o1_v02#running-the-digitization-and-reconstruction)
-- [ALLEGRO_o1_v03](https://github.com/HEP-FCC/FCC-config/tree/main/FCCee/FullSim/ALLEGRO/ALLEGRO_o1_v03#running-the-digitization-and-reconstruction)
-- [IDEA_o1_v03](https://github.com/HEP-FCC/FCC-config/tree/main/FCCee/FullSim/IDEA/IDEA_o1_v03#running-the-digitization-and-reconstruction)
-
-
-Note: this process run also some reconstruction by default, which can be computationally intensive and memory demanding.
-For specific studies, some algorithms that aren't needed can be turned off (e.g. `--doTopoClustering=false`).
 
 
 ### Computing the occupancy
@@ -226,7 +171,7 @@ Other useful options are:
 Notes:
 - The total and per-layer occupancy are printed, and saved in a `<sample>_<N>evt[_perEvent]_<subDetector>_<input>.root` file in the current directory.
 - The window length is not extrapolated: if the input covers fewer (more) BX than `--window_bx`, the occupancy is under(over)estimated, and this bias is not included in the error.
-- Check the BX covered by one event before interpreting the number (see the normalisation notes in the overlay section).
+- Check the BX covered by one event before interpreting the number (printed by `submit_bkg.py` at submission: SR halo, one file is about 1/2020 BX; IPC, check the `bw_scale` metadata and the number of events per file).
 - Pixel detectors: the cellID identifies a pixel but the dictionary counts sensors, so the occupancy is fired pixels / sensors (a warning is printed).
 - The `drawhits.py` occupancy is instead computed per event (see the [plotting docs](../plotting/README.md)).
 
