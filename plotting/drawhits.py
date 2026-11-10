@@ -12,9 +12,9 @@ import ROOT
 
 from particle import Particle
 
-from constants import C_MM_NS
-from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict, is_calo, is_endcap, DetFilePath
-from visualization import setup_root_style, draw_hist, draw_map
+from constants import C_MM_NS, IPC_BX_RATE_MHZ, IPC_PIXELS_PER_CLUSTER
+from helpers import path_to_list, sorted_n_files, load_json, layer_number_from_string, simplify_dict, is_calo, is_endcap, DetFilePath, print_warning, print_header, is_pixel, write_command_line
+from visualization import setup_root_style, draw_hist, draw_map, draw_overlay
 
 
 ######################################
@@ -60,10 +60,10 @@ def parse_args():
                     help='hits collection to read, overriding the one in the detector/assumptions dict (e.g. OverlayDCHCollection)')
     parser.add_argument('-p', '--draw_hists',
                     action="store_true",
-                    help='activate drawing of 1D histograms')
+                    help='export histogram PDFs (does not affect ROOT histogram writing)')
     parser.add_argument('-m', '--draw_maps',
                     action="store_true",
-                    help='activate drawing of number of maps plots')
+                    help='export map PDFs (does not affect ROOT histogram writing)')
     parser.add_argument('-r','--bin_width_r',
                     type=int, default=None,
                     help='bin width for radius r in mm')
@@ -80,8 +80,11 @@ def parse_args():
                     action="store_true",
                     help='Skip plots per single layer, useful for sub-detectors with many layers (e.g. drift chamber)')
     parser.add_argument('--integration_time',
-                    type=int, default=1,
-                    help='Integration time in  number of events, to estimate hits pile-up.')
+                    type=int, default=4,
+                    help='Integration window in number of events (1 event = 1 BX), opened by the first hit in a cell. Used to estimate pile-up: extra events with a hit in the same cell within the window. 1 disables it.')
+    parser.add_argument('--bc_window',
+                    type=int, default=40,
+                    help="Number of events (1 event = 1 BX) for the distribution of the time since the previous hit in the same module (in the same cell for sub-detectors without a module field, e.g. the drift chamber). -1 disables it.")
     parser.add_argument('--energy_per_layer',
                     action="store_true",
                     help='Save histograms of hit energy per layer.')
@@ -90,7 +93,10 @@ def parse_args():
                     help='run on digitized hits (requires to pass also the assumptions dict with info on the digitized collection).')
     parser.add_argument('--e_cut',
                     action='store_true',
-                    help='apply energy cut (requires to pass also the assumptions dict with energy threshold).')
+                    help='apply an energy threshold on the hits: hits with an energy below E_thr_MeV are skipped in all the histograms. '
+                         'It is the energy of the hit itself (deposited energy EDep for tracker hits, energy for calorimeter hits), '
+                         'not the energy of the MC particle. E_thr_MeV is taken from the assumptions dict (requires to pass it too), '
+                         'per sub-detector or per layer (with --digi, from its "digitized_hits" entry).')
     parser.add_argument('--plot_primary',
                     action='store_true',
                     help='plot the primary particle and parent of the particle creating a hit/cluster '
@@ -119,6 +125,7 @@ bw_phi = options.bin_width_phi
 stat_box = options.stat_box
 skip_plot_per_layer = options.skip_layers
 integration_time = options.integration_time
+bc_window = options.bc_window
 energy_per_layer = options.energy_per_layer
 digi = options.digi
 e_cut = options.e_cut
@@ -194,10 +201,11 @@ else:
 #last protection: replace any space or special char in suffix_from_input with underscore
 suffix_from_input = "".join([c if c.isalnum() else "_" for c in suffix_from_input])
 
+print_header("Importing and reading files", oneline=True)
 list_files = path_to_list(input_path)
 list_input_files = sorted_n_files(list_files, n_files)
 
-print("Initializing the PODIO reader...")
+print("# Initializing the PODIO reader...")
 podio_reader = root_io.Reader(list_input_files)
 
 # Check if collection is valid and setup a cell ID decoder
@@ -319,32 +327,83 @@ if is_endcap(detector_type):    # Binning from -negative to positive layer numbe
 
 # Profile histograms
 histograms += [
-    h_hit_x_mm               := ROOT.TH1D(f"h_hit_x_mm_{collection}", f"h_hit_x_mm_{collection}; [mm] ; hits;", 10000, -x_range, x_range),
-    h_hit_y_mm               := ROOT.TH1D(f"h_hit_y_mm_{collection}", f"h_hit_y_mm_{collection}; [mm] ; hits;", 10000, -y_range, y_range),
-    h_hit_z_mm               := ROOT.TH1D(f"h_hit_z_mm_{collection}", f"h_hit_z_mm_{collection}; [mm] ; hits;", 10000, -z_range, z_range),
-    h_hit_r_mm               := ROOT.TH1D(f"h_hit_r_mm_{collection}", f"h_hit_r_mm_{collection}; [mm] ; hits;",10000, -r_range, r_range),
+    h_hit_x_mm               := ROOT.TH1D(f"h_hit_x_mm_{collection}", f"h_hit_x_mm_{collection}; [mm] ; hits;", 1000, -x_range, x_range),
+    h_hit_y_mm               := ROOT.TH1D(f"h_hit_y_mm_{collection}", f"h_hit_y_mm_{collection}; [mm] ; hits;", 1000, -y_range, y_range),
+    h_hit_z_mm               := ROOT.TH1D(f"h_hit_z_mm_{collection}", f"h_hit_z_mm_{collection}; [mm] ; hits;", 1000, -z_range, z_range),
+    h_hit_r_mm               := ROOT.TH1D(f"h_hit_r_mm_{collection}", f"h_hit_r_mm_{collection}; [mm] ; hits;",1000, -r_range, r_range),
     h_hit_eta                := ROOT.TH1D(f"h_hit_eta_{collection}", f"h_hit_eta_{collection}; [eta]; hits;", eta_bins*2, -eta_range, eta_range),
-    h_hit_E_MeV    := ROOT.TH1D(f"h_hit_E_MeV_{collection}", f"h_hit_E_MeV_{collection}; [MeV]; hits;", 500, 0, 50),
-    h_hit_E_keV    := ROOT.TH1D(f"h_hit_E_keV_{collection}", f"h_hit_E_keV_{collection}; [keV]; hits;", 500, 0, 500),
-    h_hit_E_eV     := ROOT.TH1D(f"h_hit_E_eV_{collection}", f"h_hit_E_eV_{collection}; [eV]; hits;", 500, 0, 1000),
-    h_hit_E_MeV_map := ROOT.TH2D(f"h_hit_E_MeV_map_{collection}", f"h_hit_E_MeV_map_{collection}; ; ; hits / events", 500, 0, 50, *layer_binning),
-    h_hit_E_keV_map := ROOT.TH2D(f"h_hit_E_keV_map_{collection}", f"h_hit_E_keV_map_{collection}; ; ; hits / events", 500, 0, 500, *layer_binning),
-    h_hit_E_eV_map := ROOT.TH2D(f"h_hit_E_eV_map_{collection}", f"h_hit_E_eV_map_{collection}; ; ; hits / events", 500, 0, 1000, *layer_binning),
-    h_hit_particle_E   := ROOT.TH1D(f"h_hit_particle_E_{collection}", f"h_hit_particle_E_{collection}; [E] ; hits;", 500, 0, 50),
-    h_hit_particle_pt  := ROOT.TH1D(f"h_hit_particle_pt_{collection}", f"h_hit_particle_pt_{collection}; [E/c] ; hits;", 500, 0, 50),
-    h_hit_particle_eta := ROOT.TH1D(f"h_hit_particle_eta_{collection}", f"h_hit_particle_eta_{collection}; [eta] ; hits;", 100, -5, 5)
+    h_hit_E_MeV    := ROOT.TH1D(
+        f"h_hit_E_MeV_{collection}",
+        f"#splitline{{h_hit_E_MeV_{collection}}}{{Energy deposited by the hit in the active detector material}}; [MeV]; hits;",
+        500,
+        0,
+        50,
+    ),
+    h_hit_E_keV    := ROOT.TH1D(
+        f"h_hit_E_keV_{collection}",
+        f"#splitline{{h_hit_E_keV_{collection}}}{{Energy deposited by the hit in the active detector material}}; [keV]; hits;",
+        500,
+        0,
+        500,
+    ),
+    h_hit_E_eV     := ROOT.TH1D(
+        f"h_hit_E_eV_{collection}",
+        f"#splitline{{h_hit_E_eV_{collection}}}{{Energy deposited by the hit in the active detector material}}; [eV]; hits;",
+        500,
+        0,
+        1000,
+    ),
+    h_hit_E_MeV_map := ROOT.TH2D(f"h_hit_E_MeV_map_{collection}", f"h_hit_E_MeV_map_{collection}; deposited energy [MeV]; layer number; hits / events", 500, 0, 50, *layer_binning),
+    h_hit_E_keV_map := ROOT.TH2D(f"h_hit_E_keV_map_{collection}", f"h_hit_E_keV_map_{collection}; deposited energy [keV]; layer number; hits / events", 500, 0, 500, *layer_binning),
+    h_hit_E_eV_map := ROOT.TH2D(f"h_hit_E_eV_map_{collection}", f"h_hit_E_eV_map_{collection}; deposited energy [eV]; layer number; hits / events", 500, 0, 1000, *layer_binning),
+    h_hit_particle_E   := ROOT.TH1D(
+        f"h_hit_particle_E_{collection}",
+        f"#splitline{{h_hit_particle_E_{collection}}}{{Energy of the particle creating the hit}}; [GeV]; hits;",
+        500,
+        0,
+        50,
+    ),
+    h_hit_particle_pt  := ROOT.TH1D(
+        f"h_hit_particle_pt_{collection}",
+        f"#splitline{{h_hit_particle_pt_{collection}}}{{Transverse momentum of the particle creating the hit}}; [GeV]; hits;",
+        500,
+        0,
+        50,
+    ),
+    h_hit_particle_eta := ROOT.TH1D(
+        f"h_hit_particle_eta_{collection}",
+        f"#splitline{{h_hit_particle_eta_{collection}}}{{Pseudorapidity of the particle creating the hit}}; [eta]; hits;",
+        100,
+        -5,
+        5,
+    )
 ]
 
 # ID histogram - use alphanumeric labels, form https://root.cern/doc/master/hist004__TH1__labels_8C.html
 histograms += [ 
-    h_hit_particle_ID := ROOT.TH1D(f"h_hit_particle_ID_{collection}", f"h_hit_particle_ID_{collection}", 1, 0, 1),
-    h_hit_particle_ID_map := ROOT.TH2D(f"h_hit_particle_ID_map_{collection}", f"h_hit_particle_ID_map_{collection}; ; ; hits / events", 1, 0, 1, *layer_binning),
-    h_hit_particle_ID_E_MeV := ROOT.TH2D(f"h_hit_particle_ID_E_MeV_{collection}", f"h_hit_particle_ID_E_MeV_{collection}", 1, 0, 1, 500, 0, 50)
+    h_hit_particle_ID := ROOT.TH1D(
+        f"h_hit_particle_ID_{collection}",
+        f"#splitline{{h_hit_particle_ID_{collection}}}{{MC particle composition of hits, normalized to hits per event (not percent)}}; particle ID; hits / events",
+        1,
+        0,
+        1,
+    ),
+    h_hit_particle_ID_map := ROOT.TH2D(f"h_hit_particle_ID_map_{collection}", f"h_hit_particle_ID_map_{collection}; particle ID; layer number; hits / events", 1, 0, 1, *layer_binning),
+    h_hit_particle_ID_E_GeV := ROOT.TH2D(
+        f"h_hit_particle_ID_E_GeV_{collection}",
+        f"#splitline{{h_hit_particle_ID_E_GeV_{collection}}}{{MC particle type vs energy, normalized to hits per event (not percent)}}; particle ID; MC particle energy [GeV]; hits / events",
+        1,
+        0,
+        1,
+        500,
+        0,
+        50,
+    )
 ]
 
 h_hit_particle_ID.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
 h_hit_particle_ID_map.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
-h_hit_particle_ID_E_MeV.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
+h_hit_particle_ID_E_GeV.SetCanExtend(ROOT.TH1.kXaxis)   # Allow both axes to extend past the initial range
 
 h_hit_E_MeV_x_layer = {}
 if energy_per_layer:
@@ -361,27 +420,90 @@ histograms += [
 
 # Timing histograms
 histograms += [
-    h_hit_t := ROOT.TH1D(f"hist_hit_t_{collection}", f"hist_hit_t_{collection}", 200, 0, 20),
-    h_hit_t_corr_x_layer := ROOT.TH2D(f"hist_hit_t_corr_map_{collection}", f"hist_hit_t_{collection}; ; ; hits / events", 200, 0, 20, *layer_binning),
-    h_hit_t_corr := ROOT.TH1D(f"hist_hit_t_corr_{collection}", f"hist_hit_t_corr_{collection}", 200, -10, 10),
+    h_hit_t := ROOT.TH1D(f"hist_hit_t_{collection}", f"hist_hit_t_{collection}; timing [ns]; hits / events", 200, 0, 20),
+    h_hit_t_corr_x_layer := ROOT.TH2D(f"hist_hit_t_corr_map_{collection}", f"hist_hit_t_{collection}; timing - TOF [ns]; layer number; hits / events", 200, 0, 20, *layer_binning),
+    h_hit_t_corr := ROOT.TH1D(
+        f"h_hit_t_corr_{collection}",
+        f"#splitline{{h_hit_t_corr_{collection}}}{{hit time corrected for time-of-flight}}; timing - TOF [ns]; hits / events",
+        200,
+        -10,
+        10,
+    ),
 ]
 
 histograms += [
-    h_avg_hits_x_layer := ROOT.TH1D(f"h_avg_hits_x_layer_{collection}", f"h_avg_hits_x_layer_{collection};layer index;avg hits/evt", *layer_binning),
-    h_avg_firing_cells_x_layer := ROOT.TH1D(f"h_avg_firing_cells_x_layer_{collection}", f"h_avg_firing_cells_x_layer_{collection};layer index;avg cellsFired/evt", *layer_binning),
-    h_avg_occ_x_layer := ROOT.TH1D(f"h_avg_occ_x_layer_{collection}", f"h_avg_occ_x_layer_{collection};layer index;avg occupancy/evt [%]", *layer_binning),
+    h_avg_hits_x_layer := ROOT.TH1D(
+        f"h_avg_hits_x_layer_{collection}",
+        f"#splitline{{h_avg_hits_x_layer_{collection}}}{{Average hit count per layer, including repeated hits in the same cell/event}};layer index;avg hits/evt",
+        *layer_binning,
+    ),
+    h_avg_firing_cells_x_layer := ROOT.TH1D(
+        f"h_avg_firing_cells_x_layer_{collection}",
+        f"#splitline{{h_avg_firing_cells_x_layer_{collection}}}{{Average unique firing cells per layer, repeated hits in the same cell/event count once}};layer index;avg unique cells/evt",
+        *layer_binning,
+    ),
+    h_avg_occ_anyhit_x_layer := ROOT.TH1D(
+        f"h_avg_occ_anyhit_x_layer_{collection}",
+        f"#splitline{{h_avg_occ_anyhit_x_layer_{collection}}}{{Average layer occupancy from any-hit cells only, a cell counts once per event if it fires at least once}};layer index;avg occupancy/evt [%]",
+        *layer_binning,
+    ),
+    h_avg_occ_allhits_x_layer := ROOT.TH1D(
+        f"h_avg_occ_allhits_x_layer_{collection}",
+        f"#splitline{{h_avg_occ_allhits_x_layer_{collection}}}{{Average layer occupancy from all hit counts, every hit in a cell/event is counted}};layer index;avg occupancy/evt [%]",
+        *layer_binning,
+    ),
 ]
 
 # Occupancy histograms, defined as fraction of cells that fired
 # Requires that the total cells are correctly computed and stored in detector_dict
-h_occ_x_layer = {}
+h_occ_anyhit_x_layer = {}
+h_occ_allhits_x_layer = {}
 log_bins = np.hstack([0,np.logspace(-2,2,50)]) #add 0 value to log bins (to avoid underflow in some histos)
+allhits_occ_linear_bins = [100, 0, 100]
+histograms += [
+    h_occ_anyhit_x_layer_dist := ROOT.TH2D(
+        f"h_occ_anyhit_x_layer_dist_{collection}",
+        f"#splitline{{h_occ_anyhit_x_layer_dist_{collection}}}{{Per-event occupancy distribution from any-hit cells only, a cell counts once per event if it fires at least once}}; layer index; occupancy [%]; entries / events",
+        *layer_binning,
+        *allhits_occ_linear_bins
+    ),
+    h_occ_allhits_x_layer_dist := ROOT.TH2D(
+        f"h_occ_allhits_x_layer_dist_{collection}",
+        f"#splitline{{h_occ_allhits_x_layer_dist_{collection}}}{{Per-event occupancy distribution from all hit counts, every hit in a cell/event is counted}}; layer index; occupancy [%]; entries / events",
+        *layer_binning,
+        *allhits_occ_linear_bins,
+    ),
+]
 for l in layer_cells.keys():
-    h_occ_x_layer[l] = ROOT.TH1D(f"h_occ_x_layer{l}_{collection}", f"h_occ_x_layer{l}_{collection} ; fired cells / total layer cells [%];;", len(log_bins)-1, log_bins)
-    histograms += [h_occ_x_layer[l]]
+    h_occ_anyhit_x_layer[l] = ROOT.TH1D(
+        f"h_occ_anyhit_x_layer{l}_{collection}",
+        f"#splitline{{h_occ_anyhit_x_layer{l}_{collection}}}{{Layer occupancy from any-hit cells only, a cell counts once per event if it fires at least once}}; fired any-hit cells / total layer cells [%]; entries / events",
+        len(log_bins)-1,
+        log_bins,
+    )
+    h_occ_allhits_x_layer[l] = ROOT.TH1D(
+        f"h_occ_allhits_x_layer{l}_{collection}",
+        f"#splitline{{h_occ_allhits_x_layer{l}_{collection}}}{{Layer occupancy from all hit counts, every hit in a cell/event is counted}}; total hits in layer / total layer cells [%]; entries / events",
+        len(log_bins)-1,
+        log_bins,
+    )
+    histograms += [h_occ_anyhit_x_layer[l], h_occ_allhits_x_layer[l]]
 low_edges = np.array([0, 1, 2, 4, 6]) / n_tot_cells * 100              # bins: 0 | 1 | 2-3 | 4-5 fired cells
 occ_bins = np.hstack([low_edges, log_bins[log_bins > low_edges[-1]]])  # then the usual log bins
-histograms += [ h_occ := ROOT.TH1D(f"h_occ_tot_{collection}", f"h_occ_tot_{collection} ; total fired cells / total layer cells [%]", len(occ_bins)-1, occ_bins) ]
+histograms += [
+    h_occ_anyhit := ROOT.TH1D(
+        f"h_occ_anyhit_tot_{collection}",
+        f"#splitline{{h_occ_anyhit_tot_{collection}}}{{Total any-hit occupancy, a cell counts once per event if it fires at least once}}; total fired any-hit cells / total detector cells [%]; entries / events",
+        len(occ_bins)-1,
+        occ_bins,
+    ),
+    h_occ_allhits := ROOT.TH1D(
+        f"h_occ_allhits_tot_{collection}",
+        f"#splitline{{h_occ_allhits_tot_{collection}}}{{Total all-hit occupancy, every hit in a cell/event is counted}}; total hits / total detector cells [%]; entries / events",
+        len(occ_bins)-1,
+        occ_bins,
+    )
+]
 
 if plot_primary:
     # Special binning for primary particle plots (zoom in to MDI region)
@@ -406,7 +528,7 @@ if plot_primary:
         hist_primary_zphi := ROOT.TH2D(f"hist_primary_zphi_{collection}", f"hist_primary_zphi_{collection}; phi (bin={bw_phi:1.2f}rad) ; z (bin={bw_z_primary}mm); hits/({bw_phi:1.2f}#times{bw_z_primary})rad#timesmm per event", *z_binning_primary, *phi_binning),
         hist_primary_zx_masks := ROOT.TH2D(f"hist_primary_zx_masks_{collection}", f"hist_primary_zx_masks_{collection};  z (bin={bw_z_mask}mm) ;x (bin={bw_x_mask}mm) ; hits/({bw_z_mask}#times{bw_x_mask}) mm^{{2}} per event", *z_binning_mask, *x_binning_mask),
 
-        hist_primary_ID_map := ROOT.TH2D(f"hist_primary_ID_map_{collection}", f"hist_primary_ID_map_{collection}; ; ; hits / events", 1, 0, 1, *layer_binning),
+        hist_primary_ID_map := ROOT.TH2D(f"hist_primary_ID_map_{collection}", f"hist_primary_ID_map_{collection}; primary particle ID; layer number; hits / events", 1, 0, 1, *layer_binning),
 
         h_E_MeV_primary_layer_map := ROOT.TH2D(f"h_E_MeV_primary_layer_map_{collection}", f"h_E_MeV_primary_layer_map_{collection}; Energy of primary particle [MeV] ; layer index ; hits / events", 500, 0, 50, *layer_binning),
         h_E_keV_primary_layer_map := ROOT.TH2D(f"h_E_keV_primary_layer_map_{collection}", f"h_E_keV_primary_layer_map_{collection}; Energy of primary particle [keV] ; layer index ; hits / events", 500, 0, 1000, *layer_binning),
@@ -421,7 +543,7 @@ if plot_primary:
         hist_parent_zphi := ROOT.TH2D(f"hist_parent_zphi_{collection}", f"hist_parent_zphi_{collection}; phi (bin={bw_phi:1.2f}rad) ; z (bin={bw_z_primary}mm); hits/({bw_phi:1.2f}#times{bw_z_primary})rad#timesmm per event", *z_binning_primary, *phi_binning),
         hist_parent_zx_masks := ROOT.TH2D(f"hist_parent_zx_masks_{collection}", f"hist_parent_zx_masks_{collection};  z (bin={bw_z_mask}mm) ;x (bin={bw_x_mask}mm) ; hits/({bw_z_mask}#times{bw_x_mask}) mm^{{2}} per event", *z_binning_mask, *x_binning_mask),
 
-        hist_parent_ID_map := ROOT.TH2D(f"hist_parent_ID_map_{collection}", f"hist_parent_ID_map_{collection}; ; ; hits / events", 1, 0, 1, *layer_binning),
+        hist_parent_ID_map := ROOT.TH2D(f"hist_parent_ID_map_{collection}", f"hist_parent_ID_map_{collection}; parent particle ID; layer number; hits / events", 1, 0, 1, *layer_binning),
 
         h_E_MeV_parent_layer_map := ROOT.TH2D(f"h_E_MeV_parent_layer_map_{collection}", f"h_E_MeV_parent_layer_map_{collection}; Energy of parent particle [MeV] ; layer index ; hits / events", 500, 0, 50, *layer_binning),
         h_E_keV_parent_layer_map := ROOT.TH2D(f"h_E_keV_parent_layer_map_{collection}", f"h_E_keV_parent_layer_map_{collection}; Energy of parent particle [keV] ; layer index ; hits / events", 500, 0, 1000, *layer_binning),
@@ -440,12 +562,6 @@ if plot_primary:
             h_zr_primary_zr_layer[l] = ROOT.TH2D(f"hist_primary_zr_layer{l}_{collection}", f"hist_primary_zr_layer{l}_{collection};  z (bin={bw_z_primary}mm) ;r (bin={bw_r_primary}mm) ; hits/({bw_z_primary}#times{bw_r_primary}) mm^{{2}} per event", *z_binning_primary, *r_binning_primary)
             h_zr_parent_zr_layer[l] = ROOT.TH2D(f"hist_parent_zr_layer{l}_{collection}", f"hist_parent_zr_layer{l}_{collection};  z (bin={bw_z_primary}mm) ;r (bin={bw_r_primary}mm) ; hits/({bw_z_primary}#times{bw_r_primary}) mm^{{2}} per event", *z_binning_primary, *r_binning_primary)
             histograms += [h_zr_primary_zr_layer[l], h_zr_parent_zr_layer[l]]
-h_hit_rateDensity_VS_eta = {}
-for l in layer_cells.keys():
-    h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(f"h_hit_rateDensity_layer{l}_VS_eta_{collection}" , f"h_hit_rateDensity_layer{l}_VS_eta_{collection} (not applied: rate, pix/cl, SF); [eta]; [MHz/cm^2];", eta_bins, 0, eta_range)
-    #h_hit_area_cm2_VS_eta[l] = ROOT.TH1D(f"h_hit_area_cm2_layer{l}_VS_eta_"+collection , f"h_hit_area_cm2_layer{l}_VS_eta_"+collection +"; [eta]; [cm^2];", eta_bins, 0, eta_range)
-    histograms += [h_hit_rateDensity_VS_eta[l]]
-
 # Hit densities per layer
 if not skip_plot_per_layer:
     h_z_density_vs_layer_mm = {}
@@ -454,37 +570,118 @@ if not skip_plot_per_layer:
     h_xy_density_vs_layer = {}
     h_hit_rateDensity_VS_eta = {}
     for l in layer_cells.keys():
-        h_z_density_vs_layer_mm[l] = ROOT.TH1D(f"hist_z_density_vs_layer{l}_mm_{collection}", f"hist_z_density_vs_layer{l}_mm_{collection}", *z_binning)
-        h_phi_density_vs_layer[l] = ROOT.TH1D(f"hist_phi_density_vs_layer{l}_{collection}", f"hist_phi_density_vs_layer{l}_{collection}", *phi_binning)
-        h_zphi_density_vs_layer[l] = ROOT.TH2D(f"hist_zphi_vs_layer{l}_{collection}", f"hist_zphi_vs_layer{l}_{collection}; ; ; hits/({bw_phi:1.2f}#times{bw_z})rad#timesmm per event", *z_binning, *phi_binning)
-        h_xy_density_vs_layer[l] = ROOT.TH2D(f"hist_xy_vs_layer{l}_{collection}", f"hist_xy_vs_layer{l}_{collection};  x (bin={bw_r}mm) ;y (bin={bw_r}mm) ; hits/({bw_r}#times{bw_r}) mm^{{2}} per event", *r_binning, *r_binning)
-        h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(f"h_hit_rateDensity_layer{l}_VS_eta_{collection}" , f"h_hit_rateDensity_layer{l}_VS_eta_{collection}; [eta]; [a.u];", eta_bins, 0, eta_range)
+        h_z_density_vs_layer_mm[l] = ROOT.TH1D(
+            f"hist_z_density_vs_layer{l}_mm_{collection}",
+            f"#splitline{{hist_z_density_vs_layer{l}_mm_{collection}}}{{Per-layer hit distribution vs z, counting all hits including repeated hits in the same cell/event}}; z [mm]; hits / events",
+            *z_binning,
+        )
+        h_phi_density_vs_layer[l] = ROOT.TH1D(
+            f"hist_phi_density_vs_layer{l}_{collection}",
+            f"#splitline{{hist_phi_density_vs_layer{l}_{collection}}}{{Per-layer hit distribution vs #phi, counting all hits including repeated hits in the same cell/event}}; #phi [rad]; hits / events",
+            *phi_binning,
+        )
+        h_zphi_density_vs_layer[l] = ROOT.TH2D(
+            f"hist_zphi_vs_layer{l}_{collection}",
+            f"#splitline{{hist_zphi_vs_layer{l}_{collection}}}{{Per-layer z-#phi hit-density map, counting all hits including repeated hits in the same cell/event}}; z [mm]; #phi [rad]; hits/({bw_phi:1.2f}#times{bw_z})rad#timesmm per event",
+            *z_binning,
+            *phi_binning,
+        )
+        h_xy_density_vs_layer[l] = ROOT.TH2D(
+            f"hist_xy_vs_layer{l}_{collection}",
+            f"#splitline{{hist_xy_vs_layer{l}_{collection}}}{{Per-layer x-y hit-density map, counting all hits including repeated hits in the same cell/event}}; x (bin={bw_r}mm); y (bin={bw_r}mm); hits/({bw_r}#times{bw_r}) mm^{{2}} per event",
+            *r_binning,
+            *r_binning,
+        )
+        h_hit_rateDensity_VS_eta[l] = ROOT.TH1D(
+            f"h_hit_rateDensity_layer{l}_VS_eta_{collection}",
+            f"#splitline{{h_hit_rateDensity_layer{l}_VS_eta_{collection}}}{{all hits weighted by 1/area of the |#eta| bin ring in cm^{{2}}, normalized per event, rate example: #times{IPC_BX_RATE_MHZ:g} MHz (BX) #times{IPC_PIXELS_PER_CLUSTER:g} pix/cl}}; |#eta|; hits / cm^{{2}} / event",
+            eta_bins,
+            0,
+            eta_range,
+        )
         #h_hit_area_cm2_VS_eta[l] = ROOT.TH1D(f"h_hit_area_cm2_layer{l}_VS_eta_"+collection , f"h_hit_area_cm2_layer{l}_VS_eta_"+collection +"; [eta]; [cm^2];", eta_bins, 0, eta_range)
 
         histograms += [h_z_density_vs_layer_mm[l], h_phi_density_vs_layer[l], h_zphi_density_vs_layer[l], h_xy_density_vs_layer[l], h_hit_rateDensity_VS_eta[l]]
 
     # Per-module histograms
     h_avg_hits_x_layer_x_module = {}
+    h_hits_x_layer_x_module_dist = {}
     bin_start = 0
     cell_binning = {}
+    modules_per_layer = {}
     for l in layer_cells.keys():
-        cell_binning[l] = [int(layer_cells[l]/sensors_per_module_map[l]), -0.5 + bin_start, layer_cells[l]/sensors_per_module_map[l]-0.5  + bin_start]
+        modules_per_layer[l] = int(layer_cells[l] / sensors_per_module_map[l])
+        cell_binning[l] = [modules_per_layer[l], -0.5 + bin_start, modules_per_layer[l] - 0.5 + bin_start]
 
         h_avg_hits_x_layer_x_module[l] = ROOT.TH1D(f"h_avg_hits_x_layer{l}_x_module_{collection}", f"h_avg_hits_x_layer{l}_x_module_{collection};Module ID;Hits / event", *cell_binning[l])
-        histograms += [h_avg_hits_x_layer_x_module[l]]
+        h_hits_x_layer_x_module_dist[l] = ROOT.TH2D(
+            f"h_hits_x_layer{l}_x_module_dist_{collection}",
+            f"#splitline{{h_hits_x_layer{l}_x_module_dist_{collection}}}{{Per-event module hit-count distribution, including the zero-hit bin}};Module ID;Hits per event in module;Entries / events",
+            *cell_binning[l],
+            11,
+            -0.5,
+            10.5,
+        )
+        histograms += [h_avg_hits_x_layer_x_module[l], h_hits_x_layer_x_module_dist[l]]
         # if(sub_detector=="VertexBarrel" or sub_detector=="SiWrB"):
         #     bin_start += layer_cells[l]/sensors_per_module_map[l]
 
-    h_pu_x_layer = {}
-    for l in layer_cells.keys():
-        h_pu_x_layer[l] = ROOT.TH1D(f"h_pu_x_layer{l}_{collection}", f"h_pu_x_layer{l}_{collection}", integration_time+1, -0.5, integration_time+0.5)
+pu_cell_what = "pixel" if is_pixel(detector_type) else "cell"  # what a cell ID is: pixel-level for the silicon pixel detectors
+# Pile-up histograms (the per-layer ones are always needed to fill the average, but only written if the per-layer output is enabled)
+h_pu_x_layer = {}
+for l in layer_cells.keys():
+    h_pu_x_layer[l] = ROOT.TH1D(
+        f"h_pu_x_layer{l}_{collection}",
+        f"#splitline{{h_pu_x_layer{l}_{collection}}}{{Pile-up per integration window: extra events with a hit in the same {pu_cell_what} within {integration_time} events (1 event = 1 BX) from its first hit}}; pile-up events per window; windows / event",
+        integration_time,
+        -0.5,
+        integration_time-0.5,
+    )
+    if integration_time > 1 and not skip_plot_per_layer:
         histograms += [h_pu_x_layer[l]]
-        
-# Pile-up histograms
-histograms += [
-    h_tot_pu := ROOT.TH1D(f"h_tot_pu_{collection}", f"h_tot_pu_{collection}", integration_time+1, -0.5, integration_time+0.5),
-    h_avg_pu_x_layer := ROOT.TH1D(f"h_avg_pu_x_layer_{collection}", f"h_avg_pu_x_layer_{collection}", *layer_binning)
-]
+h_tot_pu = ROOT.TH1D(
+    f"h_tot_pu_{collection}",
+    f"#splitline{{h_tot_pu_{collection}}}{{Pile-up per integration window: extra events with a hit in the same {pu_cell_what} within {integration_time} events (1 event = 1 BX) from its first hit}}; pile-up events per window; windows / event",
+    integration_time,
+    -0.5,
+    integration_time-0.5,
+)
+h_avg_pu_x_layer = ROOT.TH1D(
+    f"h_avg_pu_x_layer_{collection}",
+    f"#splitline{{h_avg_pu_x_layer_{collection}}}{{Mean pile-up events per window (window opened by a hit in a {pu_cell_what}), windows without pile-up included, window = {integration_time} events (1 event = 1 BX)}}; layer index; avg pile-up events / window",
+    *layer_binning,
+)
+if integration_time > 1:
+    histograms += [h_tot_pu, h_avg_pu_x_layer]
+
+# BC-window histograms: events (= BX) since the previous hit in the same module, or in the same cell if the sub-detector has no module field
+bc_window_max_modules = 20000  # skip the per-layer module histograms above this number of module bins (e.g. calorimeters)
+bc_window_key_is_module = "module" in [field.split(":")[0].strip() for field in id_encoding.split(",")]
+bc_window_last_event = {}
+h_bc_window_x_module = {}
+if bc_window > 0:
+    bc_what = "module" if bc_window_key_is_module else "cell"
+    bc_bins = [bc_window + 1, 0.5, bc_window + 1.5]  # y = 1..W: events since the previous hit, W+1: more than W (first hits of the run are not filled)
+    bc_note = f"Events since the previous hit in the same {bc_what} (1 event = 1 BX), y = {bc_window + 1}: more than {bc_window}, first hit of each {bc_what} in the run not counted"
+    h_bc_window_x_layer = ROOT.TH2D(
+        f"h_bc_window_x_layer_{collection}",
+        f"#splitline{{h_bc_window_x_layer_{collection}}}{{{bc_note}}}; layer index; events since previous hit; hits / event",
+        *layer_binning,
+        *bc_bins,
+    )
+    histograms += [h_bc_window_x_layer]
+    if bc_window_key_is_module and not skip_plot_per_layer:
+        for l in layer_cells.keys():
+            if cell_binning[l][0] > bc_window_max_modules:
+                print_warning(f"BC window: no per-module histogram for layer {l} ({cell_binning[l][0]} modules > {bc_window_max_modules}), only the per-layer summary is filled")
+                continue
+            h_bc_window_x_module[l] = ROOT.TH2D(
+                f"h_bc_window_layer{l}_{collection}",
+                f"#splitline{{h_bc_window_layer{l}_{collection}}}{{{bc_note}}}; module ID; events since previous hit; hits / event",
+                *cell_binning[l],
+                *bc_bins,
+            )
+            histograms += [h_bc_window_x_module[l]]
 
 
 n_events = nEvents_fullFileList  # already the total over all input files
@@ -509,17 +706,27 @@ hits_without_mc = 0
 
 integrating_channels = defaultdict(int)
 pile_up_counter = defaultdict(int)
+progress_step = max(1, n_events // 50) if n_events > 0 else 1  # update the progress every 2%
+progress_colors = [196, 202, 208, 214, 220, 190, 154, 118, 82, 46]  # red -> green
 
+print_header("Processing events", oneline=True)
 for i,event in enumerate(podio_reader.get(tree_name)):
 
     if i >= n_events and events_per_file > 0:
         break
 
-    if i % 100 == 0: # print a message every 100 processed files
-        print(f'processing event number = {i} / {n_events}')
+    if (i % progress_step == 0) or (i + 1 == n_events):
+        processed_for_display = min(i + 1, n_events)
+        percent = int(100 * processed_for_display / n_events) if n_events > 0 else 100
+        color_idx = min(percent // 10, len(progress_colors) - 1)
+        percent_colored = f"\033[38;5;{progress_colors[color_idx]}m{percent:3d}%\033[0m"
+        print(f"\rprocessing event {processed_for_display}/{n_events} ({percent_colored})", end="", flush=True)
 
-    fired_cells = []
+    fired_cells = set()
+    bc_window_seen = set()  # modules (cells) already counted in this event for the BC window
     fired_cells_x_layer = {l: 0 for l in layer_cells.keys()}  # Initialize to 0 for all the layers to ensure that also events with 0 occupancy are correctly counted
+    hits_x_layer = {l: 0 for l in layer_cells.keys()}  # Count all hits in layer, including repeated hits in the same cell in the same event
+    module_hits_x_layer = defaultdict(int)  # Count all hits per (layer, module) in this event
 
     # Loop over the hits
     for hit in event.get(collection):
@@ -539,7 +746,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             # print(cell_id,"has already fired in this event!")
             cell_fired = True
         else:
-            fired_cells.append(cell_id)
+            fired_cells.add(cell_id)
             # count cellIDs that fired in the run
             fullRun_fired_cellIDs.add(cell_id)
 
@@ -591,6 +798,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             # For layer percentage occupancy, count cells only once
             if not cell_fired:
                 fired_cells_x_layer[layer_n] += 1
+            hits_x_layer[layer_n] += 1
 
             if(debug>1): print(" cell_id:", cell_id, " layer_n:", layer_n, " x_mm:", x_mm, " y_mm:", y_mm, " z_mm:", z_mm, " r_mm:", r_mm, " phi:", phi)
 
@@ -614,6 +822,7 @@ for i,event in enumerate(podio_reader.get(tree_name)):
 
             if not skip_plot_per_layer:
                 h_avg_hits_x_layer_x_module[layer_n].Fill(module_n, fill_weight)
+                module_hits_x_layer[layer_n, module_n] += 1
 
             hit_zr.Fill(z_mm, r_mm, fill_weight)
             hit_xy.Fill(x_mm, y_mm, fill_weight)
@@ -702,23 +911,34 @@ for i,event in enumerate(podio_reader.get(tree_name)):
             if has_mc:  # implies a tracker hit with a valid MC particle link
                 particle = hit.getParticle()
 
-                try:
-                    particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
+                particle_p4 = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
 
-                    # Fill MC particle histograms
-                    pdg=particle.getPDG()
-                    h_hit_particle_ID.Fill(Particle.from_pdgid(pdg).name, fill_weight)
-                    h_hit_particle_ID_map.Fill(Particle.from_pdgid(pdg).name, layer_n, fill_weight)
-                    h_hit_particle_E.Fill(particle_p4.E(), fill_weight)
-                    h_hit_particle_pt.Fill(particle_p4.pt(), fill_weight)
-                    h_hit_particle_eta.Fill(particle_p4.eta(), fill_weight)
-                    h_hit_particle_ID_E_MeV.Fill(Particle.from_pdgid(pdg).name, particle_p4.E(), fill_weight)
-                except:
-                    print("Not possible to retrieve mc particle information for this hit. Skipping MC truth plots for this hit.")
+                # Fill MC particle histograms
+                pdg=particle.getPDG()
+                h_hit_particle_ID.Fill(Particle.from_pdgid(pdg).name, fill_weight)
+                h_hit_particle_ID_map.Fill(Particle.from_pdgid(pdg).name, layer_n, fill_weight)
+                h_hit_particle_E.Fill(particle_p4.E(), fill_weight)
+                h_hit_particle_pt.Fill(particle_p4.pt(), fill_weight)
+                h_hit_particle_eta.Fill(particle_p4.eta(), fill_weight)
+                h_hit_particle_ID_E_GeV.Fill(Particle.from_pdgid(pdg).name, particle_p4.E(), fill_weight)
+
+            # BC window: events since the previous hit in the same module (cell), counted once per event
+            if bc_window > 0:
+                bc_key = (layer_n, module_n) if bc_window_key_is_module else (layer_n, cell_id)
+                if bc_key not in bc_window_seen:
+                    bc_window_seen.add(bc_key)
+                    if bc_key in bc_window_last_event:
+                        bc_dt = min(processed_events - bc_window_last_event[bc_key], bc_window + 1)
+                        h_bc_window_x_layer.Fill(layer_n, bc_dt, fill_weight)
+                        if layer_n in h_bc_window_x_module:
+                            h_bc_window_x_module[layer_n].Fill(module_n, bc_dt, fill_weight)
+                    bc_window_last_event[bc_key] = processed_events
 
             # Monitor in channels that are integrating signal
             if integration_time > 1:
-                if ((layer_n, cell_id) in integrating_channels) and (integrating_channels[layer_n, cell_id] > 1):
+                # a channel still in integrating_channels has at least one event left in its window
+                # (it is removed, and its pile-up filled, at the end of the last event of the window)
+                if (layer_n, cell_id) in integrating_channels:
 
                     # count one hit per event during integration time as pileup
                     if not cell_fired:
@@ -732,18 +952,36 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         processed_hits += 1
     # <--- end of the hits loop
 
+    if not skip_plot_per_layer:
+        for layer_idx, n_modules in modules_per_layer.items():
+            for module_idx in range(n_modules):
+                nhits = module_hits_x_layer[layer_idx, module_idx]
+                h_hits_x_layer_x_module_dist[layer_idx].Fill(module_idx, nhits, fill_weight)
+
     # Compute the per-event occupancy
-    tot_occupancy = 0
+    tot_anyhit_occupancy = 0
+    tot_allhits_occupancy = 0
 
     for l, fc in fired_cells_x_layer.items():
-        tot_occupancy += fc
+        tot_anyhit_occupancy += fc
         if layer_cells:
-            layer_occupancy = fc / layer_cells[l] * 100
-            h_avg_occ_x_layer.Fill(l, layer_occupancy * fill_weight)
-            h_occ_x_layer[l].Fill(layer_occupancy, fill_weight)
+            layer_anyhit_occupancy = fc / layer_cells[l] * 100
+            h_avg_occ_anyhit_x_layer.Fill(l, layer_anyhit_occupancy * fill_weight)
+            h_occ_anyhit_x_layer[l].Fill(layer_anyhit_occupancy, fill_weight)
+            h_occ_anyhit_x_layer_dist.Fill(l, layer_anyhit_occupancy, fill_weight)
 
-    tot_occupancy = tot_occupancy / n_tot_cells * 100
-    h_occ.Fill(tot_occupancy, fill_weight)
+    for l, nh in hits_x_layer.items():
+        tot_allhits_occupancy += nh
+        if layer_cells:
+            layer_allhits_occupancy = nh / layer_cells[l] * 100
+            h_avg_occ_allhits_x_layer.Fill(l, layer_allhits_occupancy * fill_weight)
+            h_occ_allhits_x_layer[l].Fill(layer_allhits_occupancy, fill_weight)
+            h_occ_allhits_x_layer_dist.Fill(l, layer_allhits_occupancy, fill_weight)
+
+    tot_anyhit_occupancy = tot_anyhit_occupancy / n_tot_cells * 100
+    tot_allhits_occupancy = tot_allhits_occupancy / n_tot_cells * 100
+    h_occ_anyhit.Fill(tot_anyhit_occupancy, fill_weight)
+    h_occ_allhits.Fill(tot_allhits_occupancy, fill_weight)
 
     if integration_time > 1:
         # Update the integration and pileup counters
@@ -756,18 +994,20 @@ for i,event in enumerate(podio_reader.get(tree_name)):
         for c in reset_channels:
             integrating_channels.pop(c)
             pu = pile_up_counter.pop(c)
-            h_tot_pu.Fill(pu)
-            h_pu_x_layer[c[0]].Fill(pu)
+            h_tot_pu.Fill(pu, fill_weight)
+            h_pu_x_layer[c[0]].Fill(pu, fill_weight)
 
     processed_events +=1
 # <--- end of the event loop
+if n_events > 0:
+    print()
 
-print("Loop done!")
+print_header("Done: statistics", oneline=True)
 print(" - Processed events:", processed_events)
-print(" - Processed hits:", processed_hits, 
-      f"(avg. per event: {processed_hits/processed_events})")
+print(" - Processed hits:", processed_hits,
+      f"(avg. per event: {processed_hits/processed_events:.1f})")
 print(" - Number of unique cells fired:", len(fullRun_fired_cellIDs),
-      f"(avg. per event: {len(fullRun_fired_cellIDs)/processed_events})")
+      f"(avg. per event: {len(fullRun_fired_cellIDs)/processed_events:.1f})")
 
 # If no hit had an MC truth link (MCParticles dropped), skip drawing/writing the MC-truth
 # histograms (h_hit_particle_*, primary/parent) instead of producing empty ones
@@ -782,28 +1022,9 @@ if not has_mc_truth:
 # Compute the average pile up hits
 if integration_time > 1:
     for l, h in h_pu_x_layer.items():
-        h_avg_pu_x_layer.Fill(l, h.GetMean())
-        #h_avg_pu_x_layer.SetBinError(l, h.GetMeanError()) #TODO: set the right error
-
-# # Draw TEST histos
-# cm1 = ROOT.TCanvas("cm1_", "cm1_", 800, 600)
-# #draw_eta_line(1)
-# cm1.SetLogy()
-# cm1.Print("test.pdf")
-cm2 = ROOT.TCanvas("cm2_", "cm2_", 800, 600)
-hit_zr.Draw("COLZ")
-#draw_eta_line(1)
-graph = ROOT.TGraph(4)
-graph.SetPoint(0, -z_range, -z_range* 0.851)
-graph.SetPoint(1,  z_range,  z_range* 0.851)
-graph.SetPoint(2,  z_range, -z_range* 0.851)
-graph.SetPoint(3, -z_range,  z_range* 0.851)
-
-graph.SetLineColor(ROOT.kBlue)
-graph.SetLineStyle(ROOT.kDashed)
-graph.SetLineWidth(2)
-graph.Draw("Lsame")
-cm2.Print(f"testEta_{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.pdf")
+        b = h_avg_pu_x_layer.FindBin(l)
+        h_avg_pu_x_layer.SetBinContent(b, h.GetMean())
+        h_avg_pu_x_layer.SetBinError(b, h.GetMeanError())
 
 if draw_maps:
     draw_map(hit_zr, "z [mm]", "r [mm]", f"{sample_name}_map_zr_{n_events}evt_{sub_detector}", collection)
@@ -865,7 +1086,10 @@ if draw_hists:
     draw_hist(h_hit_t_corr, "Timing - TOF [ns]", "Hits / events",  sample_name+"_hit_t_corr_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_avg_hits_x_layer, "Layer number", "Hits / events",  sample_name+"_avg_hits_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_avg_firing_cells_x_layer, "Layer number", "Firing cells / events",  sample_name+"_avg_firing_cells_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_occ, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
+    draw_hist(h_occ_anyhit, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_anyhit_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
+    draw_hist(h_occ_allhits, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_allhits_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
+    draw_hist(h_occ_anyhit_x_layer_dist, "Layer number", "Occupancy [%]", sample_name+f"_occ_anyhit_x_layer_dist_"+str(n_events)+"evt_"+sub_detector, collection, draw_opt="colz")
+    draw_hist(h_occ_allhits_x_layer_dist, "Layer number", "Occupancy [%]", sample_name+f"_occ_allhits_x_layer_dist_"+str(n_events)+"evt_"+sub_detector, collection, draw_opt="colz")
     if has_mc_truth:  # MC-truth histograms, skipped if the input has no MCParticles
         draw_hist(h_hit_particle_E, "MC particle energy [GeV]", "Particle / events",  sample_name+"_hit_particle_E_"+str(n_events)+"evt_"+sub_detector, collection)
         draw_hist(h_hit_particle_pt, "MC particle p_{T} [GeV]", "Particle / events",  sample_name+"_hit_particle_pt_"+str(n_events)+"evt_"+sub_detector, collection)
@@ -873,33 +1097,95 @@ if draw_hists:
 
         h_hit_particle_ID.GetXaxis().LabelsOption("v>")  # vertical labels, sorted by decreasing values
         h_hit_particle_ID_map.GetXaxis().LabelsOption("v>")
-        h_hit_particle_ID_E_MeV.GetXaxis().LabelsOption("v>")
+        h_hit_particle_ID_E_GeV.GetXaxis().LabelsOption("v>")
         draw_hist(h_hit_particle_ID, "MC particle PDG ID", "Hits / events",  sample_name+"_hit_particle_ID_"+str(n_events)+"evt_"+sub_detector, collection)
         draw_hist(h_hit_particle_ID_map, "MC particle PDG ID", "Layer number",  sample_name+"_hit_particle_ID_map_"+str(n_events)+"evt_"+sub_detector, collection)
-        draw_hist(h_hit_particle_ID_E_MeV, "MC particle type", "Deposited energy of particle [MeV]",  sample_name+"_hit_particle_ID_E_MeV_"+str(n_events)+"evt_"+sub_detector, collection)
+        draw_hist(h_hit_particle_ID_E_GeV, "MC particle type", "MC particle energy [GeV]",  sample_name+"_hit_particle_ID_E_GeV_"+str(n_events)+"evt_"+sub_detector, collection)
 
     if integration_time > 1:
-        draw_hist(h_tot_pu, "Number of pileup hits", "Entries", f"{sample_name}_tot_pu_{n_events}evt_{sub_detector}", collection)
-        draw_hist(h_avg_pu_x_layer, "Layer", "Average pileup hits", f"{sample_name}_avg_pu_x_layer_{n_events}evt_{sub_detector}", collection)
+        draw_hist(h_tot_pu, "Pile-up events per window", "Windows / event", f"{sample_name}_tot_pu_{n_events}evt_{sub_detector}", collection)
+        draw_hist(h_avg_pu_x_layer, "Layer", "Avg pile-up events / window", f"{sample_name}_avg_pu_x_layer_{n_events}evt_{sub_detector}", collection)
+
+    if bc_window > 0:
+        draw_hist(h_bc_window_x_layer, "Layer", "Events since previous hit", f"{sample_name}_bc_window_x_layer_{n_events}evt_{sub_detector}", collection, draw_opt="colz")
 
     if not skip_plot_per_layer:
-        for l, h in h_occ_x_layer.items():
-            draw_hist(h, "Occupancy [%]", "Entries / events", f"{sample_name}_occ_x_layer{l}_{n_events}evt_{sub_detector}", collection, log_x=True)
+        for l, h in h_occ_anyhit_x_layer.items():
+            draw_hist(h, "Occupancy [%]", "Entries / events", f"{sample_name}_occ_anyhit_layer{l}_{n_events}evt_{sub_detector}", collection, log_x=True)
+        for l, h in h_occ_allhits_x_layer.items():
+            draw_hist(h, "Occupancy [%]", "Entries / events", f"{sample_name}_occ_allhits_layer{l}_{n_events}evt_{sub_detector}", collection, log_x=True)
+        for l, h in h_hits_x_layer_x_module_dist.items():
+            draw_hist(h, "Module ID", "Hits per event in module", f"{sample_name}_hits_x_layer{l}_x_module_dist_{n_events}evt_{sub_detector}", collection, draw_opt="colz")
+
+        for l, h in h_bc_window_x_module.items():
+            draw_hist(h, "Module ID", "Events since previous hit", f"{sample_name}_bc_window_layer{l}_{n_events}evt_{sub_detector}", collection, draw_opt="colz")
 
         for l in h_z_density_vs_layer_mm.keys():
             draw_hist(h_z_density_vs_layer_mm[l], "z [mm]","Hits/event", f"{sample_name}_zDensity_layer{l}_{n_events}evt_{sub_detector}", collection)
             draw_hist(h_phi_density_vs_layer[l],  "phi","Hits/event", f"{sample_name}_phiDensity_layer{l}_{n_events}evt_{sub_detector}", collection)
             draw_hist(h_xy_density_vs_layer[l], "x [mm]", "y [mm]", f"{sample_name}_xyDensity_layer{l}_{n_events}evt_{sub_detector}", collection, draw_opt="colz")
-            draw_hist(h_hit_rateDensity_VS_eta[l], "eta", "Hit rate density [a.u.]", f"{sample_name}_hitRateDensity_VS_eta_layer{l}_{n_events}evt_{sub_detector}", collection)
-            
+
+        for l in h_z_density_vs_layer_mm.keys():
+            draw_hist(h_hit_rateDensity_VS_eta[l], "|#eta|", "Hits / cm^{2} / event", f"{sample_name}_hitRateDensity_VS_eta_layer{l}_{n_events}evt_{sub_detector}", collection)
+
 # Open ROOT file and create directory structure for organized output
 output_file_name = f"{sample_name}_{n_events}evt_{sub_detector}_{suffix_from_input}.root"
 output_file = ROOT.TFile(output_file_name, "RECREATE")
 dir_maps = output_file.mkdir("maps")
+dir_global = output_file.mkdir("global")  # hit position / energy distributions, integrated over all layers
+dir_mc_particles = output_file.mkdir("mc_particles")  # kinematics of the particles creating the hits
 dir_per_layer = output_file.mkdir("per_layer")
+global_hist_names = {h.GetName() for h in (h_hit_x_mm, h_hit_y_mm, h_hit_z_mm, h_hit_r_mm, h_hit_eta, h_hit_E_MeV, h_hit_E_keV, h_hit_E_eV)}
+mc_particle_hist_names = {h.GetName() for h in (h_hit_particle_E, h_hit_particle_pt, h_hit_particle_eta, h_hit_particle_ID, h_hit_particle_ID_E_GeV)}
+per_layer_subdirs = {
+    "energy": dir_per_layer.mkdir("energy"),
+    "occupancy_anyhit": dir_per_layer.mkdir("occupancy_anyhit"),
+    "occupancy_allhits": dir_per_layer.mkdir("occupancy_allhits"),
+    "module_hits": dir_per_layer.mkdir("module_hits"),
+    "module_hits_dist": dir_per_layer.mkdir("module_hits_dist"),
+    "pileup": dir_per_layer.mkdir(f"pileup_{pu_cell_what}"),
+    "density_z": dir_per_layer.mkdir("density_z"),
+    "density_phi": dir_per_layer.mkdir("density_phi"),
+    "density_xy": dir_per_layer.mkdir("density_xy"),
+    "density_zphi": dir_per_layer.mkdir("density_zphi"),
+    "rate_vs_eta": dir_per_layer.mkdir("rate_vs_eta"),
+}
+if h_bc_window_x_module:
+    per_layer_subdirs["bc_window"] = dir_per_layer.mkdir("bc_window_module")
 if plot_primary:
     dir_primary = output_file.mkdir("mc_primary")
     dir_parent = output_file.mkdir("mc_parent")
+
+def get_per_layer_subdir(hname):
+    if "h_hit_E_MeV_layer" in hname:
+        return per_layer_subdirs["energy"]
+    if "h_occ_anyhit_x_layer" in hname:
+        return per_layer_subdirs["occupancy_anyhit"]
+    if "h_occ_allhits_x_layer" in hname:
+        return per_layer_subdirs["occupancy_allhits"]
+    if "h_avg_occ_anyhit_x_layer" in hname:
+        return per_layer_subdirs["occupancy_anyhit"]
+    if "h_avg_occ_allhits_x_layer" in hname:
+        return per_layer_subdirs["occupancy_allhits"]
+    if "h_avg_hits_x_layer" in hname and "_x_module_" in hname:
+        return per_layer_subdirs["module_hits"]
+    if "h_hits_x_layer" in hname and "_x_module_dist_" in hname:
+        return per_layer_subdirs["module_hits_dist"]
+    if "h_pu_x_layer" in hname:
+        return per_layer_subdirs["pileup"]
+    if "hist_z_density_vs_layer" in hname:
+        return per_layer_subdirs["density_z"]
+    if "hist_phi_density_vs_layer" in hname:
+        return per_layer_subdirs["density_phi"]
+    if "hist_xy_vs_layer" in hname:
+        return per_layer_subdirs["density_xy"]
+    if "hist_zphi_vs_layer" in hname:
+        return per_layer_subdirs["density_zphi"]
+    if "h_bc_window_layer" in hname:
+        return per_layer_subdirs["bc_window"]
+    if "h_hit_rateDensity_layer" in hname:
+        return per_layer_subdirs["rate_vs_eta"]
+    return dir_per_layer
 
 
 # Categorize and write histograms to appropriate directories
@@ -915,12 +1201,33 @@ for h in histograms:
         dir_parent.cd()
     elif "map" in hname or "hit_xy" in hname or "hit_zr" in hname or "hit_zphi" in hname:
         dir_maps.cd()
+    elif hname in global_hist_names:
+        dir_global.cd()
+    elif hname in mc_particle_hist_names:
+        dir_mc_particles.cd()
     elif ("_layer" in hname) or ("_x_layer" in hname):
-        dir_per_layer.cd()
+        get_per_layer_subdir(hname).cd()
     else:
         output_file.cd()  # root directory for general histograms
     h.Write()
 
+# Hit-rate density vs |eta| of all the layers on the same canvas, saved in the ROOT file next to the per-layer histograms (and as pdf with the plots enabled)
+if not skip_plot_per_layer:
+    # axis on the right with the density scaled by the example rate assumptions (the cluster size only applies to pixels)
+    if is_pixel(detector_type):
+        rate_axis = (IPC_BX_RATE_MHZ * IPC_PIXELS_PER_CLUSTER, "Pixel rate [MHz/cm^{2}]",
+                     f"Rate assumption: {IPC_BX_RATE_MHZ:g} MHz BX rate, {IPC_PIXELS_PER_CLUSTER:g} pixels/cluster")
+    else:
+        rate_axis = (IPC_BX_RATE_MHZ, "Hit rate [MHz/cm^{2}]", f"Rate assumption: {IPC_BX_RATE_MHZ:g} MHz BX rate")
+    overlay_canvas = draw_overlay({f"layer {l}": h for l, h in h_hit_rateDensity_VS_eta.items()}, "|#eta|", "Hits / cm^{2} / event",
+                                  f"{sample_name}_hitRateDensity_VS_eta_allLayers_{n_events}evt_{sub_detector}", f"{collection}, {n_events} events",
+                                  log_y=True, save_pdf=draw_hists, right_axes=[rate_axis], title="Hit-rate density vs |#eta|, all layers")
+    if overlay_canvas:
+        per_layer_subdirs["rate_vs_eta"].cd()
+        overlay_canvas.Write()
+
+output_file.cd()
+write_command_line()
 output_file.Close()
 print("Histograms saved in:", output_file_name)
 

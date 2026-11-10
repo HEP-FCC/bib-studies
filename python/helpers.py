@@ -2,12 +2,23 @@ import glob
 import json
 import os
 import re
+import shlex
+import sys
 
 import dd4hep as dd4hepModule
+import ROOT
 from ROOT import dd4hep
 
 ######################################
 # Functions
+
+def write_command_line():
+    """
+    Write the command line of the running script as a TNamed ("command_line") in the current
+    ROOT directory, so that an output file can be traced back to the command that produced it.
+    """
+    ROOT.TNamed("command_line", " ".join(shlex.quote(a) for a in sys.argv)).Write()
+
 
 def path_to_list(path, ext=".root"):
     """
@@ -162,6 +173,13 @@ class DetFilePath:
             self.name    = re.search(".*_v[0-9]{2}", self.f_name).group(0)    
             self.short   = re.sub("_v[0-9]{2}", "", self.name)              # Get name only
             self.version = re.search("v[0-9]{2}", self.name).group(0)       # Get version only
+
+
+##simple function to print a warning in YELLOW
+def print_warning(msg):
+    YELLOW = '\033[93m'
+    END = '\033[0m'
+    print(f"{YELLOW}WARNING: {msg}{END}")
 
 
 ##simple function to print "header" with CYAN color
