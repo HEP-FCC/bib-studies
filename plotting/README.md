@@ -40,6 +40,7 @@ Other useful options are:
 - `--bc_window <W>` fill the distribution of the time (in events = BX) since the previous hit in the same module (in the same cell for sub-detectors without a module field, e.g. the drift chamber): `per_layer/h_bc_window_x_layer_<collection>` (layer vs time) and, for sub-detectors with modules and without `--skip_layers`, `per_layer/bc_window_module/h_bc_window_layer<N>_<collection>` (module vs time). The y axis is 1 to W events, W+1 = more than W events (the first hit of each module/cell in the run is not counted). Default 40, -1 = off. Per-layer module histograms are skipped for layers with more than 20000 modules (calorimeters), the layer-vs-time summary is always filled.
 - `-a` / `--assumptions` path to the "assumptions" JSON dictionary
 - `--digi` to use digitzed hits (collection defined in the assumptions dict)
+- `--collection <name>` to read a different hits collection, overriding the detector/assumptions dict (e.g. `OverlayDCHCollection` for overlaid but non-digitized files). If no CellIDEncoding is stored for it, the one of the detector dict `hitsCollection` is used
 - `--e_cut` to apply the energy cut (threshold defined in the assumptions dict)
 - `--skip_layers` to skip creating and filling histograms per layer, useful for sub-detectors with many layers (e.g. drift chamber)
 

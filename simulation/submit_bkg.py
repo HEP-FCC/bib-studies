@@ -86,7 +86,7 @@ max_retries    = 3
 +JobFlavour    = "{1}" 
 request_memory = {3}
 RequestCpus = 1
-queue filename matching files {2}{0}
+queue filename matching files {0}
 """
 
 # Local command content
@@ -107,8 +107,10 @@ if "sft-nightlies.cern.ch/lcg" in fcc_cfg:
     # On AlmaLinux9, key4hep nightlies' setup.sh defaults to sourcing the
     # rolling LCG "devkey-head" view directly from CVMFS
     fcc_ver = fcc_cfg.split("/")[6]             # get the nightly weekday (e.g. "Tue")
-    exec_header = """#!/bin/bash
-source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh --lcg
+    # Pin the jobs to the weekday sourced at submission (sknight -r Tue). Without
+    # -r the job sources "latest", which can be an incomplete build.
+    exec_header = f"""#!/bin/bash
+source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh --lcg -r {fcc_ver}
 # Condor scratch dir: ddsim writes here, output is mv'd to EOS at the end
 JOBDIR=$PWD
 """
@@ -229,7 +231,11 @@ def run(args):
     print("Preparing submission for:")
     n_jobs = 0
     submitted_root_files = []
-    exec_template_name = os.path.join(tag, "run_ddsim_FILENAME.sh")
+
+    # Condor caps one submission at 20000 jobs. An AFS directory is also capped
+    # (~1000 pages, ~31k of these script names, then "File too large"), so the
+    # scripts go in one subfolder per submission: tag/part1, tag/part2, ...
+    max_per_submit = 10000
 
 
     # NEW: Resolve the ddsim -N value for edm4hep inputs
@@ -299,7 +305,9 @@ def run(args):
             continue
 
         command = header
-        executable_path = exec_template_name.replace("FILENAME", bx_id)
+        part_dir = os.path.join(tag, f"part{n_jobs // max_per_submit + 1}")
+        os.makedirs(part_dir, exist_ok=True)
+        executable_path = os.path.join(part_dir, f"run_ddsim_{bx_id}.sh")
         output_filename = os.path.join(storage_path, f"{geo}_{bx_id}_r{fcc_ver}.root")
 
         # for performance, write the output locally first and copy at the end
@@ -311,6 +319,7 @@ def run(args):
             -O {tmp_output_filename} \
             -N {n_events} --crossingAngleBoost {x_angle} --random.seed {args.seed} \
             --part.keepAllParticles True --outputConfig.forceEDM4HEP \
+            --part.minimalKineticEnergy 0 \
             {reader_opt}{steering_opt}\n"""
 
         command += f"mv {tmp_output_filename} {output_filename}"
@@ -328,25 +337,18 @@ def run(args):
     if not args.skip_space_check:
         check_log_space(n_jobs)
 
-    # Condor caps one submission at 20000 jobs: queue disjoint slices of the
-    # same glob, one .cmd per slice
-    max_per_submit = 20000
-    exec_pattern = exec_template_name.replace("FILENAME", "*")
+    # One .cmd per part folder (at most max_per_submit jobs each, well below the 20000 of condor)
     n_parts = max(1, -(-n_jobs // max_per_submit))
-    for i_part in range(n_parts):
-        if n_parts == 1:
-            condor_submit_path, queue_slice = f"{tag}.cmd", ""
-        else:
-            start = i_part * max_per_submit
-            condor_submit_path = f"{tag}_part{i_part + 1}.cmd"
-            queue_slice = f"[{start}:{start + max_per_submit}] "
+    for i_part in range(1, n_parts + 1):
+        exec_pattern = os.path.join(tag, f"part{i_part}", "run_ddsim_*.sh")
+        condor_submit_path = f"{tag}.cmd" if n_parts == 1 else f"{tag}_part{i_part}.cmd"
         with open(condor_submit_path, "w") as f:
-            f.write(condor_cmd_content.format(exec_pattern, job_flavor, queue_slice, args.request_memory))
+            f.write(condor_cmd_content.format(exec_pattern, job_flavor, "", args.request_memory))
         print("To submit the condor job: ", f"condor_submit {condor_submit_path}")
 
     # Local run script
     local_submit_path = f"{tag}.sh"
-    cmd_file_content = local_cmd_content.format(exec_pattern)
+    cmd_file_content = local_cmd_content.format(os.path.join(tag, "part*", "run_ddsim_*.sh"))
     with open(local_submit_path, "w") as f:
         f.write(cmd_file_content)
     print("To submit the local job: sh ", local_submit_path)
