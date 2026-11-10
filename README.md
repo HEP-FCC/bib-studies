@@ -98,8 +98,9 @@ The two folders with the executable scripts contain dedicated `READMEs` with mor
 ## Recommended workflow
 
 - get bib files (eg produced by Jan, Giulia, A. Ciarma..): edm4hep `.root` files, or the older hepevt/pairs formats
-    - set vertices to 0, if running on `.pairs` samples before 2026 [see here](https://github.com/HEP-FCC/bib-studies/tree/main/simulation#set_vertex_000py)
+    - See [FCC SW MDI page](https://hep-fcc.github.io/FCCSW/mdi/) for recent recipes/files
+    - See [MDI EOS](https://cernbox.cern.ch/files/spaces/eos/project/f/fcc-ee-mdi/BIB/) for bkg files
 - using the `submit_bkg.py` script, submit condor jobs to simulate the bib particles through your detector of choice (eg ALLEGRO), which gives root files
-- use the drawhits/plot_all_subdetectors scripts to generate occupancy and other plots
-- optional: use the hits2highLevelEstimations.py script to extract more numbers from the occupancy plots
+- use the `drawhits`/`plot_all_subdetectors` scripts to generate occupancy and other plots
+- optional: use the `hits2highLevelEstimations.py` script to extract more numbers from the occupancy plots
 
