@@ -223,9 +223,12 @@ def draw_overlay(hists, titlex, titley, plot_title, message='', log_x=False, log
     return cm1
 
 
-def draw_hist(hist, titlex, titley, plot_title, message='', log_x = False, log_y=False, draw_opt="HistE"):
+def draw_hist(hist, titlex, titley, plot_title, message='', log_x = False, log_y=False, draw_opt="HistE", top_axis=None):
+    """top_axis = (scale, title) adds a second x axis on top whose values are scale * the bottom ones (e.g. c*t from t)."""
 
     cm1 = ROOT.TCanvas("cm1_"+message, "cm1_"+message, 800, 600)
+    if top_axis:
+        cm1.SetTopMargin(0.25)  # room for the labels and the title of the second axis, below the plot title
 
     hist.GetXaxis().SetTitle(titlex)
     hist.GetYaxis().SetTitle(titley)
@@ -238,6 +241,19 @@ def draw_hist(hist, titlex, titley, plot_title, message='', log_x = False, log_y
         cm1.SetLogx()
     if log_y:
         cm1.SetLogy()
+
+    if top_axis:
+        scale, top_title = top_axis
+        cm1.Update()
+        x = hist.GetXaxis()
+        y_top = 10 ** cm1.GetUymax() if log_y else cm1.GetUymax()
+        axis = ROOT.TGaxis(x.GetXmin(), y_top, x.GetXmax(), y_top, scale * x.GetXmin(), scale * x.GetXmax(), 510, "-")
+        axis.SetTitle(top_title)
+        axis.SetLabelFont(x.GetLabelFont())
+        axis.SetLabelSize(x.GetLabelSize())
+        axis.SetTitleFont(x.GetTitleFont())
+        axis.SetTitleSize(x.GetTitleSize())
+        axis.Draw()
 
     cm1.Print(plot_title+".pdf")
     #cm1.Print(plot_title+".png")
