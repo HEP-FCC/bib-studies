@@ -82,7 +82,8 @@ Log            = $(ClusterId).$(ProcId).log
 Output         = $(ClusterId).$(ProcId).out
 Error          = $(ClusterId).$(ProcId).err
 requirements    = ( (OpSysAndVer =?= "AlmaLinux9") && (Machine =!= LastRemoteHost) && (TARGET.has_avx2 =?= True) )
-max_retries    = 3
+# Fixed seed: a failure repeats identically (~5 h per attempt), so retry only once (evictions are rescheduled by condor anyway)
+max_retries    = 1
 +JobFlavour    = "{1}" 
 request_memory = {3}
 RequestCpus = 1
