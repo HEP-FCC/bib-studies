@@ -1,0 +1,77 @@
+{
+ "detector": "IDEA_o1_v03",
+ "samples": [
+  {
+   "id": "LCC_V106",
+   "source": "ipc",
+   "working_point": "Z",
+   "label": "IPC, LCC V106",
+   "n_events": null,
+   "flags": [],
+   "notes": "seeded from sheet snapshot 2026-01-12, occupancies rounded to 0.01%",
+   "lattice": "LCC_V106",
+   "default": true,
+   "occupancy": {
+    "VertexBarrel": {
+     "0": {
+      "mean": 0.1848,
+      "stdev": 0.08310000000000001,
+      "p95": 0.33030000000000004
+     },
+     "1": {
+      "mean": 0.0281,
+      "stdev": 0.0245,
+      "p95": 0.0781
+     },
+     "2": {
+      "mean": 0.0086,
+      "stdev": 0.0103,
+      "p95": 0.0298
+     },
+     "3": {
+      "mean": 0.0003,
+      "stdev": 0.0011,
+      "p95": 0.0013
+     },
+     "4": {
+      "mean": 0.0001,
+      "stdev": 0.0002,
+      "p95": 0.0006
+     }
+    },
+    "VertexDisks": {
+     "-1": {
+      "mean": 0.0016,
+      "stdev": 0.0018,
+      "p95": 0.0048
+     },
+     "-2": {
+      "mean": 0.0007000000000000001,
+      "stdev": 0.001,
+      "p95": 0.0032
+     },
+     "-3": {
+      "mean": 0.0009,
+      "stdev": 0.0011,
+      "p95": 0.0031
+     },
+     "1": {
+      "mean": 0.0018,
+      "stdev": 0.0018,
+      "p95": 0.0049
+     },
+     "2": {
+      "mean": 0.0008,
+      "stdev": 0.0011,
+      "p95": 0.0032
+     },
+     "3": {
+      "mean": 0.0009,
+      "stdev": 0.0012,
+      "p95": 0.0032
+     }
+    }
+   }
+  }
+ ]
+}

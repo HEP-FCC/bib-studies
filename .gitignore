@@ -12,3 +12,6 @@ ide/*
 *root
 #symlinks
 ALLEGRO*
+
+# tdaq-rates page data has detector folders named ALLEGRO_*
+!www/data/ALLEGRO*/

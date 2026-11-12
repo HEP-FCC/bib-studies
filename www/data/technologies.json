@@ -1,0 +1,26 @@
+{
+ "fiber_5g12_8b10b": {
+  "label": "Fiber 5.12 Gbps (8b10b)",
+  "line_rate_Gbps": 5.12,
+  "encoding_efficiency": 0.8,
+  "power_W_per_link": null,
+  "verified": true,
+  "notes": "from the sheet (rounded to 4.1 there)"
+ },
+ "gbe_poe_1g": {
+  "label": "1 GbE PoE",
+  "line_rate_Gbps": 1.0,
+  "encoding_efficiency": 0.94,
+  "power_W_per_link": null,
+  "verified": false,
+  "notes": "placeholder, framing efficiency assumed"
+ },
+ "sipho_100g": {
+  "label": "Silicon photonics 100G",
+  "line_rate_Gbps": 100.0,
+  "encoding_efficiency": 1.0,
+  "power_W_per_link": null,
+  "verified": false,
+  "notes": "placeholder"
+ }
+}

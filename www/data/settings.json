@@ -1,0 +1,8 @@
+{
+ "working_point": "Z",
+ "safety_factor": 5,
+ "default_technology": "fiber_5g12_8b10b",
+ "default_samples": {
+  "ipc": "LCC_V106"
+ }
+}

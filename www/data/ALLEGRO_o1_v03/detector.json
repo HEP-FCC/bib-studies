@@ -1,0 +1,553 @@
+{
+ "id": "ALLEGRO_o1_v03",
+ "label": "ALLEGRO o1 v03",
+ "status": "seeded",
+ "subdetectors": [
+  {
+   "id": "VertexBarrel",
+   "label": "VertexBarrel",
+   "group": "Vertex",
+   "readout": {
+    "model": "pixel_cluster",
+    "basis": "cell",
+    "bits_per_unit": 18,
+    "multiplier": 3
+   },
+   "sensors_per_cell": 2,
+   "channels_per_sensor": 1000,
+   "cells_per_module": 9,
+   "flags": [],
+   "notes": "",
+   "layers": [
+    {
+     "id": 0,
+     "n_cells": 90,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 1,
+     "n_cells": 240,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 2,
+     "n_cells": 540,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 3,
+     "n_cells": 736,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 4,
+     "n_cells": 3264,
+     "fibers_per_module": 2
+    }
+   ]
+  },
+  {
+   "id": "VertexDisks",
+   "label": "VertexDisks",
+   "group": "Vertex",
+   "readout": {
+    "model": "pixel_cluster",
+    "basis": "cell",
+    "bits_per_unit": 18,
+    "multiplier": 3
+   },
+   "sensors_per_cell": 2,
+   "channels_per_sensor": 1000,
+   "cells_per_module": 9,
+   "flags": [],
+   "notes": "",
+   "layers": [
+    {
+     "id": -1,
+     "n_cells": 976,
+     "fibers_per_module": 2
+    },
+    {
+     "id": -2,
+     "n_cells": 992,
+     "fibers_per_module": 2
+    },
+    {
+     "id": -3,
+     "n_cells": 864,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 1,
+     "n_cells": 976,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 2,
+     "n_cells": 992,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 3,
+     "n_cells": 864,
+     "fibers_per_module": 2
+    }
+   ]
+  },
+  {
+   "id": "SiWrD",
+   "label": "SiWrD",
+   "group": "Silicon wrapper",
+   "readout": {
+    "model": "pixel_cluster",
+    "basis": "cell",
+    "bits_per_unit": 18,
+    "multiplier": 3
+   },
+   "sensors_per_cell": 1,
+   "channels_per_sensor": 1000,
+   "cells_per_module": 9,
+   "flags": [],
+   "notes": "",
+   "layers": [
+    {
+     "id": -1,
+     "n_cells": 1284,
+     "fibers_per_module": 2
+    },
+    {
+     "id": -2,
+     "n_cells": 1244,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 1,
+     "n_cells": 1284,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 2,
+     "n_cells": 1244,
+     "fibers_per_module": 2
+    }
+   ]
+  },
+  {
+   "id": "SiWrB",
+   "label": "SiWrB",
+   "group": "Silicon wrapper",
+   "readout": {
+    "model": "pixel_cluster",
+    "basis": "cell",
+    "bits_per_unit": 18,
+    "multiplier": 3
+   },
+   "sensors_per_cell": 1,
+   "channels_per_sensor": 1000,
+   "cells_per_module": 9,
+   "flags": [],
+   "notes": "sheet todo: investigate why some hits are found in layers 2 and 3",
+   "layers": [
+    {
+     "id": 0,
+     "n_cells": 151,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 1,
+     "n_cells": 151,
+     "fibers_per_module": 2
+    }
+   ]
+  },
+  {
+   "id": "DCH_v2",
+   "label": "DCH_v2",
+   "group": "Drift chamber",
+   "readout": {
+    "model": "wire_hit",
+    "basis": "cell",
+    "bits_per_unit": 800,
+    "multiplier": 3
+   },
+   "sensors_per_cell": 1,
+   "channels_per_sensor": 1000,
+   "cells_per_module": 9,
+   "flags": [
+    "partial_layers",
+    "capacity_unreliable",
+    "multiplier_inherited_from_sheet"
+   ],
+   "notes": "only the first 10 of 112 layers; sheet todo: DCH occupancy excess for MTR, probably a bug",
+   "layers": [
+    {
+     "id": 1,
+     "n_cells": 192,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 2,
+     "n_cells": 192,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 3,
+     "n_cells": 192,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 4,
+     "n_cells": 192,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 5,
+     "n_cells": 192,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 6,
+     "n_cells": 192,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 7,
+     "n_cells": 192,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 8,
+     "n_cells": 192,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 9,
+     "n_cells": 240,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 10,
+     "n_cells": 240,
+     "fibers_per_module": 2
+    }
+   ]
+  },
+  {
+   "id": "ECalBarrel",
+   "label": "ECalBarrel",
+   "group": "Calorimeter",
+   "readout": {
+    "model": "cell_hit",
+    "basis": "cell",
+    "bits_per_unit": 48,
+    "multiplier": 3
+   },
+   "sensors_per_cell": 1,
+   "channels_per_sensor": 16,
+   "cells_per_module": 9,
+   "flags": [
+    "capacity_unreliable",
+    "multiplier_inherited_from_sheet"
+   ],
+   "notes": "sheet todo: fix cell/channel # for Calo",
+   "layers": [
+    {
+     "id": 0,
+     "n_cells": 8880,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 1,
+     "n_cells": 35616,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 2,
+     "n_cells": 8880,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 3,
+     "n_cells": 8880,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 4,
+     "n_cells": 8880,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 5,
+     "n_cells": 8880,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 6,
+     "n_cells": 8880,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 7,
+     "n_cells": 8880,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 8,
+     "n_cells": 8880,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 9,
+     "n_cells": 8880,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 10,
+     "n_cells": 8880,
+     "fibers_per_module": 2
+    }
+   ]
+  },
+  {
+   "id": "EMEC_turbine",
+   "label": "EMEC_turbine",
+   "group": "Calorimeter",
+   "readout": {
+    "model": "cell_hit",
+    "basis": "cell",
+    "bits_per_unit": 48,
+    "multiplier": 3
+   },
+   "sensors_per_cell": 1,
+   "channels_per_sensor": 1,
+   "cells_per_module": 9,
+   "flags": [
+    "capacity_unreliable",
+    "multiplier_inherited_from_sheet"
+   ],
+   "notes": "sheet todo: fix cell/channel # for Calo",
+   "layers": [
+    {
+     "id": 1,
+     "n_cells": 38400,
+     "fibers_per_module": 2
+    },
+    {
+     "id": -1,
+     "n_cells": 38400,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 2,
+     "n_cells": 100800,
+     "fibers_per_module": 2
+    },
+    {
+     "id": -2,
+     "n_cells": 100800,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 3,
+     "n_cells": 462400,
+     "fibers_per_module": 2
+    },
+    {
+     "id": -3,
+     "n_cells": 462400,
+     "fibers_per_module": 2
+    }
+   ]
+  },
+  {
+   "id": "HCalBarrel",
+   "label": "HCalBarrel",
+   "group": "Calorimeter",
+   "readout": {
+    "model": "cell_hit",
+    "basis": "cell",
+    "bits_per_unit": 48,
+    "multiplier": 3
+   },
+   "sensors_per_cell": 1,
+   "channels_per_sensor": 100,
+   "cells_per_module": 9,
+   "flags": [
+    "capacity_unreliable",
+    "multiplier_inherited_from_sheet"
+   ],
+   "notes": "Zbb occupancies of 25-49% vs 0.2% for IPC look wrong (cell count / normalisation?)",
+   "layers": [
+    {
+     "id": 0,
+     "n_cells": 310,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 1,
+     "n_cells": 310,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 2,
+     "n_cells": 310,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 3,
+     "n_cells": 310,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 4,
+     "n_cells": 310,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 5,
+     "n_cells": 310,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 6,
+     "n_cells": 310,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 7,
+     "n_cells": 310,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 8,
+     "n_cells": 310,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 9,
+     "n_cells": 310,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 10,
+     "n_cells": 310,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 11,
+     "n_cells": 310,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 12,
+     "n_cells": 310,
+     "fibers_per_module": 2
+    }
+   ]
+  },
+  {
+   "id": "HCalThreePartsEndcap",
+   "label": "HCalThreePartsEndcap",
+   "group": "Calorimeter",
+   "readout": {
+    "model": "cell_hit",
+    "basis": "cell",
+    "bits_per_unit": 48,
+    "multiplier": 3
+   },
+   "sensors_per_cell": 1,
+   "channels_per_sensor": 1,
+   "cells_per_module": 9,
+   "flags": [
+    "no_geometry",
+    "capacity_unreliable",
+    "multiplier_inherited_from_sheet"
+   ],
+   "notes": "no geometry in the sheet",
+   "layers": [
+    {
+     "id": -1,
+     "n_cells": null,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 1,
+     "n_cells": null,
+     "fibers_per_module": 2
+    }
+   ]
+  },
+  {
+   "id": "MuonTaggerBarrel",
+   "label": "MuonTaggerBarrel",
+   "group": "Muon tagger",
+   "readout": {
+    "model": "cell_hit",
+    "basis": "cell",
+    "bits_per_unit": 32,
+    "multiplier": 3
+   },
+   "sensors_per_cell": 1,
+   "channels_per_sensor": 64,
+   "cells_per_module": 9,
+   "flags": [
+    "capacity_unreliable",
+    "multiplier_inherited_from_sheet"
+   ],
+   "notes": "only injection occupancies in the sheet",
+   "layers": [
+    {
+     "id": 0,
+     "n_cells": 512,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 1,
+     "n_cells": 512,
+     "fibers_per_module": 2
+    }
+   ]
+  },
+  {
+   "id": "MuonTaggerEndcap",
+   "label": "MuonTaggerEndcap",
+   "group": "Muon tagger",
+   "readout": {
+    "model": "cell_hit",
+    "basis": "cell",
+    "bits_per_unit": 32,
+    "multiplier": 3
+   },
+   "sensors_per_cell": 1,
+   "channels_per_sensor": 64,
+   "cells_per_module": 9,
+   "flags": [
+    "capacity_unreliable",
+    "multiplier_inherited_from_sheet"
+   ],
+   "notes": "only injection occupancies in the sheet; sheet todo: evaluate with reco muon positions",
+   "layers": [
+    {
+     "id": -2,
+     "n_cells": 512,
+     "fibers_per_module": 2
+    },
+    {
+     "id": -1,
+     "n_cells": 512,
+     "fibers_per_module": 3
+    },
+    {
+     "id": 1,
+     "n_cells": 512,
+     "fibers_per_module": 3
+    },
+    {
+     "id": 2,
+     "n_cells": 512,
+     "fibers_per_module": 2
+    }
+   ]
+  }
+ ]
+}

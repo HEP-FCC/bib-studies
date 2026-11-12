@@ -1,0 +1,98 @@
+{
+ "id": "IDEA_o1_v03",
+ "label": "IDEA o1 v03",
+ "status": "partial: vertex only, version TBC",
+ "subdetectors": [
+  {
+   "id": "VertexBarrel",
+   "label": "VertexBarrel",
+   "group": "Vertex",
+   "readout": {
+    "model": "pixel_cluster",
+    "basis": "cell",
+    "bits_per_unit": 18,
+    "multiplier": 3
+   },
+   "sensors_per_cell": 2,
+   "channels_per_sensor": 1000,
+   "cells_per_module": 9,
+   "flags": [],
+   "notes": "sheet todo: values differ considerably from ALLEGRO",
+   "layers": [
+    {
+     "id": 0,
+     "n_cells": 90,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 1,
+     "n_cells": 240,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 2,
+     "n_cells": 540,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 3,
+     "n_cells": 736,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 4,
+     "n_cells": 3264,
+     "fibers_per_module": 2
+    }
+   ]
+  },
+  {
+   "id": "VertexDisks",
+   "label": "VertexDisks",
+   "group": "Vertex",
+   "readout": {
+    "model": "pixel_cluster",
+    "basis": "cell",
+    "bits_per_unit": 18,
+    "multiplier": 3
+   },
+   "sensors_per_cell": 2,
+   "channels_per_sensor": 1000,
+   "cells_per_module": 9,
+   "flags": [],
+   "notes": "",
+   "layers": [
+    {
+     "id": -1,
+     "n_cells": 976,
+     "fibers_per_module": 2
+    },
+    {
+     "id": -2,
+     "n_cells": 992,
+     "fibers_per_module": 2
+    },
+    {
+     "id": -3,
+     "n_cells": 864,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 1,
+     "n_cells": 976,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 2,
+     "n_cells": 992,
+     "fibers_per_module": 2
+    },
+    {
+     "id": 3,
+     "n_cells": 864,
+     "fibers_per_module": 2
+    }
+   ]
+  }
+ ]
+}

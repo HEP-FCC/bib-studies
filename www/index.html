@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FCC-ee Readout Rates</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <h1>FCC-ee readout rates</h1>
+    <span class="sub">Beam-induced background and physics, per subdetector and layer</span>
+    <span class="spacer"></span>
+    <span class="contact">Numbers/assumptions may be wrong: contact <a href="mailto:aikoulou@cern.ch">aikoulou@cern.ch</a></span>
+    <button class="btn info-btn" id="infobtn" aria-haspopup="dialog" aria-label="About these numbers" title="About these numbers">i</button>
+    <button class="btn" id="toggle" aria-expanded="true" aria-controls="sidebar">Hide controls</button>
+  </header>
+  <div class="notice" role="note">Preview with seed numbers from the TDAQ numbers sheet (12 Jan 2026). Several inputs are placeholders (injection scale, non-fiber links, cluster multipliers) and the occupancies are not yet validated, so do not quote these results.</div>
+
+  <div class="layout" id="layout">
+    <aside class="sidebar" id="sidebar" aria-label="Controls"></aside>
+    <main class="main">
+      <div class="kpis" id="kpis"></div>
+      <div class="panel">
+        <div class="topline">
+          <div class="tabs" id="tabs" role="tablist">
+            <button role="tab" data-tab="overview" data-tip="<b>Overview</b><br>All subdetectors side by side." aria-selected="true">Overview</button>
+            <button role="tab" data-tab="drill" data-tip="<b>Layers</b><br>Layer-by-layer detail of one subdetector." aria-selected="false">Layers</button>
+            <button role="tab" data-tab="compare" data-tip="<b>Compare samples</b><br>The same detector under the different IPC samples." aria-selected="false">Compare samples</button>
+            <button role="tab" data-tab="table" data-tip="<b>Table</b><br>Every layer with its numbers; sortable, copy as CSV." aria-selected="false">Table</button>
+          </div>
+          <div class="seg-ctl" id="units" role="group" aria-label="Unit">
+            <button data-unit="gbps" data-tip="<b>Bandwidth</b><br>Required data rate in Gbps or Tbps." aria-pressed="true">Bandwidth</button>
+            <button data-unit="links" data-tip="<b>Links</b><br>Number of links of the chosen technology: rate divided by the usable link rate." aria-pressed="false">Links</button>
+            <button data-unit="power" data-tip="<b>Power</b><br>Links needed times power per link. Needs a W/link value in the sidebar." aria-pressed="false">Power</button>
+          </div>
+        </div>
+        <div id="view"><div class="empty">Loading data…</div></div>
+      </div>
+      <div class="panel foot">
+        <div id="foot"></div>
+        <details class="how"><summary>How the numbers are computed</summary>
+          <p>For each layer: <code>Gbps = occupancy × rate [MHz] × bits per hit × multiplier ÷ 1000 × cells × safety factor</code>. Occupancy is the fraction of cells firing per event (mean or 95th percentile of the chosen sample).</p>
+          <p>Links required = Gbps ÷ (line rate × encoding efficiency). Installed links = fibers per module × cells ÷ cells per module. A layer above 100% needs more links than installed.</p>
+          <p>The Z sample is a mixture of Zbb (hadronic proxy) and Zμμ (leptonic proxy). Injection is pulsed: the peak adds it to the continuous sources, the average weights it by its duty.</p>
+        </details>
+      </div>
+    </main>
+  </div>
+</div>
+<div class="modal" id="modal" hidden>
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1">
+    <div class="modal-head">
+      <h2 id="modal-title">About these numbers</h2>
+      <button class="btn" id="modal-close" aria-label="Close">Close</button>
+    </div>
+    <div class="modal-body">
+      <h3>What this shows</h3>
+      <p>The estimated readout bandwidth of each FCC-ee detector subdetector and layer, from simulated beam-induced background and physics samples, to help size the links of the data acquisition. Use the sidebar to choose samples, margins and link technology, and the unit switch to see the same result as bandwidth, number of links or power.</p>
+
+      <h3>How a number is computed</h3>
+      <p><code>Gbps = occupancy × rate [MHz] × bits per hit × multiplier ÷ 1000 × cells × safety factor</code></p>
+      <ul>
+        <li><b>Occupancy</b>: fraction of cells that fire per event in the chosen sample (mean or 95th percentile), per layer.</li>
+        <li><b>Bits per hit and multiplier</b>: readout size of one hit. For pixel detectors the multiplier is the cluster size (3). The calorimeter, drift chamber and muon taggers still use 3 as well, only because the old sheet did; each needs its own value.</li>
+        <li><b>Safety factor</b>: a flat margin on everything (<span data-fill="sf"></span> by default).</li>
+        <li><b>Links required</b> = Gbps ÷ (line rate × encoding efficiency) of the chosen technology.</li>
+      </ul>
+
+      <h3>Working point</h3>
+      <p>All samples belong to a collider working point (centre-of-mass energy). The Z-pole (91.2 GeV, where Z bosons are produced) is the only one with samples so far; WW, ZH and ttbar will follow. Background rates and the physics signal both depend on it.</p>
+
+      <h3>Sources</h3>
+      <ul>
+        <li><b>IPC</b> (incoherent pair creation): background, present at every bunch crossing, <span data-fill="ipcrate"></span> MHz.</li>
+        <li><b>Z decays</b>: a physics signal, not a background, present at the Z-pole working point, <span data-fill="zrate"></span> MHz. It is built from two proxy samples, <span data-fill="zmix"></span>; invisible Z decays contribute nothing.</li>
+        <li><b>Injection</b>: background that only arrives for about <span data-fill="turns"></span> turns after each top-up injection, every <span data-fill="period"></span> s (about <span data-fill="duty"></span> of the time). The scale factors that turn the one-event sample into mean and peak rates are not available yet, so the value in the sidebar is only an example and injection is off by default.</li>
+        <li><b>Synchrotron radiation, beam-gas, Touschek</b>: continuous backgrounds, no samples yet.</li>
+      </ul>
+
+      <h3>Peak and average</h3>
+      <p><b>Peak</b> adds the injection window on top of the continuous sources, as if everything coincides. This is the conservative number for sizing links. <b>Average</b> weights injection by its duty and is the relevant one for storage. How several pulsed sources should be combined is still open.</p>
+
+      <h3>Links, capacity and power</h3>
+      <ul>
+        <li><b>Installed links</b> = fibers per module × cells ÷ cells per module (9 assumed). Fibers per module can be changed per subdetector (sidebar, Fibers per subdetector) or per layer (Layers tab); cells per module per subdetector. A layer above 100% needs more links than installed.</li>
+        <li>For the calorimeters, drift chamber and muon taggers the installed link count is not defined yet, so no capacity is shown for them until you enter fibers or cells per module.</li>
+        <li><b>Power</b> = links required × watts per link. No watts per link are known yet; enter them in the sidebar.</li>
+        <li>Only the 5.12 Gbps 8b10b fiber has verified parameters. The 1 GbE and silicon photonics entries are placeholders.</li>
+      </ul>
+
+      <h3>Known limits of this preview</h3>
+      <ul>
+        <li>The numbers are seeded from a spreadsheet snapshot (12 Jan 2026); occupancies are rounded to 0.01%, so very small values are imprecise.</li>
+        <li>Hadronic calorimeter Z occupancies (25 to 49%) look wrong. The drift chamber has 10 of 112 layers, the muon taggers only injection data, and the hadronic endcap no geometry.</li>
+        <li>IDEA has only the vertex detector, and its version is to be confirmed.</li>
+        <li>Nothing here has been validated or approved. Do not quote the results.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<!-- penguin disabled for now (re-enable: uncomment here and in app.js)
+<div id="penguin-div" aria-hidden="true">
+  <div id="penguin-icon">🐧</div>
+  <div id="penguin-bubble">Hello from the FCC!</div>
+</div>
+-->
+<div id="tip" role="tooltip"></div>
+<script src="app.js"></script>
+</body>
+</html>

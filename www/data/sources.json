@@ -1,0 +1,91 @@
+{
+ "ipc": {
+  "label": "Incoherent pair creation (IPC)",
+  "kind": "background",
+  "class": "continuous",
+  "timing": "per-BC (TBC)",
+  "rate_MHz": null,
+  "notes": "rate = bunch-crossing rate f_bc_MHz of the working point (one sample event per crossing); editable in the page"
+ },
+ "sr": {
+  "label": "Synchrotron radiation (SR)",
+  "kind": "background",
+  "class": "continuous",
+  "timing": "spread (TBC)",
+  "rate_MHz": null,
+  "components": [
+   {
+    "id": "core",
+    "label": "Core"
+   },
+   {
+    "id": "halo",
+    "label": "Halo"
+   }
+  ],
+  "notes": "separate samples per component (core, halo, ...; TBC), none available yet"
+ },
+ "beamgas": {
+  "label": "Beam-gas",
+  "kind": "background",
+  "class": "continuous",
+  "timing": "spread (TBC)",
+  "rate_MHz": null,
+  "notes": "no samples yet"
+ },
+ "touschek": {
+  "label": "Touschek",
+  "kind": "background",
+  "class": "continuous",
+  "timing": "spread (TBC)",
+  "rate_MHz": null,
+  "notes": "no samples yet"
+ },
+ "injection": {
+  "label": "Top-up injection",
+  "kind": "background",
+  "class": "pulsed",
+  "pulse": {
+   "turns_after_injection": 700,
+   "injection_period_s": 10
+  },
+  "rate_MHz": null,
+  "scale": {
+   "mean": null,
+   "peak": null
+  },
+  "notes": "scale factors are per sample and multiply the per-event result into mean / peak rates (TBC); core/halo components TBC (sample field `component`)",
+  "components": [
+   {
+    "id": "core",
+    "label": "Core"
+   },
+   {
+    "id": "halo",
+    "label": "Halo"
+   }
+  ]
+ },
+ "z": {
+  "label": "Z decays (physics)",
+  "kind": "physics",
+  "class": "continuous",
+  "timing": "per-BC (TBC)",
+  "rate_MHz": 0.1,
+  "mixture": [
+   {
+    "sample": "Zbb",
+    "weight": 0.7,
+    "note": "proxy for hadronic Z"
+   },
+   {
+    "sample": "Zmumu",
+    "weight": 0.1,
+    "note": "proxy for charged-lepton Z"
+   }
+  ],
+  "notes": "physics signal, not background; exists only at the Z-pole working point; the weights are hardcoded in the sheet, invisible Z contributes 0",
+  "working_point": "Z",
+  "default_selection": "mixture"
+ }
+}

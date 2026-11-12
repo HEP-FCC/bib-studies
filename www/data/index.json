@@ -1,0 +1,14 @@
+{
+ "detectors": [
+  {
+   "id": "ALLEGRO_o1_v03",
+   "label": "ALLEGRO o1 v03",
+   "status": "seeded"
+  },
+  {
+   "id": "IDEA_o1_v03",
+   "label": "IDEA o1 v03",
+   "status": "partial"
+  }
+ ]
+}

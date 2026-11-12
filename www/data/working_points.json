@@ -1,0 +1,42 @@
+{
+ "Z": {
+  "label": "Z-pole",
+  "sqrt_s_GeV": 91.2,
+  "beam_energy_GeV": 45.6,
+  "f_bc_MHz": 52,
+  "bunches_per_ring": 11200,
+  "f_rev_Hz": 3300,
+  "produces": "Z bosons",
+  "status": "samples available"
+ },
+ "WW": {
+  "label": "WW threshold",
+  "sqrt_s_GeV": 160,
+  "beam_energy_GeV": 80,
+  "f_bc_MHz": null,
+  "bunches_per_ring": null,
+  "f_rev_Hz": null,
+  "produces": "W pairs",
+  "status": "no samples yet"
+ },
+ "ZH": {
+  "label": "ZH (Higgs factory)",
+  "sqrt_s_GeV": 240,
+  "beam_energy_GeV": 120,
+  "f_bc_MHz": null,
+  "bunches_per_ring": null,
+  "f_rev_Hz": null,
+  "produces": "Higgs-strahlung",
+  "status": "no samples yet"
+ },
+ "ttbar": {
+  "label": "ttbar threshold",
+  "sqrt_s_GeV": 365,
+  "beam_energy_GeV": 182.5,
+  "f_bc_MHz": null,
+  "bunches_per_ring": null,
+  "f_rev_Hz": null,
+  "produces": "top pairs",
+  "status": "no samples yet"
+ }
+}
