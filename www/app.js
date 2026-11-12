@@ -662,6 +662,25 @@ function fillInfo() {
   document.querySelectorAll("[data-fill]").forEach((e) => { e.textContent = v[e.dataset.fill]; });
 }
 
+/* theme: auto (follow the system) -> light -> dark; the choice is kept in the browser and shared by both pages */
+function setupTheme(btn) {
+  const KEY = "fcc-theme", modes = ["auto", "light", "dark"], icon = { auto: "\u25D0", light: "\u2600", dark: "\u263E" };
+  let m = "auto";
+  try { const v = localStorage.getItem(KEY); if (modes.includes(v)) m = v; } catch (e) { /* storage blocked */ }
+  const apply = () => {
+    if (m === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", m);
+    btn.textContent = icon[m];
+    btn.title = "Theme: " + m + " (click to change)";
+    btn.setAttribute("aria-label", btn.title);
+  };
+  apply();
+  btn.addEventListener("click", () => {
+    m = modes[(modes.indexOf(m) + 1) % modes.length];
+    try { localStorage.setItem(KEY, m); } catch (e) { /* storage blocked */ }
+    apply();
+  });
+}
+
 function setupInfo() {
   const modal = $("#modal"), btn = $("#infobtn"), close = $("#modal-close");
   const open = () => { modal.hidden = false; $(".modal-panel").focus(); };
@@ -696,6 +715,7 @@ async function main() {
   setCollapsed(storeGet("tdaq-collapsed") === "1");
   setupTooltip();
   setupInfo();
+  setupTheme(document.querySelector("#themebtn"));
   // penguin disabled (see page.html)
   // if (D.facts && D.facts.length) $("#penguin-bubble").textContent = D.facts[Math.floor(Math.random() * D.facts.length)];
   render();

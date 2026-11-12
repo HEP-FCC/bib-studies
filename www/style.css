@@ -302,6 +302,7 @@ code, .code { font-family: var(--mono); font-size: 12px; background: var(--surfa
 #units { flex: none; margin-bottom: 3px; }
 #units button { padding: 5px 12px; }
 
+.theme-btn { width: 30px; height: 30px; padding: 0; border-radius: 50%; font-size: 15px; line-height: 1; }
 .info-btn { width: 30px; height: 30px; padding: 0; border-radius: 50%; font-family: Georgia, "Times New Roman", serif; font-style: italic; font-weight: 600; }
 .modal {
   position: fixed; inset: 0; z-index: 60; background: rgba(8, 11, 16, 0.55);
