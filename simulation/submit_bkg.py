@@ -67,6 +67,11 @@ parser.add_argument('--nevents', default=-1, type=int,
 parser.add_argument('--seed', default=42, type=int,
                     help='Random seed passed to ddsim (--random.seed). Fixed by default '
                          'so re-running a file reproduces the same result.')
+# Without it condor returns the .out only when the job ends, so a job killed by the wall-time limit loses it.
+# The cost is continuous writes to the (AFS) log directory.
+parser.add_argument('--stream_output', action='store_true',
+                    help='Stream the job stdout to the .out file while the job runs (to follow ddsim or to keep '
+                         'the log of jobs that get killed).')
 parser.add_argument('--skip_space_check', action='store_true',
                     help='Do not check that the submission directory has room for the job logs.')
 
@@ -81,6 +86,7 @@ condor_cmd_content = """executable     = $(filename)
 Log            = $(ClusterId).$(ProcId).log
 Output         = $(ClusterId).$(ProcId).out
 Error          = $(ClusterId).$(ProcId).err
+stream_output  = {4}
 requirements    = ( (OpSysAndVer =?= "AlmaLinux9") && (Machine =!= LastRemoteHost) && (TARGET.has_avx2 =?= True) )
 # Fixed seed: a failure repeats identically (~5 h per attempt), so retry only once (evictions are rescheduled by condor anyway)
 max_retries    = 1
@@ -333,7 +339,7 @@ def run(args):
             condor_submit_path = f"{tag}_part{i_part + 1}.cmd"
             queue_slice = f"[{start}:{start + max_per_submit}] "
         with open(condor_submit_path, "w") as f:
-            f.write(condor_cmd_content.format(exec_pattern, job_flavor, queue_slice, args.request_memory))
+            f.write(condor_cmd_content.format(exec_pattern, job_flavor, queue_slice, args.request_memory, args.stream_output))
         print("To submit the condor job: ", f"condor_submit {condor_submit_path}")
 
     # Local run script

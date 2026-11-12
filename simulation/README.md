@@ -139,6 +139,7 @@ Other useful options are:
 - `-j` / `--job_flavor` condor job flavour (default `tomorrow` => 24 h; a 100-event edm4hep file takes about 3-8 h with the CAD beampipe, so `espresso`/`longlunch` are too short and `workday` (8 h) leaves little margin)
 - `--request_memory` condor memory request (default `12GB`; `ddsim` with the CAD beampipe reaches 7-8 GB resident and condor sees peaks up to ~10 GB)
 - `--seed` random seed passed to `ddsim` (default `42`, so re-running a file reproduces the same result)
+- `--stream_output` stream the job stdout to the `.out` file while the job runs (default off: condor returns it only at the end, so the log of a job killed by the wall-time limit is lost; the cost is continuous writes to the log directory, see the space note below)
 - `--skip_space_check` do not check the space for the job logs (see below)
 
 Notes:
