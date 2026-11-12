@@ -9,7 +9,7 @@ Living list. Strike through or delete items as they are settled; add the date an
 - Samples belong to a collider **working point** (`working_point` in `samples.json`, `data/working_points.json`); only Z-pole (91.2 GeV) exists. The physics source is labelled "Z decays", not "Z-pole" (decided 2026-11-10).
 - Gbps/fiber is a setting derived from a technology preset (`line_rate * encoding_efficiency`; fiber = 5.12 * 0.8 = 4.096, the sheet rounded to 4.1).
 - Static page, read only at first, ALLEGRO first, IDEA-ready (one folder per detector under `data/`).
-- Existing ROOT files in `www/fcc` stay where they are for now.
+- Existing ROOT files of `www/fcc` were moved into `www/fcc/root-files/` on 2026-11-12 (old shared JSROOT links broke on purpose; `index.php` now reads `root-files/`).
 - The page will likely be its own site instance, not a folder of `www/fcc`; so it carries its own copy of the penguin facts (`data/penguin_facts.txt`, copied from `www/fcc/fcc_penguin_facts.txt` on 2026-11-10).
 
 ## Rate model
@@ -53,8 +53,7 @@ Living list. Strike through or delete items as they are settled; add the date an
 - [ ] Sidebar (collapsible) with inputs, sample selector, technology, detector subset (default all), unit selector (Gbps, fibers, 1 GbE ports, SiPh links, power).
 - [ ] Views: overview, per-subdetector layer drill-down, per-sample comparison, table with CSV export, permalink (parameters in the URL), provenance (sample, geometry, date).
 - [ ] Where the separate site lives (which web service / EOS area, own repo?); then the `www/fcc` questions below (GitHub visibility, `index.php` link, `root-files/` move) may no longer apply.
-- [ ] Later: move existing files into `www/fcc/root-files/` (breaks shared JSROOT links; `index.php` must recurse; `www/fcc` already has an uncommitted rename of old folders).
-- [ ] Link to the page from `www/fcc/index.php`.
+- [ ] Link back from the readout-rates page to `www/fcc` (the ROOT-files page already links here, since 2026-11-12).
 
 ## To be continued (not started)
 - [ ] Custom occupancy: think how to let a user enter their own occupancy numbers (per subdetector/layer, even bypassing ours), just to play. TBC. Open: where they are typed or pasted, how the page labels it so it is never mistaken for the stored numbers, and whether it can be exported.
