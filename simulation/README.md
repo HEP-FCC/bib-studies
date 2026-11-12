@@ -127,7 +127,7 @@ Key input arguments are:
 - `-o` / `--output` output folder for the simulated files
 - `-t` / `--tag` tag of the dataset, used to name the submission folder and the `.cmd` / `.sh` files
 - `-c` / `--compactFile` detector geometry
-- `-s` / `--steering_file` path to the steering file (if not given, a default is looked up from `$FCCCONFIG`). For BIB studies pass your own steering file with the detailed EM settings (see above), **with an absolute path**: a relative path breaks in the condor scratch directory
+- `-s` / `--steering_file` path to the steering file (required, there is no default). For BIB studies pass your own steering file with the detailed EM settings (see above). A relative path is converted to an absolute one, since relative paths break in the condor scratch directory
 
 Other useful options are:
 - `-n` / `--n_max_jobs` the maximum number of jobs to create (`-1` for all)

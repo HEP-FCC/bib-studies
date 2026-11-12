@@ -40,8 +40,8 @@ parser.add_argument('-n', '--n_max_jobs', default=-1, type=int,
                     help='Maximum number of jobs.')
 parser.add_argument('-c', '--compactFile', default="$K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml", type=str,
                     help='Detector geometry.')
-parser.add_argument('-s', '--steering_file', default=None, type=str,
-                    help='Path to steering file (if not given, attempt to find default from $FCCConfig.')
+parser.add_argument('-s', '--steering_file', required=True, type=str,
+                    help='Path to the steering file (e.g. the BIB one with the detailed EM settings).')
 parser.add_argument('-k', '--k4geo', default=None, type=str,
                     help='Path to custom k4geo.')
 parser.add_argument('-d', '--dd4hep', default=None, type=str,
@@ -171,11 +171,6 @@ def check_log_space(n_jobs):
                  "more room), submit fewer jobs with -n, or pass --skip_space_check.")
 
 
-# Path to steering files (skipped if -s option set)
-steering_dict = {
-    "IDEA_o1_v03":  "$FCCCONFIG/share/FCC-config/FullSim/IDEA/IDEA_o1_v03/SteeringFile_IDEA_o1_v03.py"
-}
-
 def run(args):
 
     tag = args.tag
@@ -212,15 +207,11 @@ def run(args):
     if k4geo != None:
         header += k4geo_path.replace("GEO_PATH",k4geo)
 
-    # Check if a steering file is required
-    steering_opt = ""
-    if args.steering_file:
-        steering_opt = "--steeringFile "+args.steering_file
-    else:
-        if geo in steering_dict:
-            steering_path = steering_dict[geo]
-            print("Including steering file: ", steering_path)
-            steering_opt = f"--steeringFile {steering_path}"
+    # Relative paths break in the condor scratch dir, so always use the absolute one
+    steering_file = os.path.abspath(args.steering_file)
+    if not os.path.isfile(steering_file):
+        sys.exit(f"ERROR: steering file not found: {steering_file}")
+    steering_opt = f"--steeringFile {steering_file}"
 
     # sorted(): an -n subset must be the same set on every run
     items = sorted(os.listdir(input_file_path))
