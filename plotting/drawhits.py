@@ -415,11 +415,24 @@ histograms += [
 
 # Timing histograms
 histograms += [
-    h_hit_t := ROOT.TH1D(f"hist_hit_t_{collection}", f"hist_hit_t_{collection}; timing [ns]; hits / events", 200, 0, 20),
-    h_hit_t_corr_x_layer := ROOT.TH2D(f"hist_hit_t_corr_map_{collection}", f"hist_hit_t_{collection}; timing - TOF [ns]; layer number; hits / events", 200, 0, 20, *layer_binning),
+    h_hit_t := ROOT.TH1D(
+        f"h_hit_t_{collection}",
+        f"#splitline{{h_hit_t_{collection}}}{{Hit time since the bunch crossing (t = 0 at the IP)}}; hit time [ns]; hits / events",
+        200,
+        0,
+        20,
+    ),
+    h_hit_t_corr_x_layer := ROOT.TH2D(
+        f"h_hit_t_corr_map_{collection}",
+        f"#splitline{{h_hit_t_corr_map_{collection}}}{{Hit time minus flight time d/c from the IP, per layer}}; hit time - d/c [ns]; layer number; hits / events",
+        200,
+        0,
+        20,
+        *layer_binning,
+    ),
     h_hit_t_corr := ROOT.TH1D(
         f"h_hit_t_corr_{collection}",
-        f"#splitline{{h_hit_t_corr_{collection}}}{{hit time corrected for time-of-flight}}; timing - TOF [ns]; hits / events",
+        f"#splitline{{h_hit_t_corr_{collection}}}{{Hit time minus flight time d/c from the IP (0 = prompt)}}; hit time - d/c [ns]; hits / events",
         200,
         -10,
         10,
@@ -1025,7 +1038,7 @@ if draw_maps:
     draw_map(hit_zr, "z [mm]", "r [mm]", f"{sample_name}_map_zr_{n_events}evt_{sub_detector}", collection)
     draw_map(hit_xy, "x [mm]", "y [mm]", f"{sample_name}_map_xy_{n_events}evt_{sub_detector}", collection)
     draw_map(hit_zphi, "z [mm]", "#phi [rad]", f"{sample_name}_map_zphi_{n_events}evt_{sub_detector}", collection)
-    draw_map(h_hit_t_corr_x_layer, "Timing - TOF [ns]", "layer number", f"{sample_name}_map_timing_{n_events}evt_{sub_detector}", collection)
+    draw_map(h_hit_t_corr_x_layer, "Hit time - d/c [ns]", "layer number", f"{sample_name}_map_timing_{n_events}evt_{sub_detector}", collection)
 
     if not skip_plot_per_layer:
         for l, h in h_zphi_density_vs_layer.items():
@@ -1077,8 +1090,8 @@ if draw_hists:
     draw_hist(h_hit_E_MeV_map, "Deposited energy [MeV]", "Layer number",  sample_name+"_hit_E_MeV_map_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_hit_E_keV_map, "Deposited energy [keV]", "Layer number",  sample_name+"_hit_E_keV_map_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_hit_E_eV_map,  "Deposited energy [eV]" , "Layer number",  sample_name+"_hit_E_eV_map_"+str(n_events)+"evt_"+sub_detector,  collection)
-    draw_hist(h_hit_t, "Timing [ns]", "Hits / events",  sample_name+"_hit_t_"+str(n_events)+"evt_"+sub_detector, collection)
-    draw_hist(h_hit_t_corr, "Timing - TOF [ns]", "Hits / events",  sample_name+"_hit_t_corr_"+str(n_events)+"evt_"+sub_detector, collection)
+    draw_hist(h_hit_t, "Hit time [ns]", "Hits / events",  sample_name+"_hit_t_"+str(n_events)+"evt_"+sub_detector, collection, top_axis=(C_MM_NS / 10, "Path at light speed, c #times t [cm]"))
+    draw_hist(h_hit_t_corr, "Hit time - d/c [ns]", "Hits / events",  sample_name+"_hit_t_corr_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_avg_hits_x_layer, "Layer number", "Hits / events",  sample_name+"_avg_hits_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_avg_firing_cells_x_layer, "Layer number", "Firing cells / events",  sample_name+"_avg_firing_cells_x_layer_"+str(n_events)+"evt_"+sub_detector, collection)
     draw_hist(h_occ_anyhit, "Occupancy [%]", "Entries / events",  sample_name+f"_occ_anyhit_tot_"+str(n_events)+"evt_"+sub_detector, collection, log_x=True)
