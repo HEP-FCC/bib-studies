@@ -1,4 +1,12 @@
-# tdaq-rates: open points
+# Readout rates page: open points
+
+## Context (read first when resuming)
+- **What**: static page estimating FCC-ee readout bandwidth, links and power per subdetector, layer and sample; replaces the Google Sheet "FCCee TDAQ numbers" (id `13tztOHZzISJk8RRxsn5gES2AxukquaA_7dGI2ui1mKU`, snapshot of 2026-01-12 in `tools/seed_from_sheet.py` and `tests/`). Model, JSON formats and assumptions: [README.md](README.md).
+- **Where**: live at https://milin.web.cern.ch/fcc-tdaq/, served from the git clone `/eos/user/a/aikoulou/www/bib-studies` (origin `HEP-FCC/bib-studies`, folder `www/`) through the symlink `/eos/user/a/aikoulou/www/fcc-tdaq -> bib-studies/www`. Edits there are public at once; there is no build step. Commit and push only when asked (one-line messages). Local dev checkout `fcc_workdir/bib-studies` is a second clone: `git pull` there.
+- **Sibling page**: ROOT-file browser at https://milin.web.cern.ch/fcc/ (repo `meleneemil/fccweb`, `/eos/user/a/aikoulou/www/fcc`): `manifest.json` from `make_manifest.py`, folder texts in `root-files/<folder>/info.json` (draft descriptions, `"draft": true`, to be corrected by the author). Both pages share a dark/light/auto toggle (`localStorage` key `fcc-theme`).
+- **Check after model changes**: `python3 tools/calc_ref.py --check` (reproduces the sheet within rounding; Z within 1.5%).
+- **State**: ALLEGRO complete as far as the sheet goes; IDEA has the vertex detector only. All numbers are seeded from the sheet (see Data quality), none yet derived from ROOT files.
+- Retired (2026-11-12): old single-file build `fcc_workdir/tdaq-rates/` (src/, dist/, build_page.py) and `www/fcc-tdaq.bak`; the Artifact preview is no longer maintained.
 
 Living list. Strike through or delete items as they are settled; add the date and the decision when you do.
 
@@ -9,8 +17,8 @@ Living list. Strike through or delete items as they are settled; add the date an
 - Samples belong to a collider **working point** (`working_point` in `samples.json`, `data/working_points.json`); only Z-pole (91.2 GeV) exists. The physics source is labelled "Z decays", not "Z-pole" (decided 2026-11-10).
 - Gbps/fiber is a setting derived from a technology preset (`line_rate * encoding_efficiency`; fiber = 5.12 * 0.8 = 4.096, the sheet rounded to 4.1).
 - Static page, read only at first, ALLEGRO first, IDEA-ready (one folder per detector under `data/`).
-- Existing ROOT files of `www/fcc` were moved into `www/fcc/root-files/` on 2026-11-12 (old shared JSROOT links broke on purpose; `index.php` now reads `root-files/`).
-- The page will likely be its own site instance, not a folder of `www/fcc`; so it carries its own copy of the penguin facts (`data/penguin_facts.txt`, copied from `www/fcc/fcc_penguin_facts.txt` on 2026-11-10).
+- Existing ROOT files of `www/fcc` were moved into `www/fcc/root-files/` on 2026-11-12 (old shared JSROOT links broke on purpose); the ROOT-files page is static (`index.php` removed).
+- Hosting settled (2026-11-12): plain files, no build, git clone in the EOS www area, nothing sensitive in the files (browsable). The penguin is commented out in `index.html`/`app.js`; `data/penguin_facts.txt` is kept.
 
 ## Rate model
 - [ ] Per-subdetector multiplier / formula: calo, DCH and muon inherit `multiplier = 3` (the pixel cluster size) from the sheet (flag `multiplier_inherited_from_sheet`). Each needs its own.
@@ -52,7 +60,6 @@ Living list. Strike through or delete items as they are settled; add the date an
 ## UI / hosting
 - [ ] Sidebar (collapsible) with inputs, sample selector, technology, detector subset (default all), unit selector (Gbps, fibers, 1 GbE ports, SiPh links, power).
 - [ ] Views: overview, per-subdetector layer drill-down, per-sample comparison, table with CSV export, permalink (parameters in the URL), provenance (sample, geometry, date).
-- [ ] Where the separate site lives (which web service / EOS area, own repo?); then the `www/fcc` questions below (GitHub visibility, `index.php` link, `root-files/` move) may no longer apply.
 - [ ] Link back from the readout-rates page to `www/fcc` (the ROOT-files page already links here, since 2026-11-12).
 
 ## To be continued (not started)

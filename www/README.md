@@ -1,4 +1,4 @@
-# tdaq-rates
+# Readout rates page
 
 Static, read-only web page with FCC-ee readout-rate estimates per working point, detector, subdetector,
 layer and sample (shown as Gbps, links, power). Not a package. Open questions: [OPEN_POINTS.md](OPEN_POINTS.md).
