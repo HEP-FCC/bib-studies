@@ -104,9 +104,12 @@ python3 $BIB_STUDIES/simulation/submit_bkg.py \
 -i /eos/experiment/fcc/users/j/jaeyserm/bdsim/LCC_v2short_halo \
 -t ALLEGRO_SR_halo \
 -c $K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml \
+-s /absolute/path/to/my_BIB_steering_file.py \
 -k /eos/user/<u>/<user>/k4geo \
 -n 10
 ```
+
+An SR file is a slice of a bunch, not a bunch crossing: see [SR.md](./SR.md) for the format, the weights, the number of frames per BX and how to get to a rate.
 
 Example usage, IPC from guinea-pig in edm4hep format (Jan's files, 100 events = 100 BX per file):
 ```sh
